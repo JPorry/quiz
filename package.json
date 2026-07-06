@@ -5,9 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "npm run verify:puzzles && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "verify:puzzles": "node scripts/verify-puzzles.mjs"
   },
   "dependencies": {
     "react": "^19.2.7",
