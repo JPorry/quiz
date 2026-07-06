@@ -1,67 +1,62 @@
 import { useEffect, useMemo, useState } from 'react'
 import './App.css'
 
+const SIZE = 10
+
+const BASE_SOLUTION = [
+  [1, 1, 0, 0, 1, 0, 0, 1, 1, 0],
+  [1, 0, 0, 1, 0, 0, 1, 1, 0, 1],
+  [0, 1, 1, 0, 1, 1, 0, 0, 1, 0],
+  [0, 1, 0, 1, 1, 0, 0, 1, 1, 0],
+  [1, 0, 0, 1, 0, 1, 1, 0, 0, 1],
+  [1, 0, 1, 0, 0, 1, 0, 0, 1, 1],
+  [0, 1, 1, 0, 1, 0, 1, 1, 0, 0],
+  [0, 1, 0, 1, 0, 1, 1, 0, 0, 1],
+  [1, 0, 1, 0, 1, 0, 0, 1, 1, 0],
+  [0, 0, 1, 1, 0, 1, 1, 0, 0, 1],
+]
+
+const BASE_PUZZLE = [
+  [null, null, 0, 0, 1, null, null, 1, null, 0],
+  [null, null, 0, 1, null, 0, null, null, null, null],
+  [null, 1, 1, 0, 1, 1, null, null, null, null],
+  [null, null, 0, null, null, null, null, null, null, null],
+  [1, 0, null, 1, 0, null, 1, 0, 0, null],
+  [1, null, 1, 0, null, null, null, null, null, 1],
+  [null, 1, 1, null, null, 0, null, null, 0, null],
+  [null, null, null, null, null, 1, 1, null, 0, null],
+  [null, null, null, 0, 1, 0, null, 1, null, 0],
+  [0, null, 1, null, null, 1, 1, null, null, 1],
+]
+
+function rotateGrid(grid) {
+  return grid[0].map((_, column) =>
+    grid.map((row) => row[column]).reverse(),
+  )
+}
+
+function invertGrid(grid) {
+  return grid.map((row) =>
+    row.map((value) => (value === null ? null : value === 0 ? 1 : 0)),
+  )
+}
+
+const rotatedSolution = rotateGrid(BASE_SOLUTION)
+const rotatedPuzzle = rotateGrid(BASE_PUZZLE)
+
 const PUZZLES = [
-  {
-    name: 'Apricot',
-    solution: [
-      [1, 0, 1, 0, 1, 0],
-      [0, 0, 1, 1, 0, 1],
-      [0, 1, 0, 1, 1, 0],
-      [1, 1, 0, 0, 1, 0],
-      [1, 0, 1, 0, 0, 1],
-      [0, 1, 0, 1, 0, 1],
-    ],
-    puzzle: [
-      [1, null, null, 0, null, null],
-      [0, null, null, 1, 0, null],
-      [0, 1, null, 1, 1, null],
-      [null, 1, 0, null, null, 0],
-      [null, null, null, 0, null, null],
-      [0, null, null, null, null, 1],
-    ],
-  },
+  { name: 'Apricot', solution: BASE_SOLUTION, puzzle: BASE_PUZZLE },
   {
     name: 'Lagoon',
-    solution: [
-      [1, 1, 0, 0, 1, 0],
-      [1, 0, 0, 1, 0, 1],
-      [0, 0, 1, 1, 0, 1],
-      [0, 1, 1, 0, 1, 0],
-      [1, 1, 0, 1, 0, 0],
-      [0, 0, 1, 0, 1, 1],
-    ],
-    puzzle: [
-      [1, null, 0, null, null, null],
-      [null, 0, null, 1, 0, null],
-      [0, null, 1, 1, null, null],
-      [null, null, 1, null, 1, null],
-      [null, 1, null, 1, null, 0],
-      [null, 0, null, null, null, 1],
-    ],
+    solution: invertGrid(rotatedSolution),
+    puzzle: invertGrid(rotatedPuzzle),
   },
   {
     name: 'Mulberry',
-    solution: [
-      [0, 1, 0, 0, 1, 1],
-      [1, 0, 0, 1, 1, 0],
-      [0, 1, 1, 0, 0, 1],
-      [0, 1, 0, 1, 1, 0],
-      [1, 0, 1, 1, 0, 0],
-      [1, 0, 1, 0, 0, 1],
-    ],
-    puzzle: [
-      [0, null, null, null, 1, null],
-      [null, 0, null, 1, null, 0],
-      [null, 1, 1, null, null, null],
-      [0, null, null, 1, null, 0],
-      [null, null, 1, null, 0, 0],
-      [1, null, null, 0, null, null],
-    ],
+    solution: rotateGrid(rotatedSolution),
+    puzzle: rotateGrid(rotatedPuzzle),
   },
 ]
-
-const SIZE = 6
 
 function copyGrid(grid) {
   return grid.map((row) => [...row])
@@ -141,6 +136,7 @@ function App() {
   const [grid, setGrid] = useState(() => copyGrid(PUZZLES[0].puzzle))
   const [seconds, setSeconds] = useState(0)
   const [showRules, setShowRules] = useState(false)
+  const [selectedValue, setSelectedValue] = useState(0)
   const currentPuzzle = PUZZLES[puzzleIndex]
   const invalidCells = useMemo(() => findViolations(grid), [grid])
   const filledCells = grid.flat().filter((value) => value !== null).length
@@ -166,13 +162,12 @@ function App() {
     setSeconds(0)
   }
 
-  const cycleCell = (row, column) => {
+  const fillCell = (row, column) => {
     if (currentPuzzle.puzzle[row][column] !== null || isComplete) return
 
     setGrid((currentGrid) => {
       const nextGrid = copyGrid(currentGrid)
-      const value = nextGrid[row][column]
-      nextGrid[row][column] = value === null ? 0 : value === 0 ? 1 : null
+      nextGrid[row][column] = selectedValue
       return nextGrid
     })
   }
@@ -210,7 +205,7 @@ function App() {
       <section className="game-card" aria-labelledby="game-title">
         <div className="title-row">
           <div>
-            <p className="kicker">Binary puzzle · 6 × 6</p>
+            <p className="kicker">Binary puzzle · 10 × 10</p>
             <h1 id="game-title">Daily balance</h1>
           </div>
           <div className="timer" aria-label={`Elapsed time ${formatTime(seconds)}`}>
@@ -223,7 +218,7 @@ function App() {
           <aside className="rules-panel">
             <div>
               <strong>Keep it balanced</strong>
-              <p>Each row and column needs three 0s and three 1s.</p>
+              <p>Each row and column needs five 0s and five 1s.</p>
             </div>
             <div>
               <strong>Pairs only</strong>
@@ -249,7 +244,7 @@ function App() {
         <div
           className={`puzzle-grid${isComplete ? ' is-complete' : ''}`}
           role="grid"
-          aria-label="Six by six binary puzzle"
+          aria-label="Ten by ten binary puzzle"
         >
           {grid.map((row, rowIndex) =>
             row.map((value, columnIndex) => {
@@ -275,7 +270,7 @@ function App() {
                   aria-label={`Row ${rowIndex + 1}, column ${columnIndex + 1}: ${
                     value === null ? 'empty' : value
                   }${isGiven ? ', fixed' : ''}${isInvalid ? ', rule conflict' : ''}`}
-                  onClick={() => cycleCell(rowIndex, columnIndex)}
+                  onClick={() => fillCell(rowIndex, columnIndex)}
                 >
                   {value}
                   {isGiven && <span className="given-dot" aria-hidden="true" />}
@@ -285,12 +280,46 @@ function App() {
           )}
         </div>
 
+        <div className="input-palette" role="group" aria-label="Choose a value">
+          <span className="palette-label">Place</span>
+          <button
+            className={`value-button zero${selectedValue === 0 ? ' selected' : ''}`}
+            type="button"
+            aria-label="Place zero"
+            aria-pressed={selectedValue === 0}
+            onClick={() => setSelectedValue(0)}
+          >
+            0
+          </button>
+          <button
+            className={`value-button one${selectedValue === 1 ? ' selected' : ''}`}
+            type="button"
+            aria-label="Place one"
+            aria-pressed={selectedValue === 1}
+            onClick={() => setSelectedValue(1)}
+          >
+            1
+          </button>
+          <button
+            className={`erase-button${selectedValue === null ? ' selected' : ''}`}
+            type="button"
+            aria-label="Erase a value"
+            aria-pressed={selectedValue === null}
+            onClick={() => setSelectedValue(null)}
+          >
+            <span aria-hidden="true">⌫</span>
+            Erase
+          </button>
+        </div>
+
         <p className={`game-message${invalidCells.size ? ' has-error' : ''}`} aria-live="polite">
           {isComplete
             ? 'Beautifully balanced — puzzle complete!'
             : invalidCells.size
               ? 'A rule is being bent. Check the highlighted cells.'
-              : 'Tap a square to cycle through 0, 1, and empty.'}
+              : selectedValue === null
+                ? 'Erase mode. Tap a filled square to clear it.'
+                : `Placing ${selectedValue}. Tap any open square.`}
         </p>
 
         <div className="actions">

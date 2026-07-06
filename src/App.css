@@ -171,9 +171,9 @@ h1 {
 
 .puzzle-grid {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: clamp(0.28rem, 1.4vw, 0.48rem);
-  width: min(100%, 30rem);
+  grid-template-columns: repeat(10, 1fr);
+  gap: clamp(0.15rem, 0.75vw, 0.3rem);
+  width: min(100%, 34rem);
   margin: 0 auto;
 }
 
@@ -183,12 +183,12 @@ h1 {
   min-width: 0;
   padding: 0;
   color: transparent;
-  font-size: clamp(1.2rem, 6vw, 1.75rem);
+  font-size: clamp(0.82rem, 3.7vw, 1.3rem);
   font-variant-numeric: tabular-nums;
   font-weight: 850;
   background: #ece9e0;
   border: 0;
-  border-radius: clamp(0.55rem, 2.5vw, 0.9rem);
+  border-radius: clamp(0.34rem, 1.5vw, 0.7rem);
   box-shadow: inset 0 0 0 1px rgb(32 47 44 / 5%);
   aspect-ratio: 1;
   place-items: center;
@@ -222,18 +222,18 @@ h1 {
 
 .cell.given::after {
   position: absolute;
-  inset: 0.3rem;
+  inset: clamp(0.12rem, 0.7vw, 0.25rem);
   border: 1px solid rgb(255 255 255 / 28%);
-  border-radius: calc(clamp(0.55rem, 2.5vw, 0.9rem) - 0.15rem);
+  border-radius: calc(clamp(0.34rem, 1.5vw, 0.7rem) - 0.1rem);
   content: '';
   pointer-events: none;
 }
 
 .given-dot {
   position: absolute;
-  bottom: 0.32rem;
-  width: 0.22rem;
-  height: 0.22rem;
+  bottom: clamp(0.12rem, 0.7vw, 0.25rem);
+  width: 0.16rem;
+  height: 0.16rem;
   background: rgb(255 255 255 / 70%);
   border-radius: 50%;
 }
@@ -258,9 +258,76 @@ h1 {
   animation-delay: 120ms;
 }
 
+.input-palette {
+  display: grid;
+  grid-template-columns: auto 1fr 1fr auto;
+  gap: 0.55rem;
+  align-items: center;
+  width: min(100%, 27rem);
+  margin: 1rem auto 0;
+  padding: 0.55rem;
+  background: #ece9e0;
+  border-radius: 1rem;
+}
+
+.palette-label {
+  padding: 0 0.35rem;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.value-button,
+.erase-button {
+  min-height: 3rem;
+  border: 0;
+  border-radius: 0.72rem;
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease,
+    opacity 120ms ease;
+}
+
+.value-button {
+  color: white;
+  font-size: 1.35rem;
+  font-weight: 850;
+  opacity: 0.55;
+}
+
+.value-button.zero {
+  background: var(--teal);
+}
+
+.value-button.one {
+  background: var(--coral);
+}
+
+.erase-button {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+  padding: 0 0.75rem;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  background: transparent;
+}
+
+.value-button.selected,
+.erase-button.selected {
+  opacity: 1;
+  box-shadow:
+    0 0 0 3px var(--paper),
+    0 0 0 5px var(--ink);
+  transform: translateY(-0.08rem);
+}
+
 .game-message {
   min-height: 2.6rem;
-  margin: 1rem 0 0;
+  margin: 0.75rem 0 0;
   color: var(--muted);
   font-size: 0.78rem;
   line-height: 1.45;
@@ -342,18 +409,36 @@ a:focus-visible {
   }
 }
 
-@media (max-width: 370px) {
+@media (max-width: 520px) {
   .game-shell {
-    padding-inline: 0.65rem;
+    padding-inline: 0.5rem;
   }
 
   .game-card {
-    padding-inline: 0.75rem;
+    padding-inline: 0.5rem;
   }
 
   .rules-panel div {
     grid-template-columns: 1fr;
     gap: 0.15rem;
+  }
+
+  .input-palette {
+    grid-template-columns: 1fr 1fr auto;
+  }
+
+  .palette-label {
+    display: none;
+  }
+}
+
+@media (max-width: 370px) {
+  .game-shell {
+    padding-inline: 0.35rem;
+  }
+
+  .game-card {
+    padding-inline: 0.35rem;
   }
 }
 
