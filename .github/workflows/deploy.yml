@@ -24,7 +24,6 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v6
         with:
-          # Keep CI reproducible and avoid an npm regression in newer Node 22 builds.
           node-version: 22.19.0
           cache: npm
 
@@ -32,8 +31,7 @@ jobs:
         uses: actions/configure-pages@v6
 
       - name: Install dependencies
-        # Work around npm's "Exit handler never called" bug in clean installs.
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
 
       - name: Build
         run: npm run build
