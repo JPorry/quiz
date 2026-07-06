@@ -49,7 +49,7 @@ function canAppendRow(rows, candidate) {
   })
 }
 
-function countSolutions(puzzle) {
+export function countSolutions(puzzle) {
   const candidates = puzzle.map((clues) =>
     validRows.filter((row) => matchesClues(row, clues)),
   )
