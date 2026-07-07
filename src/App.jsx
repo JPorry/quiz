@@ -933,21 +933,57 @@ function TectonicGame({ showRules }) {
     })
   }
 
-  const regionClassNames = (row, column) => {
-    const region = level.regionGrid[row][column]
-    return [
-      row === 0 || level.regionGrid[row - 1][column] !== region ? 'region-top' : '',
-      column === level.width - 1 || level.regionGrid[row][column + 1] !== region
-        ? 'region-right'
-        : '',
-      row === level.height - 1 || level.regionGrid[row + 1][column] !== region
-        ? 'region-bottom'
-        : '',
-      column === 0 || level.regionGrid[row][column - 1] !== region ? 'region-left' : '',
-    ]
-      .filter(Boolean)
-      .join(' ')
-  }
+  const regionBorderSegments = useMemo(() => {
+    const segments = []
+
+    for (let row = 0; row < level.height; row += 1) {
+      for (let column = 0; column < level.width; column += 1) {
+        const region = level.regionGrid[row][column]
+
+        if (row === 0 || level.regionGrid[row - 1][column] !== region) {
+          segments.push({
+            id: `top-${row}-${column}`,
+            x1: column,
+            y1: row,
+            x2: column + 1,
+            y2: row,
+          })
+        }
+
+        if (column === 0 || level.regionGrid[row][column - 1] !== region) {
+          segments.push({
+            id: `left-${row}-${column}`,
+            x1: column,
+            y1: row,
+            x2: column,
+            y2: row + 1,
+          })
+        }
+
+        if (row === level.height - 1) {
+          segments.push({
+            id: `bottom-${row}-${column}`,
+            x1: column,
+            y1: row + 1,
+            x2: column + 1,
+            y2: row + 1,
+          })
+        }
+
+        if (column === level.width - 1) {
+          segments.push({
+            id: `right-${row}-${column}`,
+            x1: column + 1,
+            y1: row,
+            x2: column + 1,
+            y2: row + 1,
+          })
+        }
+      }
+    }
+
+    return segments
+  }, [level])
 
   return (
     <section className="game-card" aria-labelledby="game-title">
@@ -999,51 +1035,69 @@ function TectonicGame({ showRules }) {
       />
 
       <div
-        className={`tectonic-grid${isComplete ? ' is-complete' : ''}`}
-        role="grid"
-        aria-label="Six by six Tectonic puzzle"
+        className="tectonic-board"
         style={{
           '--tectonic-width': level.width,
           '--tectonic-height': level.height,
         }}
       >
-        {grid.map((row, rowIndex) =>
-          row.map((value, columnIndex) => {
-            const isGiven = level.puzzle[rowIndex][columnIndex] !== null
-            const isInvalid = invalidCells.has(tectonicCellKey(rowIndex, columnIndex))
+        <div
+          className={`tectonic-grid${isComplete ? ' is-complete' : ''}`}
+          role="grid"
+          aria-label="Six by six Tectonic puzzle"
+        >
+          {grid.map((row, rowIndex) =>
+            row.map((value, columnIndex) => {
+              const isGiven = level.puzzle[rowIndex][columnIndex] !== null
+              const isInvalid = invalidCells.has(tectonicCellKey(rowIndex, columnIndex))
 
-            return (
-              <button
-                className={[
-                  'tectonic-cell',
-                  value !== null ? `value-${value}` : '',
-                  isGiven ? 'given' : '',
-                  isInvalid ? 'invalid' : '',
-                  regionClassNames(rowIndex, columnIndex),
-                ]
-                  .filter(Boolean)
-                  .join(' ')}
-                type="button"
-                role="gridcell"
-                key={`${rowIndex}-${columnIndex}`}
-                disabled={isGiven || isComplete}
-                style={{
-                  '--region-bg':
-                    TECTONIC_REGION_COLORS[
-                      level.regionGrid[rowIndex][columnIndex] %
-                        TECTONIC_REGION_COLORS.length
-                    ],
-                }}
-                aria-label={`Row ${rowIndex + 1}, column ${columnIndex + 1}: ${
-                  value === null ? 'empty' : value
-                }${isGiven ? ', fixed' : ''}${isInvalid ? ', rule conflict' : ''}`}
-                onClick={() => fillCell(rowIndex, columnIndex)}
-              >
-                {value}
-              </button>
-            )
-          }),
-        )}
+              return (
+                <button
+                  className={[
+                    'tectonic-cell',
+                    value !== null ? `value-${value}` : '',
+                    isGiven ? 'given' : '',
+                    isInvalid ? 'invalid' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                  type="button"
+                  role="gridcell"
+                  key={`${rowIndex}-${columnIndex}`}
+                  disabled={isGiven || isComplete}
+                  style={{
+                    '--region-bg':
+                      TECTONIC_REGION_COLORS[
+                        level.regionGrid[rowIndex][columnIndex] %
+                          TECTONIC_REGION_COLORS.length
+                      ],
+                  }}
+                  aria-label={`Row ${rowIndex + 1}, column ${columnIndex + 1}: ${
+                    value === null ? 'empty' : value
+                  }${isGiven ? ', fixed' : ''}${isInvalid ? ', rule conflict' : ''}`}
+                  onClick={() => fillCell(rowIndex, columnIndex)}
+                >
+                  {value}
+                </button>
+              )
+            }),
+          )}
+        </div>
+        <svg
+          className="tectonic-region-borders"
+          viewBox={`0 0 ${level.width} ${level.height}`}
+          aria-hidden="true"
+        >
+          {regionBorderSegments.map((segment) => (
+            <line
+              key={segment.id}
+              x1={segment.x1}
+              y1={segment.y1}
+              x2={segment.x2}
+              y2={segment.y2}
+            />
+          ))}
+        </svg>
       </div>
 
       <div className="input-palette tectonic-palette" role="group" aria-label="Choose a number">

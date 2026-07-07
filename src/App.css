@@ -500,16 +500,23 @@ h1 {
   animation: nudge 180ms ease-in-out;
 }
 
+.tectonic-board {
+  position: relative;
+  width: min(100%, 27rem, 46vh);
+  margin: 0 auto;
+  overflow: visible;
+  border-radius: 0.95rem;
+  touch-action: manipulation;
+}
+
 .tectonic-grid {
   display: grid;
   grid-template-columns: repeat(var(--tectonic-width), 1fr);
-  gap: 1px;
-  width: min(100%, 27rem, 46vh);
-  margin: 0 auto;
-  padding: 1px;
-  background: rgb(32 47 44 / 10%);
-  border-radius: 0.95rem;
-  touch-action: manipulation;
+  width: 100%;
+  overflow: hidden;
+  background: rgb(32 47 44 / 12%);
+  border-radius: inherit;
+  box-shadow: 0 0 0 1px rgb(32 47 44 / 10%);
 }
 
 .tectonic-cell {
@@ -523,8 +530,8 @@ h1 {
   font-variant-numeric: tabular-nums;
   font-weight: 900;
   background: var(--region-bg, #ece9e0);
-  border: 0;
-  border-radius: 0.28rem;
+  border: 0.5px solid rgb(32 47 44 / 14%);
+  border-radius: 0;
   box-shadow: none;
   aspect-ratio: 1;
   place-items: center;
@@ -554,7 +561,7 @@ h1 {
   position: absolute;
   inset: clamp(0.12rem, 0.7vw, 0.25rem);
   border: 1px solid rgb(32 47 44 / 10%);
-  border-radius: 0.18rem;
+  border-radius: 0.16rem;
   content: '';
   pointer-events: none;
 }
@@ -568,6 +575,23 @@ h1 {
 
 .tectonic-grid.is-complete .tectonic-cell {
   animation: finish 450ms ease-out both;
+}
+
+.tectonic-region-borders {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.tectonic-region-borders line {
+  stroke: var(--ink);
+  stroke-linecap: square;
+  stroke-width: 4px;
+  vector-effect: non-scaling-stroke;
 }
 
 .input-palette {
