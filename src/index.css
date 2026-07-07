@@ -1,13 +1,17 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
 :root {
+  --paper: #f8f4ea;
+  --ink: #20302d;
+  --muted: #6e7975;
+  --line: #d8d8cf;
+  --soft: #e9e6dc;
+  --teal: #2f766a;
+  --coral: #e2674c;
+  --danger: #b42f2a;
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
     sans-serif;
-  color: #042f2e;
-  background: #f4f4f5;
+  color: var(--ink);
+  background: var(--paper);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -18,96 +22,25 @@
   box-sizing: border-box;
 }
 
-html,
-body,
-#root {
+html {
   min-width: 320px;
-  height: 100%;
-  margin: 0;
-  overflow: hidden;
-  overscroll-behavior: none;
-  position: fixed;
-  inset: 0;
-  width: 100%;
+  background: var(--paper);
 }
 
 body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  overflow-x: hidden;
   background:
-    radial-gradient(circle at 16% 4%, rgb(20 184 166 / 0.16), transparent 24rem),
-    radial-gradient(circle at 92% 74%, rgb(14 165 233 / 0.15), transparent 26rem),
-    radial-gradient(circle at 38% 102%, rgb(180 83 9 / 0.12), transparent 20rem),
-    #f4f4f5;
+    radial-gradient(circle at 12% 5%, rgb(226 103 76 / 12%), transparent 25rem),
+    radial-gradient(circle at 95% 65%, rgb(47 118 106 / 12%), transparent 28rem),
+    var(--paper);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    color: #ecfdf5;
-    background: #042f2e;
-  }
-
-  body {
-    background:
-      radial-gradient(circle at 14% 6%, rgb(20 184 166 / 0.16), transparent 22rem),
-      radial-gradient(circle at 92% 74%, rgb(14 165 233 / 0.13), transparent 26rem),
-      #042f2e;
-  }
-}
-
-@keyframes reveal {
-  from {
-    opacity: 0;
-    transform: translateY(-0.35rem);
-  }
-}
-
-@keyframes cell-pop {
-  0% {
-    transform: scale(0.95);
-  }
-
-  100% {
-    transform: scale(1);
-  }
-}
-
-@keyframes hydro-shake {
-  25% {
-    transform: translateX(-0.12rem);
-  }
-
-  55% {
-    transform: translateX(0.14rem);
-  }
-
-  80% {
-    transform: translateX(-0.06rem);
-  }
-}
-
-@keyframes hint-pulse {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 rgb(14 165 233 / 0);
-  }
-
-  50% {
-    box-shadow: 0 0 0 0.28rem rgb(14 165 233 / 0.14);
-  }
-}
-
-@keyframes complete-bob {
-  50% {
-    transform: translateY(-0.2rem) rotate(2deg);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    scroll-behavior: auto !important;
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
+button,
+input,
+textarea,
+select {
+  font: inherit;
 }
