@@ -503,10 +503,12 @@ h1 {
 .tectonic-grid {
   display: grid;
   grid-template-columns: repeat(var(--tectonic-width), 1fr);
-  gap: clamp(0.13rem, 0.65vw, 0.26rem);
+  gap: 1px;
   width: min(100%, 27rem, 46vh);
   margin: 0 auto;
-  background: transparent;
+  padding: 1px;
+  background: rgb(32 47 44 / 10%);
+  border-radius: 0.95rem;
   touch-action: manipulation;
 }
 
@@ -521,8 +523,8 @@ h1 {
   font-variant-numeric: tabular-nums;
   font-weight: 900;
   background: var(--region-bg, #ece9e0);
-  border: 1px solid rgb(32 47 44 / 8%);
-  border-radius: clamp(0.42rem, 1.8vw, 0.78rem);
+  border: 0;
+  border-radius: 0.28rem;
   box-shadow: none;
   aspect-ratio: 1;
   place-items: center;
@@ -551,8 +553,8 @@ h1 {
 .tectonic-cell.given::after {
   position: absolute;
   inset: clamp(0.12rem, 0.7vw, 0.25rem);
-  border: 1px solid rgb(32 47 44 / 14%);
-  border-radius: calc(clamp(0.42rem, 1.8vw, 0.78rem) - 0.12rem);
+  border: 1px solid rgb(32 47 44 / 10%);
+  border-radius: 0.18rem;
   content: '';
   pointer-events: none;
 }
@@ -562,26 +564,6 @@ h1 {
   color: #fffaf4;
   background: var(--danger);
   animation: nudge 180ms ease-in-out;
-}
-
-.tectonic-cell.region-top {
-  border-top-color: var(--ink);
-  border-top-width: 3px;
-}
-
-.tectonic-cell.region-right {
-  border-right-color: var(--ink);
-  border-right-width: 3px;
-}
-
-.tectonic-cell.region-bottom {
-  border-bottom-color: var(--ink);
-  border-bottom-width: 3px;
-}
-
-.tectonic-cell.region-left {
-  border-left-color: var(--ink);
-  border-left-width: 3px;
 }
 
 .tectonic-grid.is-complete .tectonic-cell {
