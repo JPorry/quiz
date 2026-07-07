@@ -574,15 +574,22 @@ function HashiGame({ showRules }) {
   }
 
   const islandIndexAtPoint = (point) => {
-    const hitRadius = 0.48
+    const hitRadius = 0.9
 
-    const index = level.islands.findIndex(
-      (island) =>
-        Math.abs(island.column - point.x) <= hitRadius &&
-        Math.abs(island.row - point.y) <= hitRadius,
+    const nearestIsland = level.islands.reduce(
+      (bestMatch, island, index) => {
+        const distance = Math.hypot(island.column - point.x, island.row - point.y)
+
+        if (distance > hitRadius || distance >= bestMatch.distance) {
+          return bestMatch
+        }
+
+        return { distance, index }
+      },
+      { distance: Number.POSITIVE_INFINITY, index: null },
     )
 
-    return index === -1 ? null : index
+    return nearestIsland.index
   }
 
   const startDrag = (event) => {

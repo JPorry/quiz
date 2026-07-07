@@ -458,6 +458,13 @@ h1 {
     box-shadow 120ms ease;
 }
 
+.hashi-island::before {
+  position: absolute;
+  inset: -0.85rem;
+  border-radius: 50%;
+  content: '';
+}
+
 .hashi-island span {
   position: absolute;
   right: 0.18rem;
