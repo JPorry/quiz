@@ -1,9 +1,16 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Grid } from './components/Grid.jsx'
 import { PUZZLES, SIZE } from './puzzles.js'
 import './App.css'
 
+const QUOTA = SIZE / 2
+
 function copyGrid(grid) {
   return grid.map((row) => [...row])
+}
+
+function cellKey(row, column) {
+  return `${row}-${column}`
 }
 
 function formatTime(seconds) {
@@ -11,24 +18,56 @@ function formatTime(seconds) {
   return `${minutes}:${String(seconds % 60).padStart(2, '0')}`
 }
 
-function findViolations(grid) {
-  const invalid = new Set()
-  const add = (row, column) => invalid.add(`${row}-${column}`)
+function countValue(values, target) {
+  return values.filter((value) => value === target).length
+}
+
+function lineValue(grid, index, isColumn) {
+  return isColumn ? grid.map((row) => row[index]) : grid[index]
+}
+
+function addLineCells(targetSet, lineIndex, isColumn) {
+  for (let position = 0; position < SIZE; position += 1) {
+    targetSet.add(isColumn ? cellKey(position, lineIndex) : cellKey(lineIndex, position))
+  }
+}
+
+function analyzeBoard(grid) {
+  const invalidCells = new Set()
+  const adjacencyCells = new Set()
+  const hintedCells = new Map()
+
+  const add = (targetSet, row, column) => targetSet.add(cellKey(row, column))
+  const addHint = (row, column, value) => {
+    const key = cellKey(row, column)
+    const existingValue = hintedCells.get(key)
+
+    if (existingValue === undefined || existingValue === value) {
+      hintedCells.set(key, value)
+    }
+  }
 
   for (let index = 0; index < SIZE; index += 1) {
-    const row = grid[index]
-    const column = grid.map((line) => line[index])
+    for (const isColumn of [false, true]) {
+      const values = lineValue(grid, index, isColumn)
 
-    for (const [values, isColumn] of [
-      [row, false],
-      [column, true],
-    ]) {
       for (const value of [0, 1]) {
-        if (values.filter((item) => item === value).length > SIZE / 2) {
+        const total = countValue(values, value)
+
+        if (total > QUOTA) {
           values.forEach((item, position) => {
             if (item === value) {
-              if (isColumn) add(position, index)
-              else add(index, position)
+              if (isColumn) add(invalidCells, position, index)
+              else add(invalidCells, index, position)
+            }
+          })
+        }
+
+        if (total === QUOTA) {
+          values.forEach((item, position) => {
+            if (item === null) {
+              if (isColumn) addHint(position, index, value === 0 ? 1 : 0)
+              else addHint(index, position, value === 0 ? 1 : 0)
             }
           })
         }
@@ -36,10 +75,16 @@ function findViolations(grid) {
 
       for (let start = 0; start <= SIZE - 3; start += 1) {
         const trio = values.slice(start, start + 3)
+
         if (trio[0] !== null && trio.every((value) => value === trio[0])) {
           trio.forEach((_, offset) => {
-            if (isColumn) add(start + offset, index)
-            else add(index, start + offset)
+            if (isColumn) {
+              add(invalidCells, start + offset, index)
+              add(adjacencyCells, start + offset, index)
+            } else {
+              add(invalidCells, index, start + offset)
+              add(adjacencyCells, index, start + offset)
+            }
           })
         }
       }
@@ -63,16 +108,20 @@ function findViolations(grid) {
         (candidate, candidatePosition) =>
           candidatePosition !== position && candidate.value === line.value,
       )
+
       if (duplicate) {
-        for (let cell = 0; cell < SIZE; cell += 1) {
-          if (isColumn) add(cell, line.index)
-          else add(line.index, cell)
-        }
+        addLineCells(invalidCells, line.index, isColumn)
       }
     })
   }
 
-  return invalid
+  return { invalidCells, adjacencyCells, hintedCells }
+}
+
+function selectorLabel(value) {
+  if (value === 0) return 'Log'
+  if (value === 1) return 'Water'
+  return 'Eraser'
 }
 
 function App() {
@@ -82,7 +131,10 @@ function App() {
   const [showRules, setShowRules] = useState(false)
   const [selectedValue, setSelectedValue] = useState(0)
   const currentPuzzle = PUZZLES[puzzleIndex]
-  const invalidCells = useMemo(() => findViolations(grid), [grid])
+  const { invalidCells, adjacencyCells, hintedCells } = useMemo(
+    () => analyzeBoard(grid),
+    [grid],
+  )
   const filledCells = grid.flat().filter((value) => value !== null).length
   const isComplete =
     filledCells === SIZE * SIZE &&
@@ -96,47 +148,60 @@ function App() {
 
   useEffect(() => {
     if (isComplete) return undefined
-    const timer = window.setInterval(() => setSeconds((value) => value + 1), 1000)
+
+    const timer = window.setInterval(() => {
+      setSeconds((value) => value + 1)
+    }, 1000)
+
     return () => window.clearInterval(timer)
   }, [isComplete, puzzleIndex])
 
-  const loadPuzzle = (index) => {
+  const loadPuzzle = useCallback((index) => {
     setPuzzleIndex(index)
     setGrid(copyGrid(PUZZLES[index].puzzle))
     setSeconds(0)
-  }
+  }, [])
 
-  const fillCell = (row, column) => {
-    if (currentPuzzle.puzzle[row][column] !== null || isComplete) return
+  const fillCell = useCallback(
+    (row, column) => {
+      if (currentPuzzle.puzzle[row][column] !== null || isComplete) return
 
-    setGrid((currentGrid) => {
-      const nextGrid = copyGrid(currentGrid)
-      nextGrid[row][column] = selectedValue
-      return nextGrid
-    })
-  }
+      setGrid((currentGrid) => {
+        if (currentGrid[row][column] === selectedValue) return currentGrid
 
-  const resetPuzzle = () => {
+        const nextGrid = copyGrid(currentGrid)
+        nextGrid[row][column] = selectedValue
+        return nextGrid
+      })
+    },
+    [currentPuzzle.puzzle, isComplete, selectedValue],
+  )
+
+  const resetPuzzle = useCallback(() => {
     setGrid(copyGrid(currentPuzzle.puzzle))
     setSeconds(0)
-  }
+  }, [currentPuzzle.puzzle])
 
-  const nextPuzzle = () => {
+  const nextPuzzle = useCallback(() => {
     loadPuzzle((puzzleIndex + 1) % PUZZLES.length)
-  }
+  }, [loadPuzzle, puzzleIndex])
 
   return (
     <main className="game-shell">
-      <header className="topbar">
-        <a className="brand" href="./" aria-label="Twofold home">
+      <header className="flex shrink-0 items-center justify-between">
+        <a
+          className="inline-flex items-center gap-3 text-sm font-black tracking-[0.28em] text-teal-950 no-underline dark:text-emerald-50"
+          href="./"
+          aria-label="Hydro Logic home"
+        >
           <span className="brand-mark" aria-hidden="true">
-            <i />
-            <i />
+            <span />
+            <span />
           </span>
-          <span>Twofold</span>
+          HYDRO LOGIC
         </a>
         <button
-          className="icon-button"
+          className="grid h-11 w-11 place-items-center rounded-full border border-teal-950/10 bg-white/55 text-lg font-black text-teal-950 shadow-sm backdrop-blur transition hover:bg-white/80 dark:border-emerald-100/15 dark:bg-emerald-50/10 dark:text-emerald-50"
           type="button"
           aria-label="How to play"
           aria-expanded={showRules}
@@ -146,13 +211,26 @@ function App() {
         </button>
       </header>
 
-      <section className="game-card" aria-labelledby="game-title">
-        <div className="title-row">
+      <section
+        className="game-card"
+        aria-labelledby="game-title"
+      >
+        <div className="flex shrink-0 items-start justify-between gap-3">
           <div>
-            <p className="kicker">Binary puzzle · 10 × 10</p>
-            <h1 id="game-title">Daily balance</h1>
+            <p className="m-0 text-[0.68rem] font-black uppercase tracking-[0.2em] text-teal-700/70 dark:text-cyan-100/65">
+              Cozy Takuzu · {SIZE} × {SIZE}
+            </p>
+            <h1
+              id="game-title"
+              className="m-0 font-serif text-[clamp(1.95rem,8vw,3.4rem)] font-medium leading-none tracking-[-0.06em] text-teal-950 dark:text-emerald-50"
+            >
+              Balance the river
+            </h1>
           </div>
-          <div className="timer" aria-label={`Elapsed time ${formatTime(seconds)}`}>
+          <div
+            className="flex shrink-0 items-center gap-2 rounded-full bg-teal-950/5 px-3 py-2 text-sm font-extrabold tabular-nums text-teal-900/65 dark:bg-emerald-50/10 dark:text-emerald-50/70"
+            aria-label={`Elapsed time ${formatTime(seconds)}`}
+          >
             <span aria-hidden="true">◷</span>
             {formatTime(seconds)}
           </div>
@@ -161,93 +239,73 @@ function App() {
         {showRules && (
           <aside className="rules-panel">
             <div>
-              <strong>Keep it balanced</strong>
-              <p>Each row and column needs five 0s and five 1s.</p>
+              <strong>Balanced banks</strong>
+              <p>Each row and column needs five Logs and five Water Streams.</p>
             </div>
             <div>
-              <strong>Pairs only</strong>
-              <p>Never place three matching numbers next to each other.</p>
+              <strong>No pileups</strong>
+              <p>Never place three matching ecosystem pieces side by side.</p>
             </div>
             <div>
-              <strong>Make every line unique</strong>
-              <p>No two completed rows or columns can be identical.</p>
+              <strong>Natural variety</strong>
+              <p>No two completed rows or columns can share the same pattern.</p>
             </div>
           </aside>
         )}
 
-        <div className="progress-block">
-          <div className="progress-label">
-            <span>{currentPuzzle.name}</span>
-            <span>{filledCells} / {SIZE * SIZE}</span>
+        <div className="mt-3 shrink-0">
+          <div className="mb-2 flex justify-between text-[0.72rem] font-extrabold text-teal-800/60 dark:text-cyan-100/60">
+            <span>{currentPuzzle.name} watershed</span>
+            <span>
+              {filledCells} / {SIZE * SIZE}
+            </span>
           </div>
-          <div className="progress-track" aria-hidden="true">
-            <span style={{ width: `${(filledCells / (SIZE * SIZE)) * 100}%` }} />
+          <div className="h-1 overflow-hidden rounded-full bg-teal-950/10 dark:bg-emerald-50/10" aria-hidden="true">
+            <span
+              className="block h-full rounded-full bg-gradient-to-r from-amber-700 via-emerald-500 to-sky-500 transition-[width] duration-300"
+              style={{ width: `${(filledCells / (SIZE * SIZE)) * 100}%` }}
+            />
           </div>
         </div>
 
-        <div
-          className={`puzzle-grid${isComplete ? ' is-complete' : ''}`}
-          role="grid"
-          aria-label="Ten by ten binary puzzle"
-        >
-          {grid.map((row, rowIndex) =>
-            row.map((value, columnIndex) => {
-              const isGiven =
-                currentPuzzle.puzzle[rowIndex][columnIndex] !== null
-              const isInvalid = invalidCells.has(`${rowIndex}-${columnIndex}`)
+        <Grid
+          grid={grid}
+          givens={currentPuzzle.puzzle}
+          invalidCells={invalidCells}
+          adjacencyCells={adjacencyCells}
+          hintedCells={hintedCells}
+          isComplete={isComplete}
+          onCellPress={fillCell}
+        />
 
-              return (
-                <button
-                  className={[
-                    'cell',
-                    value === 0 ? 'zero' : '',
-                    value === 1 ? 'one' : '',
-                    isGiven ? 'given' : '',
-                    isInvalid ? 'invalid' : '',
-                  ]
-                    .filter(Boolean)
-                    .join(' ')}
-                  type="button"
-                  role="gridcell"
-                  key={`${rowIndex}-${columnIndex}`}
-                  disabled={isGiven || isComplete}
-                  aria-label={`Row ${rowIndex + 1}, column ${columnIndex + 1}: ${
-                    value === null ? 'empty' : value
-                  }${isGiven ? ', fixed' : ''}${isInvalid ? ', rule conflict' : ''}`}
-                  onClick={() => fillCell(rowIndex, columnIndex)}
-                >
-                  {value}
-                  {isGiven && <span className="given-dot" aria-hidden="true" />}
-                </button>
-              )
-            }),
-          )}
-        </div>
-
-        <div className="input-palette" role="group" aria-label="Choose a value">
-          <span className="palette-label">Place</span>
+        <div className="input-palette" role="group" aria-label="Choose a river piece">
+          <span className="hidden px-1 text-[0.68rem] font-black uppercase tracking-[0.16em] text-teal-800/55 sm:block dark:text-cyan-100/55">
+            Place
+          </span>
           <button
-            className={`value-button zero${selectedValue === 0 ? ' selected' : ''}`}
+            className={`value-button is-log${selectedValue === 0 ? ' selected' : ''}`}
             type="button"
-            aria-label="Place zero"
+            aria-label="Place a Log"
             aria-pressed={selectedValue === 0}
             onClick={() => setSelectedValue(0)}
           >
-            0
+            <span aria-hidden="true" className="selector-icon selector-log" />
+            Log
           </button>
           <button
-            className={`value-button one${selectedValue === 1 ? ' selected' : ''}`}
+            className={`value-button is-water${selectedValue === 1 ? ' selected' : ''}`}
             type="button"
-            aria-label="Place one"
+            aria-label="Place a Water Stream"
             aria-pressed={selectedValue === 1}
             onClick={() => setSelectedValue(1)}
           >
-            1
+            <span aria-hidden="true" className="selector-icon selector-water" />
+            Water
           </button>
           <button
             className={`erase-button${selectedValue === null ? ' selected' : ''}`}
             type="button"
-            aria-label="Erase a value"
+            aria-label="Erase a river piece"
             aria-pressed={selectedValue === null}
             onClick={() => setSelectedValue(null)}
           >
@@ -256,31 +314,38 @@ function App() {
           </button>
         </div>
 
-        <p className={`game-message${invalidCells.size ? ' has-error' : ''}`} aria-live="polite">
+        <p
+          className={`min-h-10 shrink-0 text-center text-sm leading-snug ${
+            invalidCells.size
+              ? 'font-bold text-rose-700 dark:text-rose-300'
+              : 'text-teal-900/62 dark:text-cyan-100/62'
+          }`}
+          aria-live="polite"
+        >
           {isComplete
-            ? 'Beautifully balanced — puzzle complete!'
+            ? 'The watershed is beautifully balanced.'
             : invalidCells.size
-              ? 'A rule is being bent. Check the highlighted cells.'
+              ? 'Something is crowding the river. Check the glowing cells.'
               : selectedValue === null
-                ? 'Erase mode. Tap a filled square to clear it.'
-                : `Placing ${selectedValue}. Tap any open square.`}
+                ? 'Eraser ready. Tap any open square to clear it.'
+                : `Placing ${selectorLabel(selectedValue)}. Tap an open river slot.`}
         </p>
 
-        <div className="actions">
+        <div className="grid shrink-0 grid-cols-[0.85fr_1.25fr] gap-3">
           <button className="secondary-button" type="button" onClick={resetPuzzle}>
             <span aria-hidden="true">↺</span>
             Reset
           </button>
           <button className="primary-button" type="button" onClick={nextPuzzle}>
-            {isComplete ? 'Next puzzle' : 'New puzzle'}
+            {isComplete ? 'Next river' : 'New puzzle'}
             <span aria-hidden="true">→</span>
           </button>
         </div>
       </section>
 
-      <footer>
-        <span>Three simple rules.</span>
-        <span>One logical solution.</span>
+      <footer className="flex shrink-0 justify-between px-2 pt-3 text-[0.68rem] font-semibold text-teal-900/45 dark:text-cyan-100/45">
+        <span>Logs are 0.</span>
+        <span>Water is 1.</span>
       </footer>
     </main>
   )
