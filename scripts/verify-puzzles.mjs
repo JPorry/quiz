@@ -1,4 +1,6 @@
 import { PUZZLES, SIZE } from '../src/puzzles.js'
+import { HASHI_PUZZLES } from '../src/hashiPuzzles.js'
+import { countHashiSolutions } from '../src/hashiLogic.js'
 
 const HALF = SIZE / 2
 const MAX_SOLUTIONS = 2
@@ -112,3 +114,15 @@ function verifyPuzzle({ name, puzzle, solution }) {
 }
 
 PUZZLES.forEach(verifyPuzzle)
+
+function verifyHashiPuzzle(level) {
+  const solutionCount = countHashiSolutions(level)
+
+  if (solutionCount !== 1) {
+    throw new Error(`${level.name} failed: Hashi solutions=${solutionCount}`)
+  }
+
+  console.log(`✓ Hashi ${level.name}: exactly 1 solution`)
+}
+
+HASHI_PUZZLES.forEach(verifyHashiPuzzle)
