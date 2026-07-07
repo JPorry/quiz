@@ -14,6 +14,10 @@ import './App.css'
 const BINARY_COMPLETED_STORAGE_KEY = 'twofold.completedLevels'
 const HASHI_COMPLETED_STORAGE_KEY = 'twofold.hashi.completedLevels'
 
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max)
+}
+
 function copyGrid(grid) {
   return grid.map((row) => [...row])
 }
@@ -135,6 +139,43 @@ function LevelList({ levels, currentIndex, completedLevelSet, onSelect }) {
         )
       })}
     </div>
+  )
+}
+
+function orientation(left, middle, right) {
+  return (
+    (middle.y - left.y) * (right.x - middle.x) -
+    (middle.x - left.x) * (right.y - middle.y)
+  )
+}
+
+function pointIsOnSegment(start, point, end) {
+  return (
+    point.x <= Math.max(start.x, end.x) + 0.001 &&
+    point.x >= Math.min(start.x, end.x) - 0.001 &&
+    point.y <= Math.max(start.y, end.y) + 0.001 &&
+    point.y >= Math.min(start.y, end.y) - 0.001
+  )
+}
+
+function segmentsIntersect(firstStart, firstEnd, secondStart, secondEnd) {
+  const firstTurn = orientation(firstStart, firstEnd, secondStart)
+  const secondTurn = orientation(firstStart, firstEnd, secondEnd)
+  const thirdTurn = orientation(secondStart, secondEnd, firstStart)
+  const fourthTurn = orientation(secondStart, secondEnd, firstEnd)
+
+  if (
+    ((firstTurn > 0 && secondTurn < 0) || (firstTurn < 0 && secondTurn > 0)) &&
+    ((thirdTurn > 0 && fourthTurn < 0) || (thirdTurn < 0 && fourthTurn > 0))
+  ) {
+    return true
+  }
+
+  return (
+    (Math.abs(firstTurn) < 0.001 && pointIsOnSegment(firstStart, secondStart, firstEnd)) ||
+    (Math.abs(secondTurn) < 0.001 && pointIsOnSegment(firstStart, secondEnd, firstEnd)) ||
+    (Math.abs(thirdTurn) < 0.001 && pointIsOnSegment(secondStart, firstStart, secondEnd)) ||
+    (Math.abs(fourthTurn) < 0.001 && pointIsOnSegment(secondStart, firstEnd, secondEnd))
   )
 }
 
@@ -355,10 +396,14 @@ function BinaryGame({ showRules }) {
 function HashiGame({ showRules }) {
   const [levelIndex, setLevelIndex] = useState(0)
   const [bridgeCounts, setBridgeCounts] = useState(() => new Map())
-  const [selectedIsland, setSelectedIsland] = useState(null)
-  const [dragStartIsland, setDragStartIsland] = useState(null)
+  const [dragGesture, setDragGesture] = useState(null)
+  const [hoverIsland, setHoverIsland] = useState(null)
+  const [changedEdgeId, setChangedEdgeId] = useState(null)
+  const [cutEdgeIds, setCutEdgeIds] = useState(() => new Set())
+  const [cutSegments, setCutSegments] = useState([])
   const [seconds, setSeconds] = useState(0)
-  const suppressClickRef = useRef(false)
+  const boardRef = useRef(null)
+  const effectTimerRef = useRef(null)
   const [completedLevelIds, setCompletedLevelIds] = useState(() =>
     readCompletedLevels(
       HASHI_COMPLETED_STORAGE_KEY,
@@ -391,6 +436,8 @@ function HashiGame({ showRules }) {
     [bridgeCounts, level],
   )
 
+  useEffect(() => () => window.clearTimeout(effectTimerRef.current), [])
+
   useEffect(() => {
     if (isComplete) return undefined
     const timer = window.setInterval(() => setSeconds((value) => value + 1), 1000)
@@ -412,15 +459,21 @@ function HashiGame({ showRules }) {
   const loadLevel = (index) => {
     setLevelIndex(index)
     setBridgeCounts(new Map())
-    setSelectedIsland(null)
-    setDragStartIsland(null)
+    setDragGesture(null)
+    setHoverIsland(null)
+    setChangedEdgeId(null)
+    setCutEdgeIds(new Set())
+    setCutSegments([])
     setSeconds(0)
   }
 
   const resetLevel = () => {
     setBridgeCounts(new Map())
-    setSelectedIsland(null)
-    setDragStartIsland(null)
+    setDragGesture(null)
+    setHoverIsland(null)
+    setChangedEdgeId(null)
+    setCutEdgeIds(new Set())
+    setCutSegments([])
     setSeconds(0)
   }
 
@@ -430,38 +483,176 @@ function HashiGame({ showRules }) {
 
   const validEdgeFor = (from, to) => edges.find((edge) => edge.id === edgeId(from, to))
 
-  const cycleBridge = (from, to) => {
+  const showBridgeEffect = (nextChangedEdgeId, nextCutEdges = []) => {
+    window.clearTimeout(effectTimerRef.current)
+    setChangedEdgeId(nextChangedEdgeId)
+    setCutEdgeIds(new Set(nextCutEdges.map((edge) => edge.id)))
+    setCutSegments(
+      nextCutEdges.flatMap((edge) => {
+        const segment = bridgeSegment(edge)
+        const offset = edge.count === 2 ? 0.07 : 0
+        const offsets = edge.count === 2 ? [-offset, offset] : [0]
+
+        return offsets.map((lineOffset) => ({
+          id: `${edge.id}-${lineOffset}`,
+          horizontal: edge.horizontal,
+          start: segment.start,
+          end: segment.end,
+          offset: lineOffset,
+        }))
+      }),
+    )
+    effectTimerRef.current = window.setTimeout(() => {
+      setChangedEdgeId(null)
+      setCutEdgeIds(new Set())
+      setCutSegments([])
+    }, 360)
+  }
+
+  const addBridge = (from, to) => {
     const edge = validEdgeFor(from, to)
     if (!edge || isComplete) return false
 
+    const currentValue = bridgeCounts.get(edge.id) ?? 0
+    if (currentValue >= 2) return false
+
     setBridgeCounts((currentCounts) => {
       const nextCounts = new Map(currentCounts)
-      const currentValue = nextCounts.get(edge.id) ?? 0
-      const nextValue = (currentValue + 1) % 3
-
-      if (nextValue === 0) nextCounts.delete(edge.id)
-      else nextCounts.set(edge.id, nextValue)
-
+      nextCounts.set(edge.id, Math.min((nextCounts.get(edge.id) ?? 0) + 1, 2))
       return nextCounts
     })
+
+    showBridgeEffect(edge.id)
     return true
   }
 
-  const chooseIsland = (islandIndex) => {
-    if (suppressClickRef.current) {
-      suppressClickRef.current = false
-      return
+  const bridgeSegment = (edge) => {
+    const from = level.islands[edge.from]
+    const to = level.islands[edge.to]
+    return {
+      start: { x: from.column, y: from.row },
+      end: { x: to.column, y: to.row },
     }
+  }
 
+  const deleteCrossedBridges = (start, end) => {
+    if (isComplete) return false
+
+    const crossedEdges = bridgeLines.filter((edge) => {
+      const segment = bridgeSegment(edge)
+      return segmentsIntersect(start, end, segment.start, segment.end)
+    })
+
+    if (!crossedEdges.length) return false
+
+    setBridgeCounts((currentCounts) => {
+      const nextCounts = new Map(currentCounts)
+      crossedEdges.forEach((edge) => nextCounts.delete(edge.id))
+      return nextCounts
+    })
+    showBridgeEffect(null, crossedEdges)
+    return true
+  }
+
+  const pointFromEvent = (event) => {
+    const board = boardRef.current
+    if (!board) return { x: 0, y: 0 }
+
+    const bounds = board.getBoundingClientRect()
+    const cellSize = bounds.width / level.width
+
+    return {
+      x: clamp((event.clientX - bounds.left - cellSize / 2) / cellSize, 0, level.width - 1),
+      y: clamp((event.clientY - bounds.top - cellSize / 2) / cellSize, 0, level.height - 1),
+    }
+  }
+
+  const islandIndexFromTarget = (target) => {
+    const islandElement = target.closest?.('.hashi-island')
+    if (!islandElement || !boardRef.current?.contains(islandElement)) return null
+    return Number(islandElement.dataset.islandIndex)
+  }
+
+  const islandIndexAtPoint = (point) => {
+    const hitRadius = 0.48
+
+    const index = level.islands.findIndex(
+      (island) =>
+        Math.abs(island.column - point.x) <= hitRadius &&
+        Math.abs(island.row - point.y) <= hitRadius,
+    )
+
+    return index === -1 ? null : index
+  }
+
+  const startDrag = (event) => {
     if (isComplete) return
 
-    if (selectedIsland === null || selectedIsland === islandIndex) {
-      setSelectedIsland(selectedIsland === islandIndex ? null : islandIndex)
-      return
+    event.currentTarget.setPointerCapture(event.pointerId)
+    const pointerPoint = pointFromEvent(event)
+    const islandIndex = islandIndexFromTarget(event.target) ?? islandIndexAtPoint(pointerPoint)
+    const startPoint =
+      islandIndex === null
+        ? pointerPoint
+        : {
+            x: level.islands[islandIndex].column,
+            y: level.islands[islandIndex].row,
+          }
+
+    setDragGesture({
+      mode: islandIndex === null ? 'cut' : 'bridge',
+      startIsland: islandIndex,
+      startPoint,
+      currentPoint: startPoint,
+    })
+    setHoverIsland(islandIndex)
+  }
+
+  const moveDrag = (event) => {
+    if (!dragGesture) return
+
+    const pointerPoint = pointFromEvent(event)
+    const islandIndex = islandIndexAtPoint(pointerPoint)
+    const currentPoint =
+      islandIndex !== null
+        ? {
+            x: level.islands[islandIndex].column,
+            y: level.islands[islandIndex].row,
+          }
+        : pointerPoint
+
+    setDragGesture((currentGesture) =>
+      currentGesture ? { ...currentGesture, currentPoint } : currentGesture,
+    )
+    setHoverIsland(islandIndex)
+  }
+
+  const finishDrag = (event) => {
+    if (!dragGesture) return
+
+    const pointerPoint = pointFromEvent(event)
+    const endIsland = islandIndexAtPoint(pointerPoint)
+    const endPoint =
+      endIsland === null
+        ? pointerPoint
+        : {
+            x: level.islands[endIsland].column,
+            y: level.islands[endIsland].row,
+          }
+
+    if (
+      dragGesture.mode === 'bridge' &&
+      dragGesture.startIsland !== null &&
+      endIsland !== null &&
+      endIsland !== dragGesture.startIsland
+    ) {
+      addBridge(dragGesture.startIsland, endIsland)
+    } else {
+      deleteCrossedBridges(dragGesture.startPoint, endPoint)
     }
 
-    const didBridge = cycleBridge(selectedIsland, islandIndex)
-    setSelectedIsland(didBridge ? null : islandIndex)
+    setDragGesture(null)
+    setHoverIsland(null)
   }
 
   const bridgeLines = edges
@@ -522,7 +713,24 @@ function HashiGame({ showRules }) {
         onSelect={loadLevel}
       />
 
-      <div className="hashi-board" style={boardStyle}>
+      <div
+        className={[
+          'hashi-board',
+          dragGesture?.mode === 'bridge' ? 'drawing-bridge' : '',
+          dragGesture?.mode === 'cut' ? 'cutting-bridge' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+        style={boardStyle}
+        ref={boardRef}
+        onPointerDown={startDrag}
+        onPointerMove={moveDrag}
+        onPointerUp={finishDrag}
+        onPointerCancel={() => {
+          setDragGesture(null)
+          setHoverIsland(null)
+        }}
+      >
         <svg className="hashi-bridges" viewBox={`0 0 ${level.width - 1} ${level.height - 1}`} aria-hidden="true">
           {bridgeLines.map((edge) => {
             const from = level.islands[edge.from]
@@ -536,6 +744,12 @@ function HashiGame({ showRules }) {
             return lines.map((lineOffset) => (
               <line
                 key={`${edge.id}-${lineOffset}`}
+                className={[
+                  edge.id === changedEdgeId ? 'bridge-added' : '',
+                  cutEdgeIds.has(edge.id) ? 'bridge-cut' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
                 x1={from.column + (edge.horizontal ? 0 : lineOffset)}
                 y1={from.row + (edge.horizontal ? lineOffset : 0)}
                 x2={to.column + (edge.horizontal ? 0 : lineOffset)}
@@ -543,19 +757,43 @@ function HashiGame({ showRules }) {
               />
             ))
           })}
+          {dragGesture && (
+            <line
+              className={`bridge-preview ${dragGesture.mode === 'cut' ? 'cut-preview' : ''}`}
+              x1={dragGesture.startPoint.x}
+              y1={dragGesture.startPoint.y}
+              x2={dragGesture.currentPoint.x}
+              y2={dragGesture.currentPoint.y}
+            />
+          )}
+          {cutSegments.map((segment) => (
+            <line
+              className="bridge-cut-ghost"
+              key={segment.id}
+              x1={segment.start.x + (segment.horizontal ? 0 : segment.offset)}
+              y1={segment.start.y + (segment.horizontal ? segment.offset : 0)}
+              x2={segment.end.x + (segment.horizontal ? 0 : segment.offset)}
+              y2={segment.end.y + (segment.horizontal ? segment.offset : 0)}
+            />
+          ))}
         </svg>
 
         {level.islands.map((island, index) => {
           const degree = degrees[index]
           const isSatisfied = degree === island.value
           const isOverfull = degree > island.value
-          const isSelected = selectedIsland === index
+          const isDragStart = dragGesture?.startIsland === index
+          const isHoverTarget =
+            dragGesture?.mode === 'bridge' &&
+            hoverIsland === index &&
+            dragGesture.startIsland !== index
 
           return (
             <button
               className={[
                 'hashi-island',
-                isSelected ? 'selected' : '',
+                isDragStart ? 'selected' : '',
+                isHoverTarget ? 'targeted' : '',
                 isSatisfied ? 'satisfied' : '',
                 isOverfull ? 'overfull' : '',
               ]
@@ -563,21 +801,12 @@ function HashiGame({ showRules }) {
                 .join(' ')}
               type="button"
               key={`${island.row}-${island.column}`}
+              data-island-index={index}
               style={{
                 gridColumn: island.column + 1,
                 gridRow: island.row + 1,
               }}
               aria-label={`Island ${index + 1}, needs ${island.value} bridges, currently has ${degree}`}
-              onPointerDown={() => setDragStartIsland(index)}
-              onPointerUp={() => {
-                if (dragStartIsland !== null && dragStartIsland !== index) {
-                  const didBridge = cycleBridge(dragStartIsland, index)
-                  setSelectedIsland(didBridge ? null : index)
-                  suppressClickRef.current = true
-                }
-                setDragStartIsland(null)
-              }}
-              onClick={() => chooseIsland(index)}
             >
               {island.value}
               <span aria-hidden="true">{degree}</span>
@@ -593,9 +822,11 @@ function HashiGame({ showRules }) {
             ? 'A bridge is crossing another bridge. Remove one crossing path.'
             : !isConnected && bridgeCount > 0
               ? 'Good start. Keep joining every island into one network.'
-              : selectedIsland !== null
-                ? 'Tap or drag to a visible island in the same row or column.'
-                : 'Tap an island, then tap or drag to a visible neighbor to cycle 1, 2, or 0 bridges.'}
+              : dragGesture?.mode === 'bridge'
+                ? 'Drag to a visible island in the same row or column.'
+                : dragGesture?.mode === 'cut'
+                  ? 'Cross a bridge to erase it.'
+                  : 'Drag from one island to another to draw. Swipe across a bridge to delete.'}
       </p>
 
       <div className="actions">
