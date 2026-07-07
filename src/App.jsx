@@ -2,8 +2,31 @@ import { useEffect, useMemo, useState } from 'react'
 import { PUZZLES, SIZE } from './puzzles.js'
 import './App.css'
 
+const COMPLETED_LEVELS_STORAGE_KEY = 'twofold.completedLevels'
+
 function copyGrid(grid) {
   return grid.map((row) => [...row])
+}
+
+function readCompletedLevels() {
+  try {
+    const savedValue = window.localStorage.getItem(COMPLETED_LEVELS_STORAGE_KEY)
+    const parsedValue = savedValue ? JSON.parse(savedValue) : []
+    return Array.isArray(parsedValue) ? parsedValue : []
+  } catch {
+    return []
+  }
+}
+
+function saveCompletedLevels(completedLevelIds) {
+  try {
+    window.localStorage.setItem(
+      COMPLETED_LEVELS_STORAGE_KEY,
+      JSON.stringify(completedLevelIds),
+    )
+  } catch {
+    // Progress persistence is helpful, but the puzzle should still work if storage is unavailable.
+  }
 }
 
 function formatTime(seconds) {
@@ -81,7 +104,16 @@ function App() {
   const [seconds, setSeconds] = useState(0)
   const [showRules, setShowRules] = useState(false)
   const [selectedValue, setSelectedValue] = useState(0)
+  const [completedLevelIds, setCompletedLevelIds] = useState(() =>
+    readCompletedLevels().filter((id) =>
+      PUZZLES.some((puzzle) => puzzle.id === id),
+    ),
+  )
   const currentPuzzle = PUZZLES[puzzleIndex]
+  const completedLevelSet = useMemo(
+    () => new Set(completedLevelIds),
+    [completedLevelIds],
+  )
   const invalidCells = useMemo(() => findViolations(grid), [grid])
   const filledCells = grid.flat().filter((value) => value !== null).length
   const isComplete =
@@ -99,6 +131,18 @@ function App() {
     const timer = window.setInterval(() => setSeconds((value) => value + 1), 1000)
     return () => window.clearInterval(timer)
   }, [isComplete, puzzleIndex])
+
+  useEffect(() => {
+    if (!isComplete || completedLevelSet.has(currentPuzzle.id)) return
+
+    setCompletedLevelIds((currentIds) => {
+      if (currentIds.includes(currentPuzzle.id)) return currentIds
+
+      const nextIds = [...currentIds, currentPuzzle.id]
+      saveCompletedLevels(nextIds)
+      return nextIds
+    })
+  }, [completedLevelSet, currentPuzzle.id, isComplete])
 
   const loadPuzzle = (index) => {
     setPuzzleIndex(index)
@@ -178,11 +222,40 @@ function App() {
         <div className="progress-block">
           <div className="progress-label">
             <span>{currentPuzzle.name}</span>
-            <span>{filledCells} / {SIZE * SIZE}</span>
+            <span>
+              {completedLevelIds.length} / {PUZZLES.length} complete
+            </span>
           </div>
           <div className="progress-track" aria-hidden="true">
             <span style={{ width: `${(filledCells / (SIZE * SIZE)) * 100}%` }} />
           </div>
+        </div>
+
+        <div className="level-list" aria-label="Choose a level">
+          {PUZZLES.map((puzzle, index) => {
+            const isCurrent = index === puzzleIndex
+            const isSolved = completedLevelSet.has(puzzle.id)
+
+            return (
+              <button
+                className={[
+                  'level-button',
+                  isCurrent ? 'current' : '',
+                  isSolved ? 'solved' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+                type="button"
+                key={puzzle.id}
+                aria-current={isCurrent ? 'true' : undefined}
+                aria-label={`${puzzle.name}${isSolved ? ', completed' : ''}`}
+                onClick={() => loadPuzzle(index)}
+              >
+                <span>{index + 1}</span>
+                {isSolved && <span aria-hidden="true">✓</span>}
+              </button>
+            )
+          })}
         </div>
 
         <div
@@ -258,7 +331,7 @@ function App() {
 
         <p className={`game-message${invalidCells.size ? ' has-error' : ''}`} aria-live="polite">
           {isComplete
-            ? 'Beautifully balanced — puzzle complete!'
+            ? 'Beautifully balanced — level complete!'
             : invalidCells.size
               ? 'A rule is being bent. Check the highlighted cells.'
               : selectedValue === null
