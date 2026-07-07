@@ -1,6 +1,12 @@
 import { PUZZLES, SIZE } from '../src/puzzles.js'
 import { HASHI_PUZZLES } from '../src/hashiPuzzles.js'
 import { countHashiSolutions } from '../src/hashiLogic.js'
+import { TECTONIC_PUZZLES } from '../src/tectonicPuzzles.js'
+import {
+  countTectonicSolutions,
+  findTectonicViolations,
+  getTectonicRegionSizes,
+} from '../src/tectonicLogic.js'
 
 const HALF = SIZE / 2
 const MAX_SOLUTIONS = 2
@@ -126,3 +132,33 @@ function verifyHashiPuzzle(level) {
 }
 
 HASHI_PUZZLES.forEach(verifyHashiPuzzle)
+
+function verifyTectonicPuzzle(level) {
+  const regionSizes = getTectonicRegionSizes(level)
+  const cluesMatch = level.puzzle.every((row, rowIndex) =>
+    row.every(
+      (value, columnIndex) =>
+        value === null || value === level.solution[rowIndex][columnIndex],
+    ),
+  )
+  const solutionValuesMatchRegions = level.solution.every((row, rowIndex) =>
+    row.every((value, columnIndex) => {
+      const regionSize = regionSizes[level.regionGrid[rowIndex][columnIndex]]
+      return value >= 1 && value <= regionSize
+    }),
+  )
+  const solutionIsValid =
+    solutionValuesMatchRegions &&
+    findTectonicViolations(level, level.solution).size === 0
+  const solutionCount = countTectonicSolutions(level)
+
+  if (!cluesMatch || !solutionIsValid || solutionCount !== 1) {
+    throw new Error(
+      `${level.name} failed: Tectonic cluesMatch=${cluesMatch}, solutionIsValid=${solutionIsValid}, solutions=${solutionCount}`,
+    )
+  }
+
+  console.log(`✓ Tectonic ${level.name}: exactly 1 solution`)
+}
+
+TECTONIC_PUZZLES.forEach(verifyTectonicPuzzle)

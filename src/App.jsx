@@ -9,10 +9,18 @@ import {
   isHashiConnected,
 } from './hashiLogic.js'
 import { PUZZLES, SIZE } from './puzzles.js'
+import { TECTONIC_PUZZLES } from './tectonicPuzzles.js'
+import {
+  cellKey as tectonicCellKey,
+  findTectonicViolations,
+  getTectonicMaxValue,
+  isTectonicComplete,
+} from './tectonicLogic.js'
 import './App.css'
 
 const BINARY_COMPLETED_STORAGE_KEY = 'twofold.completedLevels'
 const HASHI_COMPLETED_STORAGE_KEY = 'twofold.hashi.completedLevels'
+const TECTONIC_COMPLETED_STORAGE_KEY = 'twofold.tectonic.completedLevels'
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max)
@@ -850,6 +858,229 @@ function HashiGame({ showRules }) {
   )
 }
 
+function TectonicGame({ showRules }) {
+  const [levelIndex, setLevelIndex] = useState(0)
+  const [grid, setGrid] = useState(() => copyGrid(TECTONIC_PUZZLES[0].puzzle))
+  const [seconds, setSeconds] = useState(0)
+  const [selectedValue, setSelectedValue] = useState(1)
+  const [completedLevelIds, setCompletedLevelIds] = useState(() =>
+    readCompletedLevels(
+      TECTONIC_COMPLETED_STORAGE_KEY,
+      TECTONIC_PUZZLES.map((puzzle) => puzzle.id),
+    ),
+  )
+  const level = TECTONIC_PUZZLES[levelIndex]
+  const completedLevelSet = useMemo(
+    () => new Set(completedLevelIds),
+    [completedLevelIds],
+  )
+  const maxValue = useMemo(() => getTectonicMaxValue(level), [level])
+  const invalidCells = useMemo(() => findTectonicViolations(level, grid), [grid, level])
+  const filledCells = grid.flat().filter((value) => value !== null).length
+  const isComplete = useMemo(() => isTectonicComplete(level, grid), [grid, level])
+
+  useEffect(() => {
+    if (isComplete) return undefined
+    const timer = window.setInterval(() => setSeconds((value) => value + 1), 1000)
+    return () => window.clearInterval(timer)
+  }, [isComplete, levelIndex])
+
+  useEffect(() => {
+    if (!isComplete || completedLevelSet.has(level.id)) return
+
+    setCompletedLevelIds((currentIds) => {
+      if (currentIds.includes(level.id)) return currentIds
+
+      const nextIds = [...currentIds, level.id]
+      saveCompletedLevels(TECTONIC_COMPLETED_STORAGE_KEY, nextIds)
+      return nextIds
+    })
+  }, [completedLevelSet, isComplete, level.id])
+
+  const loadLevel = (index) => {
+    setLevelIndex(index)
+    setGrid(copyGrid(TECTONIC_PUZZLES[index].puzzle))
+    setSeconds(0)
+    setSelectedValue(1)
+  }
+
+  const resetLevel = () => {
+    setGrid(copyGrid(level.puzzle))
+    setSeconds(0)
+  }
+
+  const nextLevel = () => {
+    loadLevel((levelIndex + 1) % TECTONIC_PUZZLES.length)
+  }
+
+  const fillCell = (row, column) => {
+    if (level.puzzle[row][column] !== null || isComplete) return
+
+    setGrid((currentGrid) => {
+      const nextGrid = copyGrid(currentGrid)
+      nextGrid[row][column] = selectedValue
+      return nextGrid
+    })
+  }
+
+  const regionClassNames = (row, column) => {
+    const region = level.regionGrid[row][column]
+    return [
+      row === 0 || level.regionGrid[row - 1][column] !== region ? 'region-top' : '',
+      column === level.width - 1 || level.regionGrid[row][column + 1] !== region
+        ? 'region-right'
+        : '',
+      row === level.height - 1 || level.regionGrid[row + 1][column] !== region
+        ? 'region-bottom'
+        : '',
+      column === 0 || level.regionGrid[row][column - 1] !== region ? 'region-left' : '',
+    ]
+      .filter(Boolean)
+      .join(' ')
+  }
+
+  return (
+    <section className="game-card" aria-labelledby="game-title">
+      <div className="title-row">
+        <div>
+          <p className="kicker">Tectonic · Suguru</p>
+          <h1 id="game-title">Number blocks</h1>
+        </div>
+        <div className="timer" aria-label={`Elapsed time ${formatTime(seconds)}`}>
+          <span aria-hidden="true">◷</span>
+          {formatTime(seconds)}
+        </div>
+      </div>
+
+      {showRules && (
+        <aside className="rules-panel">
+          <div>
+            <strong>Fill each block</strong>
+            <p>A block of N cells must contain every number from 1 to N.</p>
+          </div>
+          <div>
+            <strong>No touching twins</strong>
+            <p>The same number cannot touch horizontally, vertically, or diagonally.</p>
+          </div>
+          <div>
+            <strong>Use the palette</strong>
+            <p>Choose a number below, then tap editable cells to place it.</p>
+          </div>
+        </aside>
+      )}
+
+      <div className="progress-block">
+        <div className="progress-label">
+          <span>{level.name}</span>
+          <span>
+            {completedLevelIds.length} / {TECTONIC_PUZZLES.length} complete
+          </span>
+        </div>
+        <div className="progress-track" aria-hidden="true">
+          <span style={{ width: `${(filledCells / (level.width * level.height)) * 100}%` }} />
+        </div>
+      </div>
+
+      <LevelList
+        levels={TECTONIC_PUZZLES}
+        currentIndex={levelIndex}
+        completedLevelSet={completedLevelSet}
+        onSelect={loadLevel}
+      />
+
+      <div
+        className={`tectonic-grid${isComplete ? ' is-complete' : ''}`}
+        role="grid"
+        aria-label="Six by six Tectonic puzzle"
+        style={{
+          '--tectonic-width': level.width,
+          '--tectonic-height': level.height,
+        }}
+      >
+        {grid.map((row, rowIndex) =>
+          row.map((value, columnIndex) => {
+            const isGiven = level.puzzle[rowIndex][columnIndex] !== null
+            const isInvalid = invalidCells.has(tectonicCellKey(rowIndex, columnIndex))
+
+            return (
+              <button
+                className={[
+                  'tectonic-cell',
+                  value !== null ? `value-${value}` : '',
+                  isGiven ? 'given' : '',
+                  isInvalid ? 'invalid' : '',
+                  regionClassNames(rowIndex, columnIndex),
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+                type="button"
+                role="gridcell"
+                key={`${rowIndex}-${columnIndex}`}
+                disabled={isGiven || isComplete}
+                aria-label={`Row ${rowIndex + 1}, column ${columnIndex + 1}: ${
+                  value === null ? 'empty' : value
+                }${isGiven ? ', fixed' : ''}${isInvalid ? ', rule conflict' : ''}`}
+                onClick={() => fillCell(rowIndex, columnIndex)}
+              >
+                {value}
+              </button>
+            )
+          }),
+        )}
+      </div>
+
+      <div className="input-palette tectonic-palette" role="group" aria-label="Choose a number">
+        <span className="palette-label">Place</span>
+        {Array.from({ length: maxValue }, (_, index) => index + 1).map((value) => (
+          <button
+            className={`number-button value-${value}${
+              selectedValue === value ? ' selected' : ''
+            }`}
+            type="button"
+            key={value}
+            aria-label={`Place ${value}`}
+            aria-pressed={selectedValue === value}
+            onClick={() => setSelectedValue(value)}
+          >
+            {value}
+          </button>
+        ))}
+        <button
+          className={`erase-button${selectedValue === null ? ' selected' : ''}`}
+          type="button"
+          aria-label="Erase a value"
+          aria-pressed={selectedValue === null}
+          onClick={() => setSelectedValue(null)}
+        >
+          <span aria-hidden="true">⌫</span>
+          Erase
+        </button>
+      </div>
+
+      <p className={`game-message${invalidCells.size ? ' has-error' : ''}`} aria-live="polite">
+        {isComplete
+          ? 'Every block fits — level complete!'
+          : invalidCells.size
+            ? 'Two matching numbers are touching or repeating in a block.'
+            : selectedValue === null
+              ? 'Erase mode. Tap a filled square to clear it.'
+              : `Placing ${selectedValue}. Tap any open square.`}
+      </p>
+
+      <div className="actions">
+        <button className="secondary-button" type="button" onClick={resetLevel}>
+          <span aria-hidden="true">↺</span>
+          Reset
+        </button>
+        <button className="primary-button" type="button" onClick={nextLevel}>
+          {isComplete ? 'Next block' : 'New puzzle'}
+          <span aria-hidden="true">→</span>
+        </button>
+      </div>
+    </section>
+  )
+}
+
 function App() {
   const [gameType, setGameType] = useState('binary')
   const [showRules, setShowRules] = useState(false)
@@ -885,6 +1116,15 @@ function App() {
             >
               Bridges
             </button>
+            <button
+              className={gameType === 'tectonic' ? 'active' : ''}
+              type="button"
+              role="tab"
+              aria-selected={gameType === 'tectonic'}
+              onClick={() => setGameType('tectonic')}
+            >
+              Tectonic
+            </button>
           </div>
           <button
             className="icon-button"
@@ -900,12 +1140,20 @@ function App() {
 
       {gameType === 'binary' ? (
         <BinaryGame showRules={showRules} />
-      ) : (
+      ) : gameType === 'hashi' ? (
         <HashiGame showRules={showRules} />
+      ) : (
+        <TectonicGame showRules={showRules} />
       )}
 
       <footer>
-        <span>{gameType === 'binary' ? 'Three simple rules.' : 'No crossing bridges.'}</span>
+        <span>
+          {gameType === 'binary'
+            ? 'Three simple rules.'
+            : gameType === 'hashi'
+              ? 'No crossing bridges.'
+              : 'No touching twins.'}
+        </span>
         <span>One logical solution.</span>
       </footer>
     </main>
