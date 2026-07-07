@@ -21,6 +21,16 @@ import './App.css'
 const BINARY_COMPLETED_STORAGE_KEY = 'twofold.completedLevels'
 const HASHI_COMPLETED_STORAGE_KEY = 'twofold.hashi.completedLevels'
 const TECTONIC_COMPLETED_STORAGE_KEY = 'twofold.tectonic.completedLevels'
+const TECTONIC_REGION_COLORS = [
+  '#f4dfd8',
+  '#dceee9',
+  '#e7e1f3',
+  '#f2e7c8',
+  '#dce8f4',
+  '#eadfd4',
+  '#dcebd0',
+  '#f0dce8',
+]
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max)
@@ -1017,6 +1027,13 @@ function TectonicGame({ showRules }) {
                 role="gridcell"
                 key={`${rowIndex}-${columnIndex}`}
                 disabled={isGiven || isComplete}
+                style={{
+                  '--region-bg':
+                    TECTONIC_REGION_COLORS[
+                      level.regionGrid[rowIndex][columnIndex] %
+                        TECTONIC_REGION_COLORS.length
+                    ],
+                }}
                 aria-label={`Row ${rowIndex + 1}, column ${columnIndex + 1}: ${
                   value === null ? 'empty' : value
                 }${isGiven ? ', fixed' : ''}${isInvalid ? ', rule conflict' : ''}`}
