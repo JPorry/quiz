@@ -647,7 +647,7 @@ function HashiGame({ showRules }) {
       endIsland !== dragGesture.startIsland
     ) {
       addBridge(dragGesture.startIsland, endIsland)
-    } else {
+    } else if (dragGesture.mode === 'cut') {
       deleteCrossedBridges(dragGesture.startPoint, endPoint)
     }
 
