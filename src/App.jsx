@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, Navigate, Route, Routes, useNavigate, useParams } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { HASHI_PUZZLES } from './hashiPuzzles.js'
 import {
   edgeId,
@@ -67,6 +67,79 @@ const GAME_CONFIGS = {
 }
 
 const GAME_LIST = Object.values(GAME_CONFIGS)
+const prefersReducedMotion = () =>
+  window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+
+function getRouteDepth(pathname) {
+  return pathname.split('/').filter(Boolean).length
+}
+
+function getTransitionType(fromPathname, toPathname, preferredType = 'auto') {
+  if (preferredType !== 'auto') return preferredType
+  if (toPathname === '/') return 'back'
+
+  const fromDepth = getRouteDepth(fromPathname)
+  const toDepth = getRouteDepth(toPathname)
+  if (toDepth > fromDepth) return 'forward'
+  if (toDepth < fromDepth) return 'back'
+  return 'swap'
+}
+
+function startRouteTransition(type, updateRoute) {
+  if (!document.startViewTransition || prefersReducedMotion()) {
+    updateRoute()
+    return
+  }
+
+  document.documentElement.dataset.routeTransition = type
+  const transition = document.startViewTransition(updateRoute)
+  transition.finished.finally(() => {
+    delete document.documentElement.dataset.routeTransition
+  })
+}
+
+function useTransitionNavigate() {
+  const navigate = useNavigate()
+  const location = useLocation()
+
+  return (to, options = {}) => {
+    const { transitionType, ...navigateOptions } = options
+    const nextPathname = typeof to === 'string' ? to.split(/[?#]/)[0] || '/' : to.pathname
+    const type = getTransitionType(location.pathname, nextPathname, transitionType)
+
+    startRouteTransition(type, () => navigate(to, navigateOptions))
+  }
+}
+
+function TransitionLink({ children, className, to, transitionType = 'auto', ...props }) {
+  const navigate = useTransitionNavigate()
+  const location = useLocation()
+
+  const handleClick = (event) => {
+    props.onClick?.(event)
+    if (
+      event.defaultPrevented ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.altKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      props.target
+    ) {
+      return
+    }
+
+    event.preventDefault()
+    if (to === location.pathname) return
+    navigate(to, { transitionType })
+  }
+
+  return (
+    <a className={className} href={to} {...props} onClick={handleClick}>
+      {children}
+    </a>
+  )
+}
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max)
@@ -172,7 +245,7 @@ function LevelList({ levels, gamePath, completedLevelSet }) {
         const isSolved = completedLevelSet.has(level.id)
 
         return (
-          <Link
+          <TransitionLink
             className={[
               'level-button',
               isSolved ? 'solved' : '',
@@ -182,10 +255,11 @@ function LevelList({ levels, gamePath, completedLevelSet }) {
             key={level.id}
             aria-label={`${level.name}${isSolved ? ', completed' : ''}`}
             to={`/${gamePath}/${index + 1}`}
+            transitionType="forward"
           >
             <span>{index + 1}</span>
             {isSolved && <span aria-hidden="true">✓</span>}
-          </Link>
+          </TransitionLink>
         )
       })}
     </div>
@@ -300,7 +374,7 @@ function GameActions({ canUndo, isComplete, nextLabel, onNext, onReset, onUndo }
 }
 
 function BinaryGame({ levelIndex, showRules }) {
-  const navigate = useNavigate()
+  const navigate = useTransitionNavigate()
   const [grid, setGrid] = useState(() => copyGrid(PUZZLES[levelIndex].puzzle))
   const [gridHistory, setGridHistory] = useState([])
   const [seconds, setSeconds] = useState(0)
@@ -373,7 +447,9 @@ function BinaryGame({ levelIndex, showRules }) {
   }
 
   const nextPuzzle = () => {
-    navigate(`/binary/${((levelIndex + 1) % PUZZLES.length) + 1}`)
+    navigate(`/binary/${((levelIndex + 1) % PUZZLES.length) + 1}`, {
+      transitionType: 'level',
+    })
   }
 
   return (
@@ -511,7 +587,7 @@ function BinaryGame({ levelIndex, showRules }) {
 }
 
 function HashiGame({ levelIndex, showRules }) {
-  const navigate = useNavigate()
+  const navigate = useTransitionNavigate()
   const [bridgeCounts, setBridgeCounts] = useState(() => new Map())
   const [bridgeHistory, setBridgeHistory] = useState([])
   const [dragGesture, setDragGesture] = useState(null)
@@ -586,7 +662,9 @@ function HashiGame({ levelIndex, showRules }) {
   }
 
   const nextLevel = () => {
-    navigate(`/hashi/${((levelIndex + 1) % HASHI_PUZZLES.length) + 1}`)
+    navigate(`/hashi/${((levelIndex + 1) % HASHI_PUZZLES.length) + 1}`, {
+      transitionType: 'level',
+    })
   }
 
   const validEdgeFor = (from, to) => edges.find((edge) => edge.id === edgeId(from, to))
@@ -963,7 +1041,7 @@ function HashiGame({ levelIndex, showRules }) {
 }
 
 function TectonicGame({ levelIndex, showRules }) {
-  const navigate = useNavigate()
+  const navigate = useTransitionNavigate()
   const [grid, setGrid] = useState(() => copyGrid(TECTONIC_PUZZLES[levelIndex].puzzle))
   const [gridHistory, setGridHistory] = useState([])
   const [seconds, setSeconds] = useState(0)
@@ -1009,7 +1087,9 @@ function TectonicGame({ levelIndex, showRules }) {
   }
 
   const nextLevel = () => {
-    navigate(`/tectonic/${((levelIndex + 1) % TECTONIC_PUZZLES.length) + 1}`)
+    navigate(`/tectonic/${((levelIndex + 1) % TECTONIC_PUZZLES.length) + 1}`, {
+      transitionType: 'level',
+    })
   }
 
   const fillCell = (row, column) => {
@@ -1266,14 +1346,19 @@ function HomeScreen() {
           const completedLevelSet = getCompletedLevelSet(game)
 
           return (
-            <Link className="game-choice" to={`/${game.path}`} key={game.path}>
+            <TransitionLink
+              className="game-choice"
+              to={`/${game.path}`}
+              transitionType="forward"
+              key={game.path}
+            >
               <span className="game-choice-title">{game.name}</span>
               <span className="game-choice-label">{game.label}</span>
               <span className="game-choice-summary">{game.summary}</span>
               <span className="game-choice-progress">
                 {completedLevelSet.size} / {game.levels.length} complete
               </span>
-            </Link>
+            </TransitionLink>
           )
         })}
       </div>
@@ -1356,17 +1441,18 @@ function AppFooter() {
 
 function App() {
   const [showRules, setShowRules] = useState(false)
+  const location = useLocation()
 
   return (
     <main className="game-shell">
       <header className="topbar">
-        <Link className="brand" to="/" aria-label="Twofold home">
+        <TransitionLink className="brand" to="/" transitionType="back" aria-label="Twofold home">
           <span className="brand-mark" aria-hidden="true">
             <i />
             <i />
           </span>
           <span>Twofold</span>
-        </Link>
+        </TransitionLink>
 
         <div className="topbar-actions">
           <button
@@ -1381,12 +1467,14 @@ function App() {
         </div>
       </header>
 
-      <Routes>
-        <Route path="/" element={<HomeScreen />} />
-        <Route path="/:gameType" element={<LevelSelectionScreen />} />
-        <Route path="/:gameType/:levelNumber" element={<GameRoute showRules={showRules} />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <div className="route-stage" key={location.pathname}>
+        <Routes location={location}>
+          <Route path="/" element={<HomeScreen />} />
+          <Route path="/:gameType" element={<LevelSelectionScreen />} />
+          <Route path="/:gameType/:levelNumber" element={<GameRoute showRules={showRules} />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </div>
 
       <Routes>
         <Route path="/" element={<AppFooter />} />
