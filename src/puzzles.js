@@ -71,6 +71,16 @@ const LEVEL_DEFINITIONS = [
   ['level-08', 'Level 8', (grid) => invertGrid(rotateTimes(grid, 3))],
   ['level-09', 'Level 9', (grid) => flipRows(grid)],
   ['level-10', 'Level 10', (grid) => invertGrid(flipColumns(grid))],
+  ['level-11', 'Level 11', (grid) => flipColumns(grid)],
+  ['level-12', 'Level 12', (grid) => invertGrid(flipRows(grid))],
+  ['level-13', 'Level 13', (grid) => flipColumns(rotateTimes(grid, 1))],
+  ['level-14', 'Level 14', (grid) => invertGrid(flipColumns(rotateTimes(grid, 1)))],
+  ['level-15', 'Level 15', (grid) => flipRows(rotateTimes(grid, 2))],
+  ['level-16', 'Level 16', (grid) => invertGrid(flipRows(rotateTimes(grid, 2)))],
+  ['level-17', 'Level 17', (grid) => flipColumns(rotateTimes(grid, 3))],
+  ['level-18', 'Level 18', (grid) => invertGrid(flipColumns(rotateTimes(grid, 3)))],
+  ['level-19', 'Level 19', (grid) => flipRows(flipColumns(grid))],
+  ['level-20', 'Level 20', (grid) => invertGrid(flipRows(flipColumns(grid)))],
 ]
 
 export const PUZZLES = LEVEL_DEFINITIONS.map(([id, name, transform]) => ({

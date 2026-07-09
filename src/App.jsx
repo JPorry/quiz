@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link, Navigate, Route, Routes, useNavigate, useParams } from 'react-router-dom'
 import { HASHI_PUZZLES } from './hashiPuzzles.js'
 import {
   edgeId,
@@ -31,6 +32,41 @@ const TECTONIC_REGION_COLORS = [
   '#dcebd0',
   '#f0dce8',
 ]
+
+const GAME_CONFIGS = {
+  binary: {
+    path: 'binary',
+    name: 'Binary',
+    label: 'Daily balance',
+    kicker: 'Binary puzzle · 10 × 10',
+    summary: 'Balance every row and column with zeros and ones.',
+    rulesSummary: 'Three simple rules.',
+    levels: PUZZLES,
+    storageKey: BINARY_COMPLETED_STORAGE_KEY,
+  },
+  hashi: {
+    path: 'hashi',
+    name: 'Bridges',
+    label: 'Connect islands',
+    kicker: 'Hashi · Bridges',
+    summary: 'Draw bridges until every island joins one network.',
+    rulesSummary: 'No crossing bridges.',
+    levels: HASHI_PUZZLES,
+    storageKey: HASHI_COMPLETED_STORAGE_KEY,
+  },
+  tectonic: {
+    path: 'tectonic',
+    name: 'Tectonic',
+    label: 'Number blocks',
+    kicker: 'Tectonic · Suguru',
+    summary: 'Fill irregular regions without matching neighbors touching.',
+    rulesSummary: 'No touching twins.',
+    levels: TECTONIC_PUZZLES,
+    storageKey: TECTONIC_COMPLETED_STORAGE_KEY,
+  },
+}
+
+const GAME_LIST = Object.values(GAME_CONFIGS)
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max)
@@ -129,31 +165,27 @@ function findBinaryViolations(grid) {
   return invalid
 }
 
-function LevelList({ levels, currentIndex, completedLevelSet, onSelect }) {
+function LevelList({ levels, gamePath, completedLevelSet }) {
   return (
     <div className="level-list" aria-label="Choose a level">
       {levels.map((level, index) => {
-        const isCurrent = index === currentIndex
         const isSolved = completedLevelSet.has(level.id)
 
         return (
-          <button
+          <Link
             className={[
               'level-button',
-              isCurrent ? 'current' : '',
               isSolved ? 'solved' : '',
             ]
               .filter(Boolean)
               .join(' ')}
-            type="button"
             key={level.id}
-            aria-current={isCurrent ? 'true' : undefined}
             aria-label={`${level.name}${isSolved ? ', completed' : ''}`}
-            onClick={() => onSelect(index)}
+            to={`/${gamePath}/${index + 1}`}
           >
             <span>{index + 1}</span>
             {isSolved && <span aria-hidden="true">✓</span>}
-          </button>
+          </Link>
         )
       })}
     </div>
@@ -197,9 +229,80 @@ function segmentsIntersect(firstStart, firstEnd, secondStart, secondEnd) {
   )
 }
 
-function BinaryGame({ showRules }) {
-  const [puzzleIndex, setPuzzleIndex] = useState(0)
-  const [grid, setGrid] = useState(() => copyGrid(PUZZLES[0].puzzle))
+function GameActions({ canUndo, isComplete, nextLabel, onNext, onReset, onUndo }) {
+  const [isConfirmingReset, setIsConfirmingReset] = useState(false)
+
+  const confirmReset = () => {
+    onReset()
+    setIsConfirmingReset(false)
+  }
+
+  return (
+    <>
+      <div className={`actions${isComplete ? ' is-complete' : ''}`}>
+        <button
+          className="secondary-button"
+          type="button"
+          onClick={() => setIsConfirmingReset(true)}
+        >
+          <span aria-hidden="true">↺</span>
+          Reset
+        </button>
+        <button
+          className="secondary-button"
+          type="button"
+          disabled={!canUndo}
+          onClick={onUndo}
+        >
+          <span aria-hidden="true">↶</span>
+          Undo
+        </button>
+        {isComplete && (
+          <button className="primary-button" type="button" onClick={onNext}>
+            {nextLabel}
+            <span aria-hidden="true">→</span>
+          </button>
+        )}
+      </div>
+
+      {isConfirmingReset && (
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          onClick={() => setIsConfirmingReset(false)}
+        >
+          <div
+            aria-labelledby="reset-dialog-title"
+            aria-modal="true"
+            className="reset-dialog"
+            role="dialog"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 id="reset-dialog-title">Reset this puzzle?</h2>
+            <p>Your current entries will be cleared and undo history will be removed.</p>
+            <div className="dialog-actions">
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={() => setIsConfirmingReset(false)}
+              >
+                Cancel
+              </button>
+              <button className="primary-button" type="button" onClick={confirmReset}>
+                Reset
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
+function BinaryGame({ levelIndex, showRules }) {
+  const navigate = useNavigate()
+  const [grid, setGrid] = useState(() => copyGrid(PUZZLES[levelIndex].puzzle))
+  const [gridHistory, setGridHistory] = useState([])
   const [seconds, setSeconds] = useState(0)
   const [selectedValue, setSelectedValue] = useState(0)
   const [completedLevelIds, setCompletedLevelIds] = useState(() =>
@@ -208,7 +311,7 @@ function BinaryGame({ showRules }) {
       PUZZLES.map((puzzle) => puzzle.id),
     ),
   )
-  const currentPuzzle = PUZZLES[puzzleIndex]
+  const currentPuzzle = PUZZLES[levelIndex]
   const completedLevelSet = useMemo(
     () => new Set(completedLevelIds),
     [completedLevelIds],
@@ -229,7 +332,7 @@ function BinaryGame({ showRules }) {
     if (isComplete) return undefined
     const timer = window.setInterval(() => setSeconds((value) => value + 1), 1000)
     return () => window.clearInterval(timer)
-  }, [isComplete, puzzleIndex])
+  }, [isComplete, levelIndex])
 
   useEffect(() => {
     if (!isComplete || completedLevelSet.has(currentPuzzle.id)) return
@@ -243,29 +346,34 @@ function BinaryGame({ showRules }) {
     })
   }, [completedLevelSet, currentPuzzle.id, isComplete])
 
-  const loadPuzzle = (index) => {
-    setPuzzleIndex(index)
-    setGrid(copyGrid(PUZZLES[index].puzzle))
-    setSeconds(0)
-  }
-
   const fillCell = (row, column) => {
     if (currentPuzzle.puzzle[row][column] !== null || isComplete) return
+    if (grid[row][column] === selectedValue) return
 
-    setGrid((currentGrid) => {
-      const nextGrid = copyGrid(currentGrid)
-      nextGrid[row][column] = selectedValue
-      return nextGrid
-    })
+    const nextGrid = copyGrid(grid)
+    nextGrid[row][column] = selectedValue
+    setGridHistory((currentHistory) => [...currentHistory, copyGrid(grid)])
+    setGrid(nextGrid)
   }
 
   const resetPuzzle = () => {
     setGrid(copyGrid(currentPuzzle.puzzle))
+    setGridHistory([])
     setSeconds(0)
   }
 
+  const undoMove = () => {
+    setGridHistory((currentHistory) => {
+      if (!currentHistory.length) return currentHistory
+
+      const nextHistory = currentHistory.slice(0, -1)
+      setGrid(copyGrid(currentHistory[currentHistory.length - 1]))
+      return nextHistory
+    })
+  }
+
   const nextPuzzle = () => {
-    loadPuzzle((puzzleIndex + 1) % PUZZLES.length)
+    navigate(`/binary/${((levelIndex + 1) % PUZZLES.length) + 1}`)
   }
 
   return (
@@ -309,13 +417,6 @@ function BinaryGame({ showRules }) {
           <span style={{ width: `${(filledCells / (SIZE * SIZE)) * 100}%` }} />
         </div>
       </div>
-
-      <LevelList
-        levels={PUZZLES}
-        currentIndex={puzzleIndex}
-        completedLevelSet={completedLevelSet}
-        onSelect={loadPuzzle}
-      />
 
       <div
         className={`puzzle-grid${isComplete ? ' is-complete' : ''}`}
@@ -397,23 +498,22 @@ function BinaryGame({ showRules }) {
               : `Placing ${selectedValue}. Tap any open square.`}
       </p>
 
-      <div className="actions">
-        <button className="secondary-button" type="button" onClick={resetPuzzle}>
-          <span aria-hidden="true">↺</span>
-          Reset
-        </button>
-        <button className="primary-button" type="button" onClick={nextPuzzle}>
-          {isComplete ? 'Next puzzle' : 'New puzzle'}
-          <span aria-hidden="true">→</span>
-        </button>
-      </div>
+      <GameActions
+        canUndo={gridHistory.length > 0}
+        isComplete={isComplete}
+        nextLabel="Next puzzle"
+        onNext={nextPuzzle}
+        onReset={resetPuzzle}
+        onUndo={undoMove}
+      />
     </section>
   )
 }
 
-function HashiGame({ showRules }) {
-  const [levelIndex, setLevelIndex] = useState(0)
+function HashiGame({ levelIndex, showRules }) {
+  const navigate = useNavigate()
   const [bridgeCounts, setBridgeCounts] = useState(() => new Map())
+  const [bridgeHistory, setBridgeHistory] = useState([])
   const [dragGesture, setDragGesture] = useState(null)
   const [hoverIsland, setHoverIsland] = useState(null)
   const [changedEdgeId, setChangedEdgeId] = useState(null)
@@ -474,19 +574,9 @@ function HashiGame({ showRules }) {
     })
   }, [completedLevelSet, isComplete, level.id])
 
-  const loadLevel = (index) => {
-    setLevelIndex(index)
-    setBridgeCounts(new Map())
-    setDragGesture(null)
-    setHoverIsland(null)
-    setChangedEdgeId(null)
-    setCutEdgeIds(new Set())
-    setCutSegments([])
-    setSeconds(0)
-  }
-
   const resetLevel = () => {
     setBridgeCounts(new Map())
+    setBridgeHistory([])
     setDragGesture(null)
     setHoverIsland(null)
     setChangedEdgeId(null)
@@ -496,7 +586,7 @@ function HashiGame({ showRules }) {
   }
 
   const nextLevel = () => {
-    loadLevel((levelIndex + 1) % HASHI_PUZZLES.length)
+    navigate(`/hashi/${((levelIndex + 1) % HASHI_PUZZLES.length) + 1}`)
   }
 
   const validEdgeFor = (from, to) => edges.find((edge) => edge.id === edgeId(from, to))
@@ -534,11 +624,10 @@ function HashiGame({ showRules }) {
     const currentValue = bridgeCounts.get(edge.id) ?? 0
     if (currentValue >= 2) return false
 
-    setBridgeCounts((currentCounts) => {
-      const nextCounts = new Map(currentCounts)
-      nextCounts.set(edge.id, Math.min((nextCounts.get(edge.id) ?? 0) + 1, 2))
-      return nextCounts
-    })
+    const nextCounts = new Map(bridgeCounts)
+    nextCounts.set(edge.id, Math.min(currentValue + 1, 2))
+    setBridgeHistory((currentHistory) => [...currentHistory, new Map(bridgeCounts)])
+    setBridgeCounts(nextCounts)
 
     showBridgeEffect(edge.id)
     return true
@@ -563,13 +652,27 @@ function HashiGame({ showRules }) {
 
     if (!crossedEdges.length) return false
 
-    setBridgeCounts((currentCounts) => {
-      const nextCounts = new Map(currentCounts)
-      crossedEdges.forEach((edge) => nextCounts.delete(edge.id))
-      return nextCounts
-    })
+    const nextCounts = new Map(bridgeCounts)
+    crossedEdges.forEach((edge) => nextCounts.delete(edge.id))
+    setBridgeHistory((currentHistory) => [...currentHistory, new Map(bridgeCounts)])
+    setBridgeCounts(nextCounts)
     showBridgeEffect(null, crossedEdges)
     return true
+  }
+
+  const undoMove = () => {
+    setBridgeHistory((currentHistory) => {
+      if (!currentHistory.length) return currentHistory
+
+      const nextHistory = currentHistory.slice(0, -1)
+      setBridgeCounts(new Map(currentHistory[currentHistory.length - 1]))
+      setDragGesture(null)
+      setHoverIsland(null)
+      setChangedEdgeId(null)
+      setCutEdgeIds(new Set())
+      setCutSegments([])
+      return nextHistory
+    })
   }
 
   const pointFromEvent = (event) => {
@@ -731,13 +834,6 @@ function HashiGame({ showRules }) {
         </div>
       </div>
 
-      <LevelList
-        levels={HASHI_PUZZLES}
-        currentIndex={levelIndex}
-        completedLevelSet={completedLevelSet}
-        onSelect={loadLevel}
-      />
-
       <div
         className={[
           'hashi-board',
@@ -854,23 +950,22 @@ function HashiGame({ showRules }) {
                   : 'Drag from one island to another to draw. Swipe across a bridge to delete.'}
       </p>
 
-      <div className="actions">
-        <button className="secondary-button" type="button" onClick={resetLevel}>
-          <span aria-hidden="true">↺</span>
-          Reset
-        </button>
-        <button className="primary-button" type="button" onClick={nextLevel}>
-          {isComplete ? 'Next bridge' : 'New puzzle'}
-          <span aria-hidden="true">→</span>
-        </button>
-      </div>
+      <GameActions
+        canUndo={bridgeHistory.length > 0}
+        isComplete={isComplete}
+        nextLabel="Next bridge"
+        onNext={nextLevel}
+        onReset={resetLevel}
+        onUndo={undoMove}
+      />
     </section>
   )
 }
 
-function TectonicGame({ showRules }) {
-  const [levelIndex, setLevelIndex] = useState(0)
-  const [grid, setGrid] = useState(() => copyGrid(TECTONIC_PUZZLES[0].puzzle))
+function TectonicGame({ levelIndex, showRules }) {
+  const navigate = useNavigate()
+  const [grid, setGrid] = useState(() => copyGrid(TECTONIC_PUZZLES[levelIndex].puzzle))
+  const [gridHistory, setGridHistory] = useState([])
   const [seconds, setSeconds] = useState(0)
   const [selectedValue, setSelectedValue] = useState(1)
   const [completedLevelIds, setCompletedLevelIds] = useState(() =>
@@ -907,29 +1002,33 @@ function TectonicGame({ showRules }) {
     })
   }, [completedLevelSet, isComplete, level.id])
 
-  const loadLevel = (index) => {
-    setLevelIndex(index)
-    setGrid(copyGrid(TECTONIC_PUZZLES[index].puzzle))
-    setSeconds(0)
-    setSelectedValue(1)
-  }
-
   const resetLevel = () => {
     setGrid(copyGrid(level.puzzle))
+    setGridHistory([])
     setSeconds(0)
   }
 
   const nextLevel = () => {
-    loadLevel((levelIndex + 1) % TECTONIC_PUZZLES.length)
+    navigate(`/tectonic/${((levelIndex + 1) % TECTONIC_PUZZLES.length) + 1}`)
   }
 
   const fillCell = (row, column) => {
     if (level.puzzle[row][column] !== null || isComplete) return
+    if (grid[row][column] === selectedValue) return
 
-    setGrid((currentGrid) => {
-      const nextGrid = copyGrid(currentGrid)
-      nextGrid[row][column] = selectedValue
-      return nextGrid
+    const nextGrid = copyGrid(grid)
+    nextGrid[row][column] = selectedValue
+    setGridHistory((currentHistory) => [...currentHistory, copyGrid(grid)])
+    setGrid(nextGrid)
+  }
+
+  const undoMove = () => {
+    setGridHistory((currentHistory) => {
+      if (!currentHistory.length) return currentHistory
+
+      const nextHistory = currentHistory.slice(0, -1)
+      setGrid(copyGrid(currentHistory[currentHistory.length - 1]))
+      return nextHistory
     })
   }
 
@@ -1026,13 +1125,6 @@ function TectonicGame({ showRules }) {
           <span style={{ width: `${(filledCells / (level.width * level.height)) * 100}%` }} />
         </div>
       </div>
-
-      <LevelList
-        levels={TECTONIC_PUZZLES}
-        currentIndex={levelIndex}
-        completedLevelSet={completedLevelSet}
-        onSelect={loadLevel}
-      />
 
       <div
         className="tectonic-board"
@@ -1138,65 +1230,145 @@ function TectonicGame({ showRules }) {
               : `Placing ${selectedValue}. Tap any open square.`}
       </p>
 
-      <div className="actions">
-        <button className="secondary-button" type="button" onClick={resetLevel}>
-          <span aria-hidden="true">↺</span>
-          Reset
-        </button>
-        <button className="primary-button" type="button" onClick={nextLevel}>
-          {isComplete ? 'Next block' : 'New puzzle'}
-          <span aria-hidden="true">→</span>
-        </button>
+      <GameActions
+        canUndo={gridHistory.length > 0}
+        isComplete={isComplete}
+        nextLabel="Next block"
+        onNext={nextLevel}
+        onReset={resetLevel}
+        onUndo={undoMove}
+      />
+    </section>
+  )
+}
+
+function getCompletedLevelSet(config) {
+  return new Set(
+    readCompletedLevels(
+      config.storageKey,
+      config.levels.map((level) => level.id),
+    ),
+  )
+}
+
+function HomeScreen() {
+  return (
+    <section className="game-card picker-screen" aria-labelledby="home-title">
+      <div className="title-row">
+        <div>
+          <p className="kicker">Puzzle collection</p>
+          <h1 id="home-title">Choose a game</h1>
+        </div>
+      </div>
+
+      <div className="game-picker">
+        {GAME_LIST.map((game) => {
+          const completedLevelSet = getCompletedLevelSet(game)
+
+          return (
+            <Link className="game-choice" to={`/${game.path}`} key={game.path}>
+              <span className="game-choice-title">{game.name}</span>
+              <span className="game-choice-label">{game.label}</span>
+              <span className="game-choice-summary">{game.summary}</span>
+              <span className="game-choice-progress">
+                {completedLevelSet.size} / {game.levels.length} complete
+              </span>
+            </Link>
+          )
+        })}
       </div>
     </section>
   )
 }
 
+function LevelSelectionScreen() {
+  const { gameType } = useParams()
+  const game = GAME_CONFIGS[gameType]
+
+  if (!game) return <Navigate to="/" replace />
+
+  const completedLevelSet = getCompletedLevelSet(game)
+
+  return (
+    <section className="game-card level-screen" aria-labelledby="level-title">
+      <div className="title-row">
+        <div>
+          <p className="kicker">{game.kicker}</p>
+          <h1 id="level-title">Choose a level</h1>
+        </div>
+      </div>
+
+      <div className="progress-block">
+        <div className="progress-label">
+          <span>{game.name}</span>
+          <span>
+            {completedLevelSet.size} / {game.levels.length} complete
+          </span>
+        </div>
+        <div className="progress-track" aria-hidden="true">
+          <span style={{ width: `${(completedLevelSet.size / game.levels.length) * 100}%` }} />
+        </div>
+      </div>
+
+      <LevelList
+        levels={game.levels}
+        gamePath={game.path}
+        completedLevelSet={completedLevelSet}
+      />
+    </section>
+  )
+}
+
+function GameRoute({ showRules }) {
+  const { gameType, levelNumber } = useParams()
+  const game = GAME_CONFIGS[gameType]
+  const parsedLevel = Number(levelNumber)
+
+  if (!game || !Number.isInteger(parsedLevel)) return <Navigate to="/" replace />
+
+  const levelIndex = parsedLevel - 1
+  if (levelIndex < 0 || levelIndex >= game.levels.length) {
+    return <Navigate to={`/${game.path}`} replace />
+  }
+
+  if (game.path === 'binary') {
+    return <BinaryGame key={`${game.path}-${levelIndex}`} levelIndex={levelIndex} showRules={showRules} />
+  }
+
+  if (game.path === 'hashi') {
+    return <HashiGame key={`${game.path}-${levelIndex}`} levelIndex={levelIndex} showRules={showRules} />
+  }
+
+  return <TectonicGame key={`${game.path}-${levelIndex}`} levelIndex={levelIndex} showRules={showRules} />
+}
+
+function AppFooter() {
+  const { gameType } = useParams()
+  const game = GAME_CONFIGS[gameType]
+
+  return (
+    <footer>
+      <span>{game ? game.rulesSummary : 'Three puzzle styles.'}</span>
+      <span>One logical solution.</span>
+    </footer>
+  )
+}
+
 function App() {
-  const [gameType, setGameType] = useState('binary')
   const [showRules, setShowRules] = useState(false)
 
   return (
     <main className="game-shell">
       <header className="topbar">
-        <a className="brand" href="./" aria-label="Twofold home">
+        <Link className="brand" to="/" aria-label="Twofold home">
           <span className="brand-mark" aria-hidden="true">
             <i />
             <i />
           </span>
           <span>Twofold</span>
-        </a>
+        </Link>
 
         <div className="topbar-actions">
-          <div className="game-tabs" role="tablist" aria-label="Choose puzzle type">
-            <button
-              className={gameType === 'binary' ? 'active' : ''}
-              type="button"
-              role="tab"
-              aria-selected={gameType === 'binary'}
-              onClick={() => setGameType('binary')}
-            >
-              Binary
-            </button>
-            <button
-              className={gameType === 'hashi' ? 'active' : ''}
-              type="button"
-              role="tab"
-              aria-selected={gameType === 'hashi'}
-              onClick={() => setGameType('hashi')}
-            >
-              Bridges
-            </button>
-            <button
-              className={gameType === 'tectonic' ? 'active' : ''}
-              type="button"
-              role="tab"
-              aria-selected={gameType === 'tectonic'}
-              onClick={() => setGameType('tectonic')}
-            >
-              Tectonic
-            </button>
-          </div>
           <button
             className="icon-button"
             type="button"
@@ -1209,24 +1381,17 @@ function App() {
         </div>
       </header>
 
-      {gameType === 'binary' ? (
-        <BinaryGame showRules={showRules} />
-      ) : gameType === 'hashi' ? (
-        <HashiGame showRules={showRules} />
-      ) : (
-        <TectonicGame showRules={showRules} />
-      )}
+      <Routes>
+        <Route path="/" element={<HomeScreen />} />
+        <Route path="/:gameType" element={<LevelSelectionScreen />} />
+        <Route path="/:gameType/:levelNumber" element={<GameRoute showRules={showRules} />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
 
-      <footer>
-        <span>
-          {gameType === 'binary'
-            ? 'Three simple rules.'
-            : gameType === 'hashi'
-              ? 'No crossing bridges.'
-              : 'No touching twins.'}
-        </span>
-        <span>One logical solution.</span>
-      </footer>
+      <Routes>
+        <Route path="/" element={<AppFooter />} />
+        <Route path="/:gameType/*" element={<AppFooter />} />
+      </Routes>
     </main>
   )
 }

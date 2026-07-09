@@ -1,4 +1,4 @@
-export const HASHI_PUZZLES = [
+const HASHI_BASE_PUZZLES = [
   {
     id: 'hashi-01',
     name: 'Level 1',
@@ -169,4 +169,51 @@ export const HASHI_PUZZLES = [
       { row: 6, column: 6, value: 2 },
     ],
   },
+]
+
+const HASHI_EXTRA_TRANSFORMS = [
+  (level, island) => ({ row: island.row, column: level.width - 1 - island.column }),
+  (level, island) => ({ row: level.height - 1 - island.row, column: island.column }),
+  (level, island) => ({
+    row: level.height - 1 - island.row,
+    column: level.width - 1 - island.column,
+  }),
+  (level, island) => ({ row: island.column, column: island.row }),
+  (level, island) => ({
+    row: level.width - 1 - island.column,
+    column: level.height - 1 - island.row,
+  }),
+  (level, island) => ({ row: island.row, column: level.width - 1 - island.column }),
+  (level, island) => ({ row: level.height - 1 - island.row, column: island.column }),
+  (level, island) => ({
+    row: level.height - 1 - island.row,
+    column: level.width - 1 - island.column,
+  }),
+  (level, island) => ({ row: island.column, column: island.row }),
+  (level, island) => ({
+    row: level.width - 1 - island.column,
+    column: level.height - 1 - island.row,
+  }),
+]
+
+function transformHashiLevel(level, index) {
+  const transform = HASHI_EXTRA_TRANSFORMS[index]
+  const levelNumber = HASHI_BASE_PUZZLES.length + index + 1
+
+  return {
+    ...level,
+    id: `hashi-${String(levelNumber).padStart(2, '0')}`,
+    name: `Level ${levelNumber}`,
+    islands: level.islands
+      .map((island) => ({
+        ...transform(level, island),
+        value: island.value,
+      }))
+      .sort((first, second) => first.row - second.row || first.column - second.column),
+  }
+}
+
+export const HASHI_PUZZLES = [
+  ...HASHI_BASE_PUZZLES,
+  ...HASHI_BASE_PUZZLES.map(transformHashiLevel),
 ]
