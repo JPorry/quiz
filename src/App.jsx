@@ -1,4 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import {
+  ArrowRight,
+  CalendarDays,
+  CircleHelp,
+  Clock3,
+  Eraser,
+  RotateCcw,
+  Undo2,
+} from 'lucide-react'
 import { Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { HASHI_PUZZLES } from './hashiPuzzles.js'
 import {
@@ -22,6 +31,8 @@ import './App.css'
 const BINARY_COMPLETED_STORAGE_KEY = 'twofold.completedLevels'
 const HASHI_COMPLETED_STORAGE_KEY = 'twofold.hashi.completedLevels'
 const TECTONIC_COMPLETED_STORAGE_KEY = 'twofold.tectonic.completedLevels'
+const GAME_STATE_STORAGE_PREFIX = 'twofold.gameState'
+const GAME_STATE_STORAGE_VERSION = 1
 const TECTONIC_REGION_COLORS = [
   '#f4dfd8',
   '#dceee9',
@@ -147,6 +158,136 @@ function clamp(value, min, max) {
 
 function copyGrid(grid) {
   return grid.map((row) => [...row])
+}
+
+function getGameStateStorageKey(gameType, levelId) {
+  return `${GAME_STATE_STORAGE_PREFIX}.${GAME_STATE_STORAGE_VERSION}.${gameType}.${levelId}`
+}
+
+function readGameState(gameType, levelId, isValid) {
+  try {
+    const savedValue = window.localStorage.getItem(
+      getGameStateStorageKey(gameType, levelId),
+    )
+    if (!savedValue) return null
+
+    const parsedValue = JSON.parse(savedValue)
+    return isValid(parsedValue) ? parsedValue : null
+  } catch {
+    return null
+  }
+}
+
+function saveGameState(gameType, levelId, state) {
+  try {
+    window.localStorage.setItem(
+      getGameStateStorageKey(gameType, levelId),
+      JSON.stringify(state),
+    )
+  } catch {
+    // The game remains playable when storage is full or unavailable.
+  }
+}
+
+function clearGameState(gameType, levelId) {
+  try {
+    window.localStorage.removeItem(getGameStateStorageKey(gameType, levelId))
+  } catch {
+    // Ignore unavailable storage during reset or completion cleanup.
+  }
+}
+
+function isSavedSecondsValid(seconds) {
+  return Number.isInteger(seconds) && seconds >= 0
+}
+
+function isSavedGridValid(grid, puzzle, validValues) {
+  return (
+    Array.isArray(grid) &&
+    grid.length === puzzle.length &&
+    grid.every(
+      (row, rowIndex) =>
+        Array.isArray(row) &&
+        row.length === puzzle[rowIndex].length &&
+        row.every((value, columnIndex) => {
+          const clue = puzzle[rowIndex][columnIndex]
+          return clue === null
+            ? validValues.includes(value)
+            : value === clue
+        }),
+    )
+  )
+}
+
+function isSavedGridHistoryValid(history, puzzle, validValues) {
+  return (
+    Array.isArray(history) &&
+    history.every((grid) => isSavedGridValid(grid, puzzle, validValues))
+  )
+}
+
+function readBinaryGameState(level) {
+  const validValues = [null, 0, 1]
+
+  return readGameState('binary', level.id, (state) =>
+    Boolean(
+      state &&
+        isSavedGridValid(state.grid, level.puzzle, validValues) &&
+        isSavedGridHistoryValid(state.history, level.puzzle, validValues) &&
+        isSavedSecondsValid(state.seconds) &&
+        validValues.includes(state.selectedValue),
+    ),
+  )
+}
+
+function readTectonicGameState(level) {
+  const maxValue = getTectonicMaxValue(level)
+  const validValues = [
+    null,
+    ...Array.from({ length: maxValue }, (_, index) => index + 1),
+  ]
+
+  return readGameState('tectonic', level.id, (state) =>
+    Boolean(
+      state &&
+        isSavedGridValid(state.grid, level.puzzle, validValues) &&
+        isSavedGridHistoryValid(state.history, level.puzzle, validValues) &&
+        isSavedSecondsValid(state.seconds) &&
+        validValues.includes(state.selectedValue),
+    ),
+  )
+}
+
+function isSavedBridgeEntriesValid(entries, validEdgeIds) {
+  if (!Array.isArray(entries)) return false
+
+  const ids = entries.map((entry) => entry?.[0])
+  return (
+    new Set(ids).size === ids.length &&
+    entries.every(
+      (entry) =>
+        Array.isArray(entry) &&
+        entry.length === 2 &&
+        validEdgeIds.has(entry[0]) &&
+        (entry[1] === 1 || entry[1] === 2),
+    )
+  )
+}
+
+function readHashiGameState(level) {
+  const validEdgeIds = new Set(getHashiEdges(level).map((edge) => edge.id))
+
+  return readGameState('hashi', level.id, (state) =>
+    Boolean(
+      state &&
+        isSavedBridgeEntriesValid(state.bridgeCounts, validEdgeIds) &&
+        Array.isArray(state.history) &&
+        state.history.every((entries) =>
+          isSavedBridgeEntriesValid(entries, validEdgeIds),
+        ) &&
+        isSavedSecondsValid(state.seconds),
+    ),
+  )
 }
 
 function readCompletedLevels(storageKey, validIds) {
@@ -319,7 +460,7 @@ function GameActions({ canUndo, isComplete, nextLabel, onNext, onReset, onUndo }
           type="button"
           onClick={() => setIsConfirmingReset(true)}
         >
-          <span aria-hidden="true">↺</span>
+          <RotateCcw aria-hidden="true" />
           Reset
         </button>
         <button
@@ -328,13 +469,13 @@ function GameActions({ canUndo, isComplete, nextLabel, onNext, onReset, onUndo }
           disabled={!canUndo}
           onClick={onUndo}
         >
-          <span aria-hidden="true">↶</span>
+          <Undo2 aria-hidden="true" />
           Undo
         </button>
         {isComplete && (
           <button className="primary-button" type="button" onClick={onNext}>
             {nextLabel}
-            <span aria-hidden="true">→</span>
+            <ArrowRight aria-hidden="true" />
           </button>
         )}
       </div>
@@ -375,17 +516,27 @@ function GameActions({ canUndo, isComplete, nextLabel, onNext, onReset, onUndo }
 
 function BinaryGame({ levelIndex, showRules }) {
   const navigate = useTransitionNavigate()
-  const [grid, setGrid] = useState(() => copyGrid(PUZZLES[levelIndex].puzzle))
-  const [gridHistory, setGridHistory] = useState([])
-  const [seconds, setSeconds] = useState(0)
-  const [selectedValue, setSelectedValue] = useState(0)
+  const currentPuzzle = PUZZLES[levelIndex]
+  const savedState = useMemo(
+    () => readBinaryGameState(currentPuzzle),
+    [currentPuzzle],
+  )
+  const [grid, setGrid] = useState(() =>
+    copyGrid(savedState?.grid ?? currentPuzzle.puzzle),
+  )
+  const [gridHistory, setGridHistory] = useState(() =>
+    savedState?.history.map(copyGrid) ?? [],
+  )
+  const [seconds, setSeconds] = useState(savedState?.seconds ?? 0)
+  const [selectedValue, setSelectedValue] = useState(
+    savedState?.selectedValue ?? 0,
+  )
   const [completedLevelIds, setCompletedLevelIds] = useState(() =>
     readCompletedLevels(
       BINARY_COMPLETED_STORAGE_KEY,
       PUZZLES.map((puzzle) => puzzle.id),
     ),
   )
-  const currentPuzzle = PUZZLES[levelIndex]
   const completedLevelSet = useMemo(
     () => new Set(completedLevelIds),
     [completedLevelIds],
@@ -407,6 +558,21 @@ function BinaryGame({ levelIndex, showRules }) {
     const timer = window.setInterval(() => setSeconds((value) => value + 1), 1000)
     return () => window.clearInterval(timer)
   }, [isComplete, levelIndex])
+
+  useEffect(() => {
+    saveGameState('binary', currentPuzzle.id, {
+      grid,
+      history: gridHistory,
+      seconds,
+      selectedValue,
+    })
+  }, [
+    currentPuzzle.id,
+    grid,
+    gridHistory,
+    seconds,
+    selectedValue,
+  ])
 
   useEffect(() => {
     if (!isComplete || completedLevelSet.has(currentPuzzle.id)) return
@@ -431,6 +597,7 @@ function BinaryGame({ levelIndex, showRules }) {
   }
 
   const resetPuzzle = () => {
+    clearGameState('binary', currentPuzzle.id)
     setGrid(copyGrid(currentPuzzle.puzzle))
     setGridHistory([])
     setSeconds(0)
@@ -453,14 +620,16 @@ function BinaryGame({ levelIndex, showRules }) {
   }
 
   return (
-    <section className="game-card" aria-labelledby="game-title">
-      <div className="title-row">
-        <div>
-          <p className="kicker">Binary puzzle · 10 × 10</p>
+    <section className="game-card binary-game" aria-labelledby="game-title">
+      <div className="title-row binary-title-row">
+        <div className="binary-title-lockup">
+          <span className="title-icon" aria-hidden="true">
+            <CalendarDays />
+          </span>
           <h1 id="game-title">Daily balance</h1>
         </div>
         <div className="timer" aria-label={`Elapsed time ${formatTime(seconds)}`}>
-          <span aria-hidden="true">◷</span>
+          <Clock3 aria-hidden="true" />
           {formatTime(seconds)}
         </div>
       </div>
@@ -533,7 +702,6 @@ function BinaryGame({ levelIndex, showRules }) {
       </div>
 
       <div className="input-palette" role="group" aria-label="Choose a value">
-        <span className="palette-label">Place</span>
         <button
           className={`value-button zero${selectedValue === 0 ? ' selected' : ''}`}
           type="button"
@@ -559,7 +727,7 @@ function BinaryGame({ levelIndex, showRules }) {
           aria-pressed={selectedValue === null}
           onClick={() => setSelectedValue(null)}
         >
-          <span aria-hidden="true">⌫</span>
+          <Eraser aria-hidden="true" />
           Erase
         </button>
       </div>
@@ -588,14 +756,23 @@ function BinaryGame({ levelIndex, showRules }) {
 
 function HashiGame({ levelIndex, showRules }) {
   const navigate = useTransitionNavigate()
-  const [bridgeCounts, setBridgeCounts] = useState(() => new Map())
-  const [bridgeHistory, setBridgeHistory] = useState([])
+  const level = HASHI_PUZZLES[levelIndex]
+  const savedState = useMemo(
+    () => readHashiGameState(level),
+    [level],
+  )
+  const [bridgeCounts, setBridgeCounts] = useState(
+    () => new Map(savedState?.bridgeCounts ?? []),
+  )
+  const [bridgeHistory, setBridgeHistory] = useState(
+    () => savedState?.history.map((entries) => new Map(entries)) ?? [],
+  )
   const [dragGesture, setDragGesture] = useState(null)
   const [hoverIsland, setHoverIsland] = useState(null)
   const [changedEdgeId, setChangedEdgeId] = useState(null)
   const [cutEdgeIds, setCutEdgeIds] = useState(() => new Set())
   const [cutSegments, setCutSegments] = useState([])
-  const [seconds, setSeconds] = useState(0)
+  const [seconds, setSeconds] = useState(savedState?.seconds ?? 0)
   const boardRef = useRef(null)
   const effectTimerRef = useRef(null)
   const [completedLevelIds, setCompletedLevelIds] = useState(() =>
@@ -604,7 +781,6 @@ function HashiGame({ levelIndex, showRules }) {
       HASHI_PUZZLES.map((puzzle) => puzzle.id),
     ),
   )
-  const level = HASHI_PUZZLES[levelIndex]
   const edges = useMemo(() => getHashiEdges(level), [level])
   const completedLevelSet = useMemo(
     () => new Set(completedLevelIds),
@@ -639,6 +815,14 @@ function HashiGame({ levelIndex, showRules }) {
   }, [isComplete, levelIndex])
 
   useEffect(() => {
+    saveGameState('hashi', level.id, {
+      bridgeCounts: [...bridgeCounts.entries()],
+      history: bridgeHistory.map((counts) => [...counts.entries()]),
+      seconds,
+    })
+  }, [bridgeCounts, bridgeHistory, level.id, seconds])
+
+  useEffect(() => {
     if (!isComplete || completedLevelSet.has(level.id)) return
 
     setCompletedLevelIds((currentIds) => {
@@ -651,6 +835,7 @@ function HashiGame({ levelIndex, showRules }) {
   }, [completedLevelSet, isComplete, level.id])
 
   const resetLevel = () => {
+    clearGameState('hashi', level.id)
     setBridgeCounts(new Map())
     setBridgeHistory([])
     setDragGesture(null)
@@ -1042,17 +1227,27 @@ function HashiGame({ levelIndex, showRules }) {
 
 function TectonicGame({ levelIndex, showRules }) {
   const navigate = useTransitionNavigate()
-  const [grid, setGrid] = useState(() => copyGrid(TECTONIC_PUZZLES[levelIndex].puzzle))
-  const [gridHistory, setGridHistory] = useState([])
-  const [seconds, setSeconds] = useState(0)
-  const [selectedValue, setSelectedValue] = useState(1)
+  const level = TECTONIC_PUZZLES[levelIndex]
+  const savedState = useMemo(
+    () => readTectonicGameState(level),
+    [level],
+  )
+  const [grid, setGrid] = useState(() =>
+    copyGrid(savedState?.grid ?? level.puzzle),
+  )
+  const [gridHistory, setGridHistory] = useState(() =>
+    savedState?.history.map(copyGrid) ?? [],
+  )
+  const [seconds, setSeconds] = useState(savedState?.seconds ?? 0)
+  const [selectedValue, setSelectedValue] = useState(
+    savedState?.selectedValue ?? 1,
+  )
   const [completedLevelIds, setCompletedLevelIds] = useState(() =>
     readCompletedLevels(
       TECTONIC_COMPLETED_STORAGE_KEY,
       TECTONIC_PUZZLES.map((puzzle) => puzzle.id),
     ),
   )
-  const level = TECTONIC_PUZZLES[levelIndex]
   const completedLevelSet = useMemo(
     () => new Set(completedLevelIds),
     [completedLevelIds],
@@ -1069,6 +1264,15 @@ function TectonicGame({ levelIndex, showRules }) {
   }, [isComplete, levelIndex])
 
   useEffect(() => {
+    saveGameState('tectonic', level.id, {
+      grid,
+      history: gridHistory,
+      seconds,
+      selectedValue,
+    })
+  }, [grid, gridHistory, level.id, seconds, selectedValue])
+
+  useEffect(() => {
     if (!isComplete || completedLevelSet.has(level.id)) return
 
     setCompletedLevelIds((currentIds) => {
@@ -1081,6 +1285,7 @@ function TectonicGame({ levelIndex, showRules }) {
   }, [completedLevelSet, isComplete, level.id])
 
   const resetLevel = () => {
+    clearGameState('tectonic', level.id)
     setGrid(copyGrid(level.puzzle))
     setGridHistory([])
     setSeconds(0)
@@ -1428,8 +1633,11 @@ function GameRoute({ showRules }) {
 }
 
 function AppFooter() {
-  const { gameType } = useParams()
+  const { gameType, levelNumber } = useParams()
   const game = GAME_CONFIGS[gameType]
+  const location = useLocation()
+
+  if (levelNumber || getRouteDepth(location.pathname) >= 2) return null
 
   return (
     <footer>
@@ -1462,7 +1670,7 @@ function App() {
             aria-expanded={showRules}
             onClick={() => setShowRules((visible) => !visible)}
           >
-            ?
+            <CircleHelp aria-hidden="true" />
           </button>
         </div>
       </header>

@@ -18,6 +18,19 @@ npm run lint
 npm run build
 ```
 
+## Binary puzzle generation
+
+Generate deterministic 10 × 10 Binary puzzles with:
+
+```sh
+npm run generate:binary -- --count=5 --seed=20260724 --clues=34
+```
+
+The generator starts from a valid completed grid and removes a clue only while
+the exhaustive solver still finds exactly one solution. The production build
+also generates sample puzzles and rejects the build if uniqueness is not
+preserved.
+
 ## GitHub Pages deployment
 
 The workflow in `.github/workflows/deploy.yml` builds and deploys the app after

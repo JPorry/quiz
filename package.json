@@ -5,12 +5,15 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm run verify:puzzles && vite build",
+    "build": "npm run verify:puzzles && npm run verify:binary-generator && vite build",
+    "generate:binary": "node scripts/generate-binary-puzzles.mjs",
     "lint": "oxlint",
     "preview": "vite preview",
+    "verify:binary-generator": "node scripts/generate-binary-puzzles.mjs --verify --count=2 --clues=34",
     "verify:puzzles": "node scripts/verify-puzzles.mjs"
   },
   "dependencies": {
+    "lucide-react": "^1.26.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-router-dom": "^7.18.1"
