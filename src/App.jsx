@@ -2,9 +2,12 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowRight,
   CalendarDays,
+  ChevronRight,
   CircleHelp,
   Clock3,
   Eraser,
+  Grid3X3,
+  Network,
   RotateCcw,
   Undo2,
 } from 'lucide-react'
@@ -50,6 +53,7 @@ const GAME_CONFIGS = {
     name: 'Binary',
     label: 'Daily balance',
     kicker: 'Binary puzzle · 10 × 10',
+    levelMeta: 'Daily balance · 10 × 10',
     summary: 'Balance every row and column with zeros and ones.',
     rulesSummary: 'Three simple rules.',
     levels: PUZZLES,
@@ -60,6 +64,7 @@ const GAME_CONFIGS = {
     name: 'Bridges',
     label: 'Connect islands',
     kicker: 'Hashi · Bridges',
+    levelMeta: 'Connect islands · Bridges',
     summary: 'Draw bridges until every island joins one network.',
     rulesSummary: 'No crossing bridges.',
     levels: HASHI_PUZZLES,
@@ -70,6 +75,7 @@ const GAME_CONFIGS = {
     name: 'Tectonic',
     label: 'Number blocks',
     kicker: 'Tectonic · Suguru',
+    levelMeta: 'Number blocks · Suguru',
     summary: 'Fill irregular regions without matching neighbors touching.',
     rulesSummary: 'No touching twins.',
     levels: TECTONIC_PUZZLES,
@@ -380,15 +386,20 @@ function findBinaryViolations(grid) {
 }
 
 function LevelList({ levels, gamePath, completedLevelSet }) {
+  const firstUnsolvedIndex = levels.findIndex((level) => !completedLevelSet.has(level.id))
+  const currentLevelIndex = firstUnsolvedIndex === -1 ? levels.length - 1 : firstUnsolvedIndex
+
   return (
     <div className="level-list" aria-label="Choose a level">
       {levels.map((level, index) => {
         const isSolved = completedLevelSet.has(level.id)
+        const isCurrent = index === currentLevelIndex
 
         return (
           <TransitionLink
             className={[
               'level-button',
+              isCurrent ? 'current' : '',
               isSolved ? 'solved' : '',
             ]
               .filter(Boolean)
@@ -1536,33 +1547,118 @@ function getCompletedLevelSet(config) {
   )
 }
 
+const BINARY_PREVIEW_VALUES = [
+  0, 1, 0, 1,
+  1, 0, 1, 0,
+  0, 1, 0, 0,
+  1, 0, 1, 0,
+]
+
+const TECTONIC_PREVIEW_VALUES = [
+  null, 1, null, 2,
+  null, null, null, null,
+  null, null, 2, 1,
+  1, null, 3, 3,
+]
+
+function BinaryPreview() {
+  return (
+    <span className="choice-preview binary-preview" aria-hidden="true">
+      {BINARY_PREVIEW_VALUES.map((value, index) => (
+        <i className={value === 0 ? 'zero' : 'one'} key={index}>
+          {value}
+        </i>
+      ))}
+    </span>
+  )
+}
+
+function HashiPreview() {
+  return (
+    <span className="choice-preview hashi-preview" aria-hidden="true">
+      <i className="bridge bridge-top" />
+      <i className="bridge bridge-left" />
+      <i className="bridge bridge-middle-left" />
+      <i className="bridge bridge-middle-right" />
+      <i className="bridge bridge-right" />
+      <i className="bridge bridge-bottom" />
+      <b className="island island-top-left">3</b>
+      <b className="island island-top-right">2</b>
+      <b className="island island-middle-left">1</b>
+      <b className="island island-middle">4</b>
+      <b className="island island-middle-right">2</b>
+      <b className="island island-bottom-left">2</b>
+      <b className="island island-bottom-right">3</b>
+    </span>
+  )
+}
+
+function TectonicPreview() {
+  return (
+    <span className="choice-preview tectonic-preview" aria-hidden="true">
+      {TECTONIC_PREVIEW_VALUES.map((value, index) => (
+        <i className={`tectonic-preview-cell cell-${index + 1}`} key={index}>
+          {value}
+        </i>
+      ))}
+    </span>
+  )
+}
+
+const GAME_CHOICE_DETAILS = {
+  binary: {
+    icon: CalendarDays,
+    preview: BinaryPreview,
+  },
+  hashi: {
+    icon: Network,
+    preview: HashiPreview,
+  },
+  tectonic: {
+    icon: Grid3X3,
+    preview: TectonicPreview,
+  },
+}
+
 function HomeScreen() {
   return (
     <section className="game-card picker-screen" aria-labelledby="home-title">
-      <div className="title-row">
-        <div>
-          <p className="kicker">Puzzle collection</p>
-          <h1 id="home-title">Choose a game</h1>
-        </div>
+      <div className="picker-heading">
+        <h1 id="home-title">Choose a game</h1>
+        <p>Three ways to think. Pick a puzzle.</p>
       </div>
 
       <div className="game-picker">
         {GAME_LIST.map((game) => {
           const completedLevelSet = getCompletedLevelSet(game)
+          const completedPercent = (completedLevelSet.size / game.levels.length) * 100
+          const details = GAME_CHOICE_DETAILS[game.path]
+          const ChoiceIcon = details.icon
+          const ChoicePreview = details.preview
 
           return (
             <TransitionLink
-              className="game-choice"
+              className={`game-choice ${game.path}-choice`}
               to={`/${game.path}`}
               transitionType="forward"
               key={game.path}
             >
-              <span className="game-choice-title">{game.name}</span>
-              <span className="game-choice-label">{game.label}</span>
-              <span className="game-choice-summary">{game.summary}</span>
-              <span className="game-choice-progress">
-                {completedLevelSet.size} / {game.levels.length} complete
+              <span className="game-choice-icon" aria-hidden="true">
+                <ChoiceIcon />
               </span>
+              <span className="game-choice-copy">
+                <span className="game-choice-title">{game.name}</span>
+                <span className="game-choice-label">{game.label}</span>
+                <span className="game-choice-summary">{game.summary}</span>
+                <span className="game-choice-progress">
+                  {completedLevelSet.size} / {game.levels.length} complete
+                </span>
+                <span className="game-choice-track" aria-hidden="true">
+                  <i style={{ width: `${Math.max(8, completedPercent)}%` }} />
+                </span>
+              </span>
+              <ChoicePreview />
+              <ChevronRight className="game-choice-chevron" aria-hidden="true" />
             </TransitionLink>
           )
         })}
@@ -1578,25 +1674,25 @@ function LevelSelectionScreen() {
   if (!game) return <Navigate to="/" replace />
 
   const completedLevelSet = getCompletedLevelSet(game)
+  const completedPercent = (completedLevelSet.size / game.levels.length) * 100
+  const GameIcon = GAME_CHOICE_DETAILS[game.path].icon
 
   return (
     <section className="game-card level-screen" aria-labelledby="level-title">
-      <div className="title-row">
-        <div>
-          <p className="kicker">{game.kicker}</p>
+      <div className="level-heading">
+        <span className="level-heading-icon" aria-hidden="true">
+          <GameIcon />
+        </span>
+        <div className="level-heading-copy">
+          <span className="level-game-name">{game.name}</span>
           <h1 id="level-title">Choose a level</h1>
         </div>
-      </div>
-
-      <div className="progress-block">
-        <div className="progress-label">
-          <span>{game.name}</span>
-          <span>
-            {completedLevelSet.size} / {game.levels.length} complete
-          </span>
-        </div>
+        <span className="level-meta">{game.levelMeta}</span>
+        <span className="level-completion">
+          {completedLevelSet.size} / {game.levels.length} complete
+        </span>
         <div className="progress-track" aria-hidden="true">
-          <span style={{ width: `${(completedLevelSet.size / game.levels.length) * 100}%` }} />
+          <span style={{ width: `${Math.max(10, completedPercent)}%` }} />
         </div>
       </div>
 
@@ -1630,21 +1726,6 @@ function GameRoute({ showRules }) {
   }
 
   return <TectonicGame key={`${game.path}-${levelIndex}`} levelIndex={levelIndex} showRules={showRules} />
-}
-
-function AppFooter() {
-  const { gameType, levelNumber } = useParams()
-  const game = GAME_CONFIGS[gameType]
-  const location = useLocation()
-
-  if (levelNumber || getRouteDepth(location.pathname) >= 2) return null
-
-  return (
-    <footer>
-      <span>{game ? game.rulesSummary : 'Three puzzle styles.'}</span>
-      <span>One logical solution.</span>
-    </footer>
-  )
 }
 
 function App() {
@@ -1683,11 +1764,6 @@ function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
-
-      <Routes>
-        <Route path="/" element={<AppFooter />} />
-        <Route path="/:gameType/*" element={<AppFooter />} />
-      </Routes>
     </main>
   )
 }
