@@ -9,9 +9,16 @@ import {
   Grid3X3,
   Network,
   RotateCcw,
+  Sprout,
   Undo2,
 } from 'lucide-react'
 import { Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
+import {
+  BIOME_SYMBOL_LIST,
+  BIOME_SYMBOLS,
+  findBiomesViolations,
+} from './biomesLogic.js'
+import { BIOMES_PUZZLES } from './biomesPuzzles.js'
 import { HASHI_PUZZLES } from './hashiPuzzles.js'
 import {
   edgeId,
@@ -32,6 +39,7 @@ import {
 import './App.css'
 
 const BINARY_COMPLETED_STORAGE_KEY = 'twofold.completedLevels'
+const BIOMES_COMPLETED_STORAGE_KEY = 'twofold.biomes.completedLevels'
 const HASHI_COMPLETED_STORAGE_KEY = 'twofold.hashi.completedLevels'
 const TECTONIC_COMPLETED_STORAGE_KEY = 'twofold.tectonic.completedLevels'
 const GAME_STATE_STORAGE_PREFIX = 'twofold.gameState'
@@ -46,6 +54,23 @@ const TECTONIC_REGION_COLORS = [
   '#dcebd0',
   '#f0dce8',
 ]
+const BIOME_SYMBOL_DETAILS = {
+  [BIOME_SYMBOLS.PLANT]: {
+    emoji: '🌱',
+    name: 'Plant',
+    className: 'plant',
+  },
+  [BIOME_SYMBOLS.WORM]: {
+    emoji: '🪱',
+    name: 'Worm',
+    className: 'worm',
+  },
+  [BIOME_SYMBOLS.BIRD]: {
+    emoji: '🐦',
+    name: 'Bird',
+    className: 'bird',
+  },
+}
 
 const GAME_CONFIGS = {
   binary: {
@@ -58,6 +83,17 @@ const GAME_CONFIGS = {
     rulesSummary: 'Three simple rules.',
     levels: PUZZLES,
     storageKey: BINARY_COMPLETED_STORAGE_KEY,
+  },
+  biomes: {
+    path: 'biomes',
+    name: 'Biomes',
+    label: 'Food chain',
+    kicker: 'Biomes · 6 × 6',
+    levelMeta: 'Food chain · 6 × 6',
+    summary: 'Balance plants, worms, and birds without trapping prey.',
+    rulesSummary: 'Protect the food chain.',
+    levels: BIOMES_PUZZLES,
+    storageKey: BIOMES_COMPLETED_STORAGE_KEY,
   },
   hashi: {
     path: 'hashi',
@@ -236,6 +272,20 @@ function readBinaryGameState(level) {
   const validValues = [null, 0, 1]
 
   return readGameState('binary', level.id, (state) =>
+    Boolean(
+      state &&
+        isSavedGridValid(state.grid, level.puzzle, validValues) &&
+        isSavedGridHistoryValid(state.history, level.puzzle, validValues) &&
+        isSavedSecondsValid(state.seconds) &&
+        validValues.includes(state.selectedValue),
+    ),
+  )
+}
+
+function readBiomesGameState(level) {
+  const validValues = [null, ...BIOME_SYMBOL_LIST]
+
+  return readGameState('biomes', level.id, (state) =>
     Boolean(
       state &&
         isSavedGridValid(state.grid, level.puzzle, validValues) &&
@@ -757,6 +807,270 @@ function BinaryGame({ levelIndex, showRules }) {
         canUndo={gridHistory.length > 0}
         isComplete={isComplete}
         nextLabel="Next puzzle"
+        onNext={nextPuzzle}
+        onReset={resetPuzzle}
+        onUndo={undoMove}
+      />
+    </section>
+  )
+}
+
+function BiomesGame({ levelIndex, showRules }) {
+  const navigate = useTransitionNavigate()
+  const currentPuzzle = BIOMES_PUZZLES[levelIndex]
+  const savedState = useMemo(
+    () => readBiomesGameState(currentPuzzle),
+    [currentPuzzle],
+  )
+  const [grid, setGrid] = useState(() =>
+    copyGrid(savedState?.grid ?? currentPuzzle.puzzle),
+  )
+  const [gridHistory, setGridHistory] = useState(() =>
+    savedState?.history.map(copyGrid) ?? [],
+  )
+  const [seconds, setSeconds] = useState(savedState?.seconds ?? 0)
+  const [selectedValue, setSelectedValue] = useState(
+    savedState?.selectedValue ?? BIOME_SYMBOLS.PLANT,
+  )
+  const [completedLevelIds, setCompletedLevelIds] = useState(() =>
+    readCompletedLevels(
+      BIOMES_COMPLETED_STORAGE_KEY,
+      BIOMES_PUZZLES.map((puzzle) => puzzle.id),
+    ),
+  )
+  const completedLevelSet = useMemo(
+    () => new Set(completedLevelIds),
+    [completedLevelIds],
+  )
+  const invalidCells = useMemo(() => findBiomesViolations(grid), [grid])
+  const size = currentPuzzle.puzzle.length
+  const filledCells = grid.flat().filter((value) => value !== null).length
+  const isComplete =
+    filledCells === size * size &&
+    invalidCells.size === 0 &&
+    grid.every((row, rowIndex) =>
+      row.every(
+        (value, columnIndex) =>
+          value === currentPuzzle.solution[rowIndex][columnIndex],
+      ),
+    )
+
+  useEffect(() => {
+    if (isComplete) return undefined
+    const timer = window.setInterval(() => setSeconds((value) => value + 1), 1000)
+    return () => window.clearInterval(timer)
+  }, [isComplete, levelIndex])
+
+  useEffect(() => {
+    saveGameState('biomes', currentPuzzle.id, {
+      grid,
+      history: gridHistory,
+      seconds,
+      selectedValue,
+    })
+  }, [
+    currentPuzzle.id,
+    grid,
+    gridHistory,
+    seconds,
+    selectedValue,
+  ])
+
+  useEffect(() => {
+    if (!isComplete || completedLevelSet.has(currentPuzzle.id)) return
+
+    setCompletedLevelIds((currentIds) => {
+      if (currentIds.includes(currentPuzzle.id)) return currentIds
+
+      const nextIds = [...currentIds, currentPuzzle.id]
+      saveCompletedLevels(BIOMES_COMPLETED_STORAGE_KEY, nextIds)
+      return nextIds
+    })
+  }, [completedLevelSet, currentPuzzle.id, isComplete])
+
+  const fillCell = (row, column) => {
+    if (currentPuzzle.puzzle[row][column] !== null || isComplete) return
+    if (grid[row][column] === selectedValue) return
+
+    const nextGrid = copyGrid(grid)
+    nextGrid[row][column] = selectedValue
+    setGridHistory((currentHistory) => [...currentHistory, copyGrid(grid)])
+    setGrid(nextGrid)
+  }
+
+  const resetPuzzle = () => {
+    clearGameState('biomes', currentPuzzle.id)
+    setGrid(copyGrid(currentPuzzle.puzzle))
+    setGridHistory([])
+    setSeconds(0)
+  }
+
+  const undoMove = () => {
+    setGridHistory((currentHistory) => {
+      if (!currentHistory.length) return currentHistory
+
+      const nextHistory = currentHistory.slice(0, -1)
+      setGrid(copyGrid(currentHistory[currentHistory.length - 1]))
+      return nextHistory
+    })
+  }
+
+  const nextPuzzle = () => {
+    navigate(`/biomes/${((levelIndex + 1) % BIOMES_PUZZLES.length) + 1}`, {
+      transitionType: 'level',
+    })
+  }
+
+  const selectedSymbol =
+    selectedValue === null ? null : BIOME_SYMBOL_DETAILS[selectedValue]
+
+  return (
+    <section
+      className="game-card binary-game biomes-game"
+      aria-labelledby="game-title"
+    >
+      <div className="title-row binary-title-row">
+        <div className="binary-title-lockup">
+          <span className="title-icon biomes-title-icon" aria-hidden="true">
+            <Sprout />
+          </span>
+          <h1 id="game-title">Food chain</h1>
+        </div>
+        <div className="timer" aria-label={`Elapsed time ${formatTime(seconds)}`}>
+          <Clock3 aria-hidden="true" />
+          {formatTime(seconds)}
+        </div>
+      </div>
+
+      {showRules && (
+        <aside className="rules-panel">
+          <div>
+            <strong>Balance the biome</strong>
+            <p>Each row and column needs two plants, two worms, and two birds.</p>
+          </div>
+          <div>
+            <strong>No three alike</strong>
+            <p>Never place three matching symbols next to each other.</p>
+          </div>
+          <div>
+            <strong>Protect the prey</strong>
+            <p>Worms cannot trap a plant, and birds cannot trap a worm.</p>
+          </div>
+          <div>
+            <strong>Spot separated predators</strong>
+            <p>Bird–gap–bird forces a plant; worm–gap–worm forces a bird.</p>
+          </div>
+        </aside>
+      )}
+
+      <div className="progress-block">
+        <div className="progress-label">
+          <span>{currentPuzzle.name}</span>
+          <span>
+            {completedLevelIds.length} / {BIOMES_PUZZLES.length} complete
+          </span>
+        </div>
+        <div className="progress-track" aria-hidden="true">
+          <span style={{ width: `${(filledCells / (size * size)) * 100}%` }} />
+        </div>
+      </div>
+
+      <div
+        className={`puzzle-grid biomes-grid${isComplete ? ' is-complete' : ''}`}
+        role="grid"
+        aria-label="Six by six Biomes puzzle"
+      >
+        {grid.map((row, rowIndex) =>
+          row.map((value, columnIndex) => {
+            const isGiven = currentPuzzle.puzzle[rowIndex][columnIndex] !== null
+            const isInvalid = invalidCells.has(`${rowIndex}-${columnIndex}`)
+            const symbol = value === null ? null : BIOME_SYMBOL_DETAILS[value]
+
+            return (
+              <button
+                className={[
+                  'cell',
+                  'biomes-cell',
+                  symbol?.className ?? '',
+                  isGiven ? 'given' : '',
+                  isInvalid ? 'invalid' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+                type="button"
+                role="gridcell"
+                key={`${rowIndex}-${columnIndex}`}
+                disabled={isGiven || isComplete}
+                aria-label={`Row ${rowIndex + 1}, column ${columnIndex + 1}: ${
+                  symbol?.name ?? 'empty'
+                }${isGiven ? ', fixed' : ''}${isInvalid ? ', rule conflict' : ''}`}
+                onClick={() => fillCell(rowIndex, columnIndex)}
+              >
+                <span aria-hidden="true">{symbol?.emoji}</span>
+                {isGiven && <span className="given-dot" aria-hidden="true" />}
+              </button>
+            )
+          }),
+        )}
+      </div>
+
+      <div
+        className="input-palette biomes-palette"
+        role="group"
+        aria-label="Choose a biome"
+      >
+        {BIOME_SYMBOL_LIST.map((value) => {
+          const symbol = BIOME_SYMBOL_DETAILS[value]
+          return (
+            <button
+              className={[
+                'value-button',
+                'biome-value',
+                symbol.className,
+                selectedValue === value ? 'selected' : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+              type="button"
+              aria-label={`Place ${symbol.name.toLowerCase()}`}
+              aria-pressed={selectedValue === value}
+              key={value}
+              onClick={() => setSelectedValue(value)}
+            >
+              <span aria-hidden="true">{symbol.emoji}</span>
+              <span>{symbol.name}</span>
+            </button>
+          )
+        })}
+        <button
+          className={`erase-button${selectedValue === null ? ' selected' : ''}`}
+          type="button"
+          aria-label="Erase a biome"
+          aria-pressed={selectedValue === null}
+          onClick={() => setSelectedValue(null)}
+        >
+          <Eraser aria-hidden="true" />
+          Erase
+        </button>
+      </div>
+
+      <p
+        className={`game-message${invalidCells.size ? ' has-error' : ''}`}
+        aria-live="polite"
+      >
+        {isComplete
+          ? 'The ecosystem is balanced — level complete!'
+          : invalidCells.size
+            ? 'The food chain is out of balance. Check the highlighted cells.'
+            : selectedSymbol === null
+              ? 'Erase mode. Tap a filled square to clear it.'
+              : `Placing ${selectedSymbol.name.toLowerCase()}. Tap any open square.`}
+      </p>
+
+      <GameActions
+        canUndo={gridHistory.length > 0}
+        isComplete={isComplete}
+        nextLabel="Next biome"
         onNext={nextPuzzle}
         onReset={resetPuzzle}
         onUndo={undoMove}
@@ -1573,6 +1887,33 @@ function BinaryPreview() {
   )
 }
 
+function BiomesPreview() {
+  const values = [
+    BIOME_SYMBOLS.PLANT,
+    BIOME_SYMBOLS.WORM,
+    BIOME_SYMBOLS.BIRD,
+    BIOME_SYMBOLS.BIRD,
+    BIOME_SYMBOLS.PLANT,
+    BIOME_SYMBOLS.WORM,
+    BIOME_SYMBOLS.WORM,
+    BIOME_SYMBOLS.BIRD,
+    BIOME_SYMBOLS.PLANT,
+  ]
+
+  return (
+    <span className="choice-preview biomes-preview" aria-hidden="true">
+      {values.map((value, index) => {
+        const symbol = BIOME_SYMBOL_DETAILS[value]
+        return (
+          <i className={symbol.className} key={index}>
+            {symbol.emoji}
+          </i>
+        )
+      })}
+    </span>
+  )
+}
+
 function HashiPreview() {
   return (
     <span className="choice-preview hashi-preview" aria-hidden="true">
@@ -1610,6 +1951,10 @@ const GAME_CHOICE_DETAILS = {
     icon: CalendarDays,
     preview: BinaryPreview,
   },
+  biomes: {
+    icon: Sprout,
+    preview: BiomesPreview,
+  },
   hashi: {
     icon: Network,
     preview: HashiPreview,
@@ -1625,7 +1970,7 @@ function HomeScreen() {
     <section className="game-card picker-screen" aria-labelledby="home-title">
       <div className="picker-heading">
         <h1 id="home-title">Choose a game</h1>
-        <p>Three ways to think. Pick a puzzle.</p>
+        <p>Four ways to think. Pick a puzzle.</p>
       </div>
 
       <div className="game-picker">
@@ -1719,6 +2064,10 @@ function GameRoute({ showRules }) {
 
   if (game.path === 'binary') {
     return <BinaryGame key={`${game.path}-${levelIndex}`} levelIndex={levelIndex} showRules={showRules} />
+  }
+
+  if (game.path === 'biomes') {
+    return <BiomesGame key={`${game.path}-${levelIndex}`} levelIndex={levelIndex} showRules={showRules} />
   }
 
   if (game.path === 'hashi') {

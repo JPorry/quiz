@@ -5,11 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm run verify:puzzles && npm run verify:binary-generator && vite build",
+    "build": "npm run verify:puzzles && npm run verify:binary-generator && npm run verify:biomes-generator && vite build",
     "generate:binary": "node scripts/generate-binary-puzzles.mjs",
+    "generate:biomes": "node scripts/generate-biomes-puzzles.mjs",
     "lint": "oxlint",
     "preview": "vite preview",
     "verify:binary-generator": "node scripts/generate-binary-puzzles.mjs --verify --count=2 --clues=34",
+    "verify:biomes-generator": "node scripts/generate-biomes-puzzles.mjs --verify --count=2 --attempts=8 --clues=15",
     "verify:puzzles": "node scripts/verify-puzzles.mjs"
   },
   "dependencies": {
