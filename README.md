@@ -31,21 +31,44 @@ the exhaustive solver still finds exactly one solution. The production build
 also generates sample puzzles and rejects the build if uniqueness is not
 preserved.
 
-## Biomes puzzle generation
+## Elements puzzle generation
 
-Generate deterministic 6 × 6 Biomes puzzles with:
+Generate deterministic 6 × 6 Elements puzzles with:
 
 ```sh
-npm run generate:biomes -- --count=5 --seed=20260725 --clues=15 --attempts=16
+npm run generate:elements -- --count=5 --seed=20260725 --clues=15 --attempts=16
 ```
 
 The generator evaluates uniquely solvable candidates with the same immediate
 human techniques used for difficulty analysis. It rewards repeated E1
-separated-predator deductions, technique diversity, smooth access to local
+separated-dominator deductions, technique diversity, smooth access to local
 placements, and low dependence on pure balance counting. To replace the
 shipped level set, add `--output=src/biomesPuzzles.js`.
 Add `--progressive` to vary clue counts and order the result using logical step
 count and deduction dependency.
+
+### Experimental 9 × 9 mode
+
+Generate a 9 × 9 puzzle with:
+
+```sh
+npm run generate:elements:9 -- --count=1 --seed=20260725 --clues=30 --attempts=10
+```
+
+Replace the shipped experimental levels with
+`--progressive --output=src/biomes9Puzzles.js`. The 9 × 9 generator uses cached
+legal line patterns, bounded solution search, uniqueness verification, and the
+same human solver as the 6 × 6 mode.
+
+Run a development batch and print aggregate rejection and solving metrics with:
+
+```sh
+npm run batch:elements:9 -- --count=100 --seed=12345 --clues=30
+```
+
+Use `--strict` to reject candidates outside the preferred dominance-technique
+range while tuning. Without it, those preferences contribute to quality
+scoring instead of acting as hard constraints.
 
 ## GitHub Pages deployment
 

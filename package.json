@@ -5,13 +5,16 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm run verify:puzzles && npm run verify:binary-generator && npm run verify:biomes-generator && vite build",
+    "build": "npm run verify:puzzles && npm run verify:binary-generator && npm run verify:elements-generator && npm run verify:elements:9-generator && vite build",
     "generate:binary": "node scripts/generate-binary-puzzles.mjs",
-    "generate:biomes": "node scripts/generate-biomes-puzzles.mjs",
+    "generate:elements": "node scripts/generate-biomes-puzzles.mjs",
+    "generate:elements:9": "node scripts/generate-biomes-puzzles.mjs --mode=standard",
+    "batch:elements:9": "node scripts/generate-biomes-puzzles.mjs --mode=standard --batch",
     "lint": "oxlint",
     "preview": "vite preview",
     "verify:binary-generator": "node scripts/generate-binary-puzzles.mjs --verify --count=2 --clues=34",
-    "verify:biomes-generator": "node scripts/generate-biomes-puzzles.mjs --verify --count=2 --attempts=8 --clues=15",
+    "verify:elements-generator": "node scripts/generate-biomes-puzzles.mjs --verify --count=2 --attempts=8 --clues=15",
+    "verify:elements:9-generator": "node scripts/generate-biomes-puzzles.mjs --mode=standard --verify --count=2 --attempts=2 --clues=32",
     "verify:puzzles": "node scripts/verify-puzzles.mjs"
   },
   "dependencies": {

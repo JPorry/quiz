@@ -8,8 +8,8 @@ import {
   Eraser,
   Grid3X3,
   Network,
+  Orbit,
   RotateCcw,
-  Sprout,
   Undo2,
 } from 'lucide-react'
 import { Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
@@ -19,6 +19,7 @@ import {
   findBiomesViolations,
 } from './biomesLogic.js'
 import { BIOMES_PUZZLES } from './biomesPuzzles.js'
+import { BIOMES_9X9_PUZZLES } from './biomes9Puzzles.js'
 import { HASHI_PUZZLES } from './hashiPuzzles.js'
 import {
   edgeId,
@@ -39,7 +40,8 @@ import {
 import './App.css'
 
 const BINARY_COMPLETED_STORAGE_KEY = 'twofold.completedLevels'
-const BIOMES_COMPLETED_STORAGE_KEY = 'twofold.biomes.completedLevels'
+const BIOMES_COMPLETED_STORAGE_KEY = 'twofold.elements.completedLevels'
+const BIOMES_9X9_COMPLETED_STORAGE_KEY = 'twofold.elements9.completedLevels'
 const HASHI_COMPLETED_STORAGE_KEY = 'twofold.hashi.completedLevels'
 const TECTONIC_COMPLETED_STORAGE_KEY = 'twofold.tectonic.completedLevels'
 const GAME_STATE_STORAGE_PREFIX = 'twofold.gameState'
@@ -55,20 +57,20 @@ const TECTONIC_REGION_COLORS = [
   '#f0dce8',
 ]
 const BIOME_SYMBOL_DETAILS = {
-  [BIOME_SYMBOLS.PLANT]: {
-    emoji: '🌱',
-    name: 'Plant',
-    className: 'plant',
+  [BIOME_SYMBOLS.WATER]: {
+    emoji: '💧',
+    name: 'Water',
+    className: 'water',
   },
-  [BIOME_SYMBOLS.WORM]: {
-    emoji: '🪱',
-    name: 'Worm',
-    className: 'worm',
+  [BIOME_SYMBOLS.FIRE]: {
+    emoji: '🔥',
+    name: 'Fire',
+    className: 'fire',
   },
-  [BIOME_SYMBOLS.BIRD]: {
-    emoji: '🐦',
-    name: 'Bird',
-    className: 'bird',
+  [BIOME_SYMBOLS.NATURE]: {
+    emoji: '🌿',
+    name: 'Nature',
+    className: 'nature',
   },
 }
 
@@ -86,14 +88,32 @@ const GAME_CONFIGS = {
   },
   biomes: {
     path: 'biomes',
-    name: 'Biomes',
-    label: 'Food chain',
-    kicker: 'Biomes · 6 × 6',
-    levelMeta: 'Food chain · 6 × 6',
-    summary: 'Balance plants, worms, and birds without trapping prey.',
-    rulesSummary: 'Protect the food chain.',
+    kind: 'biomes',
+    mode: 'compact',
+    name: 'Elements',
+    label: 'Elemental cycle',
+    kicker: 'Elements · 6 × 6',
+    levelMeta: 'Elemental cycle · 6 × 6',
+    summary: 'Balance Water, Fire, and Nature through a dominance cycle.',
+    rulesSummary: 'Master the elemental cycle.',
     levels: BIOMES_PUZZLES,
     storageKey: BIOMES_COMPLETED_STORAGE_KEY,
+    stateKey: 'elements',
+  },
+  'biomes-9': {
+    path: 'biomes-9',
+    kind: 'biomes',
+    mode: 'standard',
+    name: 'Elements',
+    label: 'Elemental cycle',
+    kicker: 'Elements · 9 × 9',
+    levelMeta: 'Experimental · 9 × 9',
+    summary: 'A larger experimental elemental-cycle challenge.',
+    rulesSummary: 'Master the elemental cycle.',
+    levels: BIOMES_9X9_PUZZLES,
+    storageKey: BIOMES_9X9_COMPLETED_STORAGE_KEY,
+    stateKey: 'elements9',
+    hiddenFromHome: true,
   },
   hashi: {
     path: 'hashi',
@@ -119,7 +139,9 @@ const GAME_CONFIGS = {
   },
 }
 
-const GAME_LIST = Object.values(GAME_CONFIGS)
+const GAME_LIST = Object.values(GAME_CONFIGS).filter(
+  (game) => !game.hiddenFromHome,
+)
 const prefersReducedMotion = () =>
   window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
 
@@ -282,10 +304,10 @@ function readBinaryGameState(level) {
   )
 }
 
-function readBiomesGameState(level) {
+function readBiomesGameState(level, stateKey = 'elements') {
   const validValues = [null, ...BIOME_SYMBOL_LIST]
 
-  return readGameState('biomes', level.id, (state) =>
+  return readGameState(stateKey, level.id, (state) =>
     Boolean(
       state &&
         isSavedGridValid(state.grid, level.puzzle, validValues) &&
@@ -815,12 +837,13 @@ function BinaryGame({ levelIndex, showRules }) {
   )
 }
 
-function BiomesGame({ levelIndex, showRules }) {
+function BiomesGame({ game, levelIndex, showRules }) {
   const navigate = useTransitionNavigate()
-  const currentPuzzle = BIOMES_PUZZLES[levelIndex]
+  const levels = game.levels
+  const currentPuzzle = levels[levelIndex]
   const savedState = useMemo(
-    () => readBiomesGameState(currentPuzzle),
-    [currentPuzzle],
+    () => readBiomesGameState(currentPuzzle, game.stateKey),
+    [currentPuzzle, game.stateKey],
   )
   const [grid, setGrid] = useState(() =>
     copyGrid(savedState?.grid ?? currentPuzzle.puzzle),
@@ -830,12 +853,12 @@ function BiomesGame({ levelIndex, showRules }) {
   )
   const [seconds, setSeconds] = useState(savedState?.seconds ?? 0)
   const [selectedValue, setSelectedValue] = useState(
-    savedState?.selectedValue ?? BIOME_SYMBOLS.PLANT,
+    savedState?.selectedValue ?? BIOME_SYMBOLS.WATER,
   )
   const [completedLevelIds, setCompletedLevelIds] = useState(() =>
     readCompletedLevels(
-      BIOMES_COMPLETED_STORAGE_KEY,
-      BIOMES_PUZZLES.map((puzzle) => puzzle.id),
+      game.storageKey,
+      levels.map((puzzle) => puzzle.id),
     ),
   )
   const completedLevelSet = useMemo(
@@ -862,7 +885,7 @@ function BiomesGame({ levelIndex, showRules }) {
   }, [isComplete, levelIndex])
 
   useEffect(() => {
-    saveGameState('biomes', currentPuzzle.id, {
+    saveGameState(game.stateKey, currentPuzzle.id, {
       grid,
       history: gridHistory,
       seconds,
@@ -870,6 +893,7 @@ function BiomesGame({ levelIndex, showRules }) {
     })
   }, [
     currentPuzzle.id,
+    game.stateKey,
     grid,
     gridHistory,
     seconds,
@@ -883,10 +907,10 @@ function BiomesGame({ levelIndex, showRules }) {
       if (currentIds.includes(currentPuzzle.id)) return currentIds
 
       const nextIds = [...currentIds, currentPuzzle.id]
-      saveCompletedLevels(BIOMES_COMPLETED_STORAGE_KEY, nextIds)
+      saveCompletedLevels(game.storageKey, nextIds)
       return nextIds
     })
-  }, [completedLevelSet, currentPuzzle.id, isComplete])
+  }, [completedLevelSet, currentPuzzle.id, game.storageKey, isComplete])
 
   const fillCell = (row, column) => {
     if (currentPuzzle.puzzle[row][column] !== null || isComplete) return
@@ -899,7 +923,7 @@ function BiomesGame({ levelIndex, showRules }) {
   }
 
   const resetPuzzle = () => {
-    clearGameState('biomes', currentPuzzle.id)
+    clearGameState(game.stateKey, currentPuzzle.id)
     setGrid(copyGrid(currentPuzzle.puzzle))
     setGridHistory([])
     setSeconds(0)
@@ -916,7 +940,7 @@ function BiomesGame({ levelIndex, showRules }) {
   }
 
   const nextPuzzle = () => {
-    navigate(`/biomes/${((levelIndex + 1) % BIOMES_PUZZLES.length) + 1}`, {
+    navigate(`/${game.path}/${((levelIndex + 1) % levels.length) + 1}`, {
       transitionType: 'level',
     })
   }
@@ -928,13 +952,19 @@ function BiomesGame({ levelIndex, showRules }) {
     <section
       className="game-card binary-game biomes-game"
       aria-labelledby="game-title"
+      data-size={size}
     >
       <div className="title-row binary-title-row">
         <div className="binary-title-lockup">
           <span className="title-icon biomes-title-icon" aria-hidden="true">
-            <Sprout />
+            <Orbit />
           </span>
-          <h1 id="game-title">Food chain</h1>
+          <h1 id="game-title">
+            Elemental cycle
+            {game.mode === 'standard' && (
+              <span className="experimental-label">Experimental 9×9</span>
+            )}
+          </h1>
         </div>
         <div className="timer" aria-label={`Elapsed time ${formatTime(seconds)}`}>
           <Clock3 aria-hidden="true" />
@@ -945,20 +975,38 @@ function BiomesGame({ levelIndex, showRules }) {
       {showRules && (
         <aside className="rules-panel">
           <div>
-            <strong>Balance the biome</strong>
-            <p>Each row and column needs two plants, two worms, and two birds.</p>
+            <strong>Balance the elements</strong>
+            <p>
+              Each row and column needs {size / BIOME_SYMBOL_LIST.length} Water,
+              {' '}{size / BIOME_SYMBOL_LIST.length} Fire, and{' '}
+              {size / BIOME_SYMBOL_LIST.length} Nature.
+            </p>
           </div>
           <div>
             <strong>No three alike</strong>
             <p>Never place three matching symbols next to each other.</p>
           </div>
           <div>
-            <strong>Protect the prey</strong>
-            <p>Worms cannot trap a plant, and birds cannot trap a worm.</p>
+            <strong>Follow the dominance cycle</strong>
+            <p>
+              An element cannot sit between two matching elements that dominate it.
+            </p>
           </div>
           <div>
-            <strong>Spot separated predators</strong>
-            <p>Bird–gap–bird forces a plant; worm–gap–worm forces a bird.</p>
+            <strong>Spot separated dominators</strong>
+            <p>
+              Water–gap–Water forces Nature; Fire–gap–Fire forces Water;
+              Nature–gap–Nature forces Fire.
+            </p>
+          </div>
+          <div className="element-cycle-diagram" aria-label="Water dominates Fire, Fire dominates Nature, Nature dominates Water">
+            <span>💧</span>
+            <b aria-hidden="true">→</b>
+            <span>🔥</span>
+            <b aria-hidden="true">→</b>
+            <span>🌿</span>
+            <b aria-hidden="true">→</b>
+            <span>💧</span>
           </div>
         </aside>
       )}
@@ -967,7 +1015,7 @@ function BiomesGame({ levelIndex, showRules }) {
         <div className="progress-label">
           <span>{currentPuzzle.name}</span>
           <span>
-            {completedLevelIds.length} / {BIOMES_PUZZLES.length} complete
+            {completedLevelIds.length} / {levels.length} complete
           </span>
         </div>
         <div className="progress-track" aria-hidden="true">
@@ -978,7 +1026,8 @@ function BiomesGame({ levelIndex, showRules }) {
       <div
         className={`puzzle-grid biomes-grid${isComplete ? ' is-complete' : ''}`}
         role="grid"
-        aria-label="Six by six Biomes puzzle"
+        aria-label={`${size} by ${size} Elements puzzle`}
+        style={{ '--biomes-size': size }}
       >
         {grid.map((row, rowIndex) =>
           row.map((value, columnIndex) => {
@@ -1017,7 +1066,7 @@ function BiomesGame({ levelIndex, showRules }) {
       <div
         className="input-palette biomes-palette"
         role="group"
-        aria-label="Choose a biome"
+        aria-label="Choose an element"
       >
         {BIOME_SYMBOL_LIST.map((value) => {
           const symbol = BIOME_SYMBOL_DETAILS[value]
@@ -1045,7 +1094,7 @@ function BiomesGame({ levelIndex, showRules }) {
         <button
           className={`erase-button${selectedValue === null ? ' selected' : ''}`}
           type="button"
-          aria-label="Erase a biome"
+          aria-label="Erase an element"
           aria-pressed={selectedValue === null}
           onClick={() => setSelectedValue(null)}
         >
@@ -1059,9 +1108,9 @@ function BiomesGame({ levelIndex, showRules }) {
         aria-live="polite"
       >
         {isComplete
-          ? 'The ecosystem is balanced — level complete!'
+          ? 'The elemental cycle is balanced — level complete!'
           : invalidCells.size
-            ? 'The food chain is out of balance. Check the highlighted cells.'
+            ? 'The elements conflict. Check the highlighted cells.'
             : selectedSymbol === null
               ? 'Erase mode. Tap a filled square to clear it.'
               : `Placing ${selectedSymbol.name.toLowerCase()}. Tap any open square.`}
@@ -1070,7 +1119,7 @@ function BiomesGame({ levelIndex, showRules }) {
       <GameActions
         canUndo={gridHistory.length > 0}
         isComplete={isComplete}
-        nextLabel="Next biome"
+        nextLabel="Next puzzle"
         onNext={nextPuzzle}
         onReset={resetPuzzle}
         onUndo={undoMove}
@@ -1889,15 +1938,15 @@ function BinaryPreview() {
 
 function BiomesPreview() {
   const values = [
-    BIOME_SYMBOLS.PLANT,
-    BIOME_SYMBOLS.WORM,
-    BIOME_SYMBOLS.BIRD,
-    BIOME_SYMBOLS.BIRD,
-    BIOME_SYMBOLS.PLANT,
-    BIOME_SYMBOLS.WORM,
-    BIOME_SYMBOLS.WORM,
-    BIOME_SYMBOLS.BIRD,
-    BIOME_SYMBOLS.PLANT,
+    BIOME_SYMBOLS.WATER,
+    BIOME_SYMBOLS.FIRE,
+    BIOME_SYMBOLS.NATURE,
+    BIOME_SYMBOLS.NATURE,
+    BIOME_SYMBOLS.WATER,
+    BIOME_SYMBOLS.FIRE,
+    BIOME_SYMBOLS.FIRE,
+    BIOME_SYMBOLS.NATURE,
+    BIOME_SYMBOLS.WATER,
   ]
 
   return (
@@ -1952,7 +2001,11 @@ const GAME_CHOICE_DETAILS = {
     preview: BinaryPreview,
   },
   biomes: {
-    icon: Sprout,
+    icon: Orbit,
+    preview: BiomesPreview,
+  },
+  'biomes-9': {
+    icon: Orbit,
     preview: BiomesPreview,
   },
   hashi: {
@@ -2041,6 +2094,29 @@ function LevelSelectionScreen() {
         </div>
       </div>
 
+      {game.kind === 'biomes' && (
+        <nav className="biomes-mode-switch" aria-label="Elements board size">
+          <TransitionLink
+            className={game.mode === 'compact' ? 'active' : ''}
+            to="/biomes"
+            transitionType="swap"
+            aria-current={game.mode === 'compact' ? 'page' : undefined}
+          >
+            <span>6×6</span>
+            Compact
+          </TransitionLink>
+          <TransitionLink
+            className={game.mode === 'standard' ? 'active' : ''}
+            to="/biomes-9"
+            transitionType="swap"
+            aria-current={game.mode === 'standard' ? 'page' : undefined}
+          >
+            <span>9×9</span>
+            Experimental
+          </TransitionLink>
+        </nav>
+      )}
+
       <LevelList
         levels={game.levels}
         gamePath={game.path}
@@ -2066,8 +2142,8 @@ function GameRoute({ showRules }) {
     return <BinaryGame key={`${game.path}-${levelIndex}`} levelIndex={levelIndex} showRules={showRules} />
   }
 
-  if (game.path === 'biomes') {
-    return <BiomesGame key={`${game.path}-${levelIndex}`} levelIndex={levelIndex} showRules={showRules} />
+  if (game.kind === 'biomes') {
+    return <BiomesGame key={`${game.path}-${levelIndex}`} game={game} levelIndex={levelIndex} showRules={showRules} />
   }
 
   if (game.path === 'hashi') {
