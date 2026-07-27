@@ -557,11 +557,14 @@ export function findBiomesLogicalPlacements(grid) {
     }
   }
 
-  if (placements.length > 0) return placements
+  const placedCells = new Set(
+    placements.map(({ row, column }) => `${row}:${column}`),
+  )
 
   for (let row = 0; row < size; row += 1) {
     for (let column = 0; column < size; column += 1) {
       if (grid[row][column] !== null) continue
+      if (placedCells.has(`${row}:${column}`)) continue
       const value = findLineQuotaPlacement(grid, row, column)
       if (value === null) continue
 
@@ -575,7 +578,7 @@ export function findBiomesLogicalPlacements(grid) {
     }
   }
 
-  return lineQuotaPlacements
+  return [...placements, ...lineQuotaPlacements]
 }
 
 export function analyzeBiomesPuzzle(puzzle) {
@@ -583,15 +586,54 @@ export function analyzeBiomesPuzzle(puzzle) {
   const grid = puzzle.map((row) => [...row])
   const steps = []
   const availability = []
+  const flowTimeline = []
+  let stalled = false
 
   while (grid.some((row) => row.includes(null))) {
     const placements = findBiomesLogicalPlacements(grid)
     availability.push(placements.length)
-    if (placements.length === 0) break
+    if (placements.length === 0) {
+      stalled = true
+      break
+    }
 
     const placement = placements[0]
     grid[placement.row][placement.column] = placement.value
     steps.push(placement)
+
+    const nextPlacements = grid.some((row) => row.includes(null))
+      ? findBiomesLogicalPlacements(grid)
+      : []
+    const availableKeys = new Set(
+      placements.map(({ row, column }) => `${row}:${column}`),
+    )
+    const newlyAvailable = nextPlacements.filter(
+      ({ row, column }) => !availableKeys.has(`${row}:${column}`),
+    )
+    const nearbyReveals = newlyAvailable.filter(
+      ({ row, column }) =>
+        Math.abs(row - placement.row) + Math.abs(column - placement.column) <= 2,
+    )
+    const nearestNextMoveDistance =
+      nextPlacements.length === 0
+        ? null
+        : Math.min(
+            ...nextPlacements.map(
+              ({ row, column }) =>
+                Math.abs(row - placement.row) +
+                Math.abs(column - placement.column),
+            ),
+          )
+
+    flowTimeline.push({
+      step: steps.length,
+      placement: { ...placement },
+      availableBefore: summarizeBiomesPlacements(placements),
+      availableAfter: summarizeBiomesPlacements(nextPlacements),
+      newlyAvailable: newlyAvailable.map(toBiomesPlacementLocation),
+      nearbyReveals: nearbyReveals.map(toBiomesPlacementLocation),
+      nearestNextMoveDistance,
+    })
   }
 
   const solved = isValidBiomesSolution(grid)
@@ -625,12 +667,45 @@ export function analyzeBiomesPuzzle(puzzle) {
   const phaseActivity = getBiomesPhaseActivity(availability)
   const totalHumanSteps = steps.length
   const immediatePlacements = steps.length
+  const choiceAvailability = availability.filter((count) => count > 0)
+  const lowChoiceThreshold = 2
+  const lowChoiceSteps = choiceAvailability.filter(
+    (count) => count <= lowChoiceThreshold,
+  ).length
+  const longestLowChoiceRun = getLongestMatchingRun(
+    choiceAvailability,
+    (count) => count <= lowChoiceThreshold,
+  )
+  const totalNewlyAvailable = flowTimeline.reduce(
+    (sum, entry) => sum + entry.newlyAvailable.length,
+    0,
+  )
+  const totalNearbyReveals = flowTimeline.reduce(
+    (sum, entry) => sum + entry.nearbyReveals.length,
+    0,
+  )
+  const continuationSteps = flowTimeline.filter(
+    (entry) => entry.nearestNextMoveDistance !== null,
+  )
+  const nearbyContinuationSteps = continuationSteps.filter(
+    (entry) => entry.nearestNextMoveDistance <= 2,
+  ).length
+  const averageNextMoveDistance =
+    continuationSteps.length === 0
+      ? 0
+      : continuationSteps.reduce(
+          (sum, entry) => sum + entry.nearestNextMoveDistance,
+          0,
+        ) / continuationSteps.length
+  const dominantTechniqueCount =
+    steps.length === 0 ? 0 : Math.max(...Object.values(techniqueCounts))
 
   return {
     solved,
     grid,
     steps,
     availability,
+    flowTimeline,
     techniqueCounts,
     techniqueUsage: {
       [BIOME_TECHNIQUES.CANDIDATE_ELIMINATION]: 0,
@@ -654,6 +729,28 @@ export function analyzeBiomesPuzzle(puzzle) {
     pureR0PlacementCount: pureBalanceSteps,
     pureBalanceRatio: steps.length === 0 ? 0 : pureBalanceSteps / steps.length,
     averageAvailablePlacements,
+    lowChoiceSteps,
+    lowChoiceRatio:
+      choiceAvailability.length === 0
+        ? 0
+        : lowChoiceSteps / choiceAvailability.length,
+    longestLowChoiceRun,
+    stallCount: stalled ? 1 : 0,
+    nearbyRevealRate:
+      totalNewlyAvailable === 0
+        ? 0
+        : totalNearbyReveals / totalNewlyAvailable,
+    averageNewlyAvailableMoves:
+      flowTimeline.length === 0
+        ? 0
+        : totalNewlyAvailable / flowTimeline.length,
+    continuationProximityRate:
+      continuationSteps.length === 0
+        ? 1
+        : nearbyContinuationSteps / continuationSteps.length,
+    averageNextMoveDistance,
+    techniqueConcentration:
+      steps.length === 0 ? 0 : dominantTechniqueCount / steps.length,
     dependencyRatio:
       availability.length === 0
         ? 0
@@ -667,6 +764,34 @@ export function analyzeBiomesPuzzle(puzzle) {
       availability.length === 0 ? 0 : Math.min(...availability),
     unresolvedCells: grid.flat().filter((value) => value === null).length,
   }
+}
+
+function toBiomesPlacementLocation({ row, column, value, technique }) {
+  return { row, column, value, technique }
+}
+
+function summarizeBiomesPlacements(placements) {
+  return {
+    count: placements.length,
+    techniques: placements.reduce((counts, { technique }) => {
+      counts[technique] = (counts[technique] ?? 0) + 1
+      return counts
+    }, {}),
+    locations: placements.map(toBiomesPlacementLocation),
+  }
+}
+
+function getLongestMatchingRun(values, predicate) {
+  return values.reduce(
+    (state, value) => {
+      const current = predicate(value) ? state.current + 1 : 0
+      return {
+        current,
+        longest: Math.max(state.longest, current),
+      }
+    },
+    { current: 0, longest: 0 },
+  ).longest
 }
 
 function getBiomesPhaseActivity(availability) {
@@ -733,7 +858,7 @@ export function classifyBiomesDifficulty(
 }
 
 export const DEFAULT_BIOMES_QUALITY_WEIGHTS = Object.freeze({
-  logicalStep: 1.5,
+  logicalStep: 0.2,
   e1: 8,
   techniqueDiversity: 7,
   combinedDiversity: 10,
@@ -744,6 +869,13 @@ export const DEFAULT_BIOMES_QUALITY_WEIGHTS = Object.freeze({
   pureR0Dominance: 45,
   dependencyDepth: 1.5,
   stalledPhase: 8,
+  stall: 120,
+  lowChoiceStep: 1.5,
+  lowChoiceRun: 5,
+  nearbyReveal: 18,
+  continuationProximity: 16,
+  visualSearchDistance: 2.5,
+  techniqueConcentration: 28,
 })
 
 export function scoreBiomesAnalysis(
@@ -783,6 +915,13 @@ export function scoreBiomesAnalysis(
     analysis.immediatePlacementRate * weights.immediatePlacementRate -
     pureR0Penalty -
     analysis.maximumDependencyDepth * weights.dependencyDepth -
-    stalledPhases * weights.stalledPhase
+    stalledPhases * weights.stalledPhase -
+    analysis.stallCount * weights.stall -
+    analysis.lowChoiceSteps * weights.lowChoiceStep -
+    analysis.longestLowChoiceRun * weights.lowChoiceRun +
+    analysis.nearbyRevealRate * weights.nearbyReveal +
+    analysis.continuationProximityRate * weights.continuationProximity -
+    analysis.averageNextMoveDistance * weights.visualSearchDistance -
+    analysis.techniqueConcentration * weights.techniqueConcentration
   )
 }

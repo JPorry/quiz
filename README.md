@@ -40,10 +40,17 @@ npm run generate:elements -- --count=5 --seed=20260725 --clues=15 --attempts=16
 ```
 
 The generator evaluates uniquely solvable candidates with the same immediate
-human techniques used for difficulty analysis. It rewards repeated E1
-separated-dominator deductions, technique diversity, smooth access to local
-placements, and low dependence on pure balance counting. To replace the
-shipped level set, add `--output=src/biomesPuzzles.js`.
+human techniques used for difficulty analysis. After every simulated placement
+it records the available moves, their techniques and locations, newly revealed
+moves, and the distance to the nearest continuation. It rewards repeated E1
+separated-dominator deductions, technique diversity, nearby reveals, and
+several continuously available choices while penalizing stalls, long
+single-choice runs, visual search distance, and technique dominance.
+
+The `--clues` value is a soft target. The generator evaluates several
+clue-removal checkpoints and keeps extra clues when they produce a better
+player-flow score. Clue removal is only a small tie-breaker after solve quality.
+To replace the shipped level set, add `--output=src/biomesPuzzles.js`.
 Add `--progressive` to vary clue counts and order the result using logical step
 count and deduction dependency.
 

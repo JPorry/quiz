@@ -40,8 +40,9 @@ import {
 import './App.css'
 
 const BINARY_COMPLETED_STORAGE_KEY = 'twofold.completedLevels'
-const BIOMES_COMPLETED_STORAGE_KEY = 'twofold.elements.completedLevels'
-const BIOMES_9X9_COMPLETED_STORAGE_KEY = 'twofold.elements9.completedLevels'
+const BIOMES_COMPLETED_STORAGE_KEY = 'twofold.elements.flow2.completedLevels'
+const BIOMES_9X9_COMPLETED_STORAGE_KEY =
+  'twofold.elements9.flow2.completedLevels'
 const HASHI_COMPLETED_STORAGE_KEY = 'twofold.hashi.completedLevels'
 const TECTONIC_COMPLETED_STORAGE_KEY = 'twofold.tectonic.completedLevels'
 const GAME_STATE_STORAGE_PREFIX = 'twofold.gameState'
@@ -98,7 +99,7 @@ const GAME_CONFIGS = {
     rulesSummary: 'Master the elemental cycle.',
     levels: BIOMES_PUZZLES,
     storageKey: BIOMES_COMPLETED_STORAGE_KEY,
-    stateKey: 'elements',
+    stateKey: 'elements-flow2',
   },
   'biomes-9': {
     path: 'biomes-9',
@@ -112,7 +113,7 @@ const GAME_CONFIGS = {
     rulesSummary: 'Master the elemental cycle.',
     levels: BIOMES_9X9_PUZZLES,
     storageKey: BIOMES_9X9_COMPLETED_STORAGE_KEY,
-    stateKey: 'elements9',
+    stateKey: 'elements9-flow2',
     hiddenFromHome: true,
   },
   hashi: {

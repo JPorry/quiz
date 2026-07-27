@@ -15,6 +15,7 @@ import {
   hasDominatedElementTrap,
   isValidBiomesLine,
   isValidBiomesSolution,
+  scoreBiomesAnalysis,
   solveBiomesPuzzleDetailed,
 } from '../src/biomesLogic.js'
 import { BIOMES_PUZZLES } from '../src/biomesPuzzles.js'
@@ -239,6 +240,7 @@ function verifyBiomesPuzzle(level) {
   const solutionCount = countBiomesSolutions(level.puzzle, 2)
   const analysis = analyzeBiomesPuzzle(level.puzzle)
   const e1Count = analysis.techniqueCounts.E1 ?? 0
+  verifyBiomesFlowTimeline(level.name, analysis)
 
   if (
     !cluesMatch ||
@@ -291,6 +293,7 @@ function verifyNineByNineBiomesPuzzle(level) {
     timeoutMs: 8_000,
   })
   const analysis = analyzeBiomesPuzzle(level.puzzle)
+  verifyBiomesFlowTimeline(level.name, analysis)
   const solvedToIntendedSolution =
     solveResult.solutions.length === 1 &&
     solveResult.solutions[0].every((row, rowIndex) =>
@@ -322,6 +325,70 @@ function verifyNineByNineBiomesPuzzle(level) {
 }
 
 BIOMES_9X9_PUZZLES.forEach(verifyNineByNineBiomesPuzzle)
+
+function verifyBiomesFlowTimeline(name, analysis) {
+  const timelineIsComplete =
+    analysis.flowTimeline.length === analysis.steps.length &&
+    analysis.flowTimeline.every((entry, index) => {
+      const techniqueTotal = Object.values(
+        entry.availableBefore.techniques,
+      ).reduce((sum, count) => sum + count, 0)
+      const placementWasAvailable = entry.availableBefore.locations.some(
+        ({ row, column, value, technique }) =>
+          row === entry.placement.row &&
+          column === entry.placement.column &&
+          value === entry.placement.value &&
+          technique === entry.placement.technique,
+      )
+      const nextCount =
+        analysis.flowTimeline[index + 1]?.availableBefore.count ?? 0
+
+      return (
+        entry.availableBefore.count === analysis.availability[index] &&
+        entry.availableBefore.locations.length ===
+          entry.availableBefore.count &&
+        techniqueTotal === entry.availableBefore.count &&
+        placementWasAvailable &&
+        entry.availableAfter.count === nextCount
+      )
+    })
+  const flowMetricsAreValid =
+    analysis.stallCount === 0 &&
+    analysis.lowChoiceRatio >= 0 &&
+    analysis.lowChoiceRatio <= 1 &&
+    analysis.nearbyRevealRate >= 0 &&
+    analysis.nearbyRevealRate <= 1 &&
+    analysis.continuationProximityRate >= 0 &&
+    analysis.continuationProximityRate <= 1 &&
+    analysis.techniqueConcentration >= 0 &&
+    analysis.techniqueConcentration <= 1
+
+  if (!timelineIsComplete || !flowMetricsAreValid) {
+    throw new Error(
+      `${name} failed player-flow analysis: timeline=${timelineIsComplete}, metrics=${flowMetricsAreValid}`,
+    )
+  }
+}
+
+const baselineFlowAnalysis = analyzeBiomesPuzzle(BIOMES_PUZZLES[0].puzzle)
+const degradedFlowAnalysis = {
+  ...baselineFlowAnalysis,
+  stallCount: 1,
+  lowChoiceSteps: baselineFlowAnalysis.lowChoiceSteps + 10,
+  longestLowChoiceRun: baselineFlowAnalysis.longestLowChoiceRun + 10,
+  nearbyRevealRate: 0,
+  continuationProximityRate: 0,
+  averageNextMoveDistance: baselineFlowAnalysis.averageNextMoveDistance + 5,
+  techniqueConcentration: 1,
+}
+if (
+  scoreBiomesAnalysis(baselineFlowAnalysis) <=
+  scoreBiomesAnalysis(degradedFlowAnalysis)
+) {
+  throw new Error('Biomes quality scoring does not penalize poor player flow')
+}
+
+console.log('✓ Elements player-flow timeline and quality penalties')
 
 function verifyHashiPuzzle(level) {
   const solutionCount = countHashiSolutions(level)

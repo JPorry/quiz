@@ -26,6 +26,14 @@ export const BIOMES_GENERATOR_SETTINGS = Object.freeze({
     pureR0SoftLimit: 0.5,
     immediatePlacementRateTarget: 0.5,
     maxDependencyDepth: 8,
+    flowClueAllowance: 4,
+    preferredAverageAvailablePlacements: 3,
+    maxPreferredLowChoiceRun: 5,
+    preferredNearbyRevealRate: 0.45,
+    clueRemovalWeight: 0.2,
+    averageAvailabilityPenaltyWeight: 10,
+    lowChoiceRunPenaltyWeight: 4,
+    nearbyRevealPenaltyWeight: 18,
     completedBoardNodeLimit: 100_000,
     solverNodeLimit: 250_000,
     solverTimeoutMs: 5_000,
@@ -41,6 +49,14 @@ export const BIOMES_GENERATOR_SETTINGS = Object.freeze({
     pureR0SoftLimit: 0.65,
     immediatePlacementRateTarget: 0.35,
     maxDependencyDepth: 14,
+    flowClueAllowance: 6,
+    preferredAverageAvailablePlacements: 3,
+    maxPreferredLowChoiceRun: 8,
+    preferredNearbyRevealRate: 0.4,
+    clueRemovalWeight: 0.15,
+    averageAvailabilityPenaltyWeight: 12,
+    lowChoiceRunPenaltyWeight: 5,
+    nearbyRevealPenaltyWeight: 20,
     completedBoardNodeLimit: 300_000,
     solverNodeLimit: 750_000,
     solverTimeoutMs: 8_000,
@@ -188,6 +204,7 @@ export function carveBiomesPuzzle(
     random,
   )
   const rejectionReasons = {}
+  const flowCandidates = []
   let clueCount = totalCells
 
   for (const position of positions) {
@@ -206,26 +223,63 @@ export function carveBiomesPuzzle(
       incrementReason(rejectionReasons, verification.reason)
     } else {
       clueCount -= 1
+      if (
+        clueCount <= targetClues + settings.flowClueAllowance &&
+        verification.analysis.initialAvailablePlacements >=
+          settings.minInitialPlacements &&
+        verification.analysis.maximumDependencyDepth <=
+          settings.maxDependencyDepth
+      ) {
+        const candidate = {
+          puzzle: puzzle.map((puzzleRow) => [...puzzleRow]),
+          analysis: verification.analysis,
+          clueCount,
+          solverNodes: verification.solveResult.nodes,
+        }
+        flowCandidates.push({
+          ...candidate,
+          score: getCandidateQuality(candidate, targetClues, settings),
+        })
+      }
     }
   }
 
-  const verification = verifyPuzzleCandidate(puzzle, solution, settings)
-  if (!verification.accepted) {
-    throw new Error(verification.reason)
+  if (flowCandidates.length === 0) {
+    const verification = verifyPuzzleCandidate(puzzle, solution, settings)
+    if (!verification.accepted) {
+      throw new Error(verification.reason)
+    }
+    const candidate = {
+      puzzle: puzzle.map((puzzleRow) => [...puzzleRow]),
+      analysis: verification.analysis,
+      clueCount,
+      solverNodes: verification.solveResult.nodes,
+    }
+    flowCandidates.push({
+      ...candidate,
+      score: getCandidateQuality(candidate, targetClues, settings),
+    })
   }
 
+  const selected = flowCandidates.reduce((best, candidate) =>
+    !best || candidate.score > best.score ? candidate : best,
+  )
+
   return {
-    puzzle,
-    analysis: verification.analysis,
-    clueCount,
+    puzzle: selected.puzzle,
+    analysis: selected.analysis,
+    clueCount: selected.clueCount,
     rejectionReasons,
-    solverNodes: verification.solveResult.nodes,
+    solverNodes: selected.solverNodes,
+    flowScore: selected.score,
+    restoredForFlow: clueCount === selected.clueCount
+      ? 0
+      : selected.clueCount - clueCount,
   }
 }
 
 function getCandidateQuality(candidate, targetClues, settings) {
   const analysis = candidate.analysis
-  const cluePenalty = Math.max(0, candidate.clueCount - targetClues)
   const e1Distance =
     analysis.e1Count < settings.preferredE1Min
       ? settings.preferredE1Min - analysis.e1Count
@@ -244,6 +298,28 @@ function getCandidateQuality(candidate, targetClues, settings) {
           analysis.immediatePlacementRate) *
         60
       : 0
+  const availabilityPenalty =
+    analysis.averageAvailablePlacements <
+    settings.preferredAverageAvailablePlacements
+      ? (settings.preferredAverageAvailablePlacements -
+          analysis.averageAvailablePlacements) *
+        settings.averageAvailabilityPenaltyWeight
+      : 0
+  const lowChoiceRunPenalty =
+    Math.max(
+      0,
+      analysis.longestLowChoiceRun - settings.maxPreferredLowChoiceRun,
+    ) * settings.lowChoiceRunPenaltyWeight
+  const nearbyRevealPenalty =
+    analysis.nearbyRevealRate < settings.preferredNearbyRevealRate
+      ? (settings.preferredNearbyRevealRate - analysis.nearbyRevealRate) *
+        settings.nearbyRevealPenaltyWeight
+      : 0
+  const clueRemovalBonus =
+    Math.max(
+      0,
+      targetClues + settings.flowClueAllowance - candidate.clueCount,
+    ) * settings.clueRemovalWeight
 
   return (
     scoreBiomesAnalysis(analysis) +
@@ -251,7 +327,10 @@ function getCandidateQuality(candidate, targetClues, settings) {
     dominanceBonus -
     pureR0Penalty -
     iprPenalty -
-    cluePenalty * 1.5
+    availabilityPenalty -
+    lowChoiceRunPenalty -
+    nearbyRevealPenalty +
+    clueRemovalBonus
   )
 }
 
@@ -351,6 +430,24 @@ function summarizeAnalysis(analysis, clueCount) {
     maxAvailablePlacements: analysis.maxAvailablePlacements,
     averageAvailablePlacements: Number(
       analysis.averageAvailablePlacements.toFixed(2),
+    ),
+    minimumAvailablePlacements: analysis.minimumAvailablePlacements,
+    lowChoiceSteps: analysis.lowChoiceSteps,
+    lowChoiceRatio: Number(analysis.lowChoiceRatio.toFixed(3)),
+    longestLowChoiceRun: analysis.longestLowChoiceRun,
+    stallCount: analysis.stallCount,
+    nearbyRevealRate: Number(analysis.nearbyRevealRate.toFixed(3)),
+    averageNewlyAvailableMoves: Number(
+      analysis.averageNewlyAvailableMoves.toFixed(2),
+    ),
+    continuationProximityRate: Number(
+      analysis.continuationProximityRate.toFixed(3),
+    ),
+    averageNextMoveDistance: Number(
+      analysis.averageNextMoveDistance.toFixed(2),
+    ),
+    techniqueConcentration: Number(
+      analysis.techniqueConcentration.toFixed(3),
     ),
     immediatePlacementRate: Number(
       analysis.immediatePlacementRate.toFixed(3),
@@ -465,6 +562,38 @@ export function generatePuzzleBatch({
       ),
       averageGenerationTime: Number(
         average(levels.map((level) => level.generationMs)).toFixed(2),
+      ),
+      averageAvailablePlacements: Number(
+        average(
+          levels.map((level) => level.analysis.averageAvailablePlacements),
+        ).toFixed(2),
+      ),
+      averageLowChoiceRatio: Number(
+        average(levels.map((level) => level.analysis.lowChoiceRatio)).toFixed(3),
+      ),
+      averageLongestLowChoiceRun: Number(
+        average(
+          levels.map((level) => level.analysis.longestLowChoiceRun),
+        ).toFixed(2),
+      ),
+      averageNearbyRevealRate: Number(
+        average(
+          levels.map((level) => level.analysis.nearbyRevealRate),
+        ).toFixed(3),
+      ),
+      averageNextMoveDistance: Number(
+        average(
+          levels.map((level) => level.analysis.averageNextMoveDistance),
+        ).toFixed(2),
+      ),
+      averageTechniqueConcentration: Number(
+        average(
+          levels.map((level) => level.analysis.techniqueConcentration),
+        ).toFixed(3),
+      ),
+      restoredCluesForFlow: levels.reduce(
+        (sum, level) => sum + level.restoredForFlow,
+        0,
       ),
       techniqueDistribution,
     },
