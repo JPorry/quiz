@@ -14,6 +14,9 @@ const COLORS = {
   sand: 0xf4dfae, cliff: 0xd9a868, grass: 0x92d46f, grassSide: 0x58a352,
   leaf: 0x54b25c, leafLight: 0x9fe282, leafDark: 0x2f8a4c, blossom: 0xff9fb2, flower: 0xffe07a,
   petal: 0xffffff, rock: 0xb9c7c2, trunk: 0xa0704a, brass: 0xf3c34b,
+  lime: 0x8fd25a, pine: 0x2f7d55, poplar: 0x3e9a5a, cherry: 0xffb3c7, cherryLight: 0xffd3df,
+  amber: 0xf2a446, amberLight: 0xffcf7d, peach: 0xf7b58a, berry: 0xe8546b, lavender: 0xb9a0f0,
+  blade: 0x78c45a, bladeLight: 0xc6ef94, bladeDark: 0x4f9e48,
   trayWater: 0x2f9fb0, trayEarth: 0xd2a467, foam: 0xf3fbf8,
 }
 const MAT_SIZE = 16
@@ -215,6 +218,7 @@ export class GardenScene {
         const body = this.mesh(this.landGeometry('sand', 0), [this.materials.sand, this.materials.cliff], land)
         const terrace = this.mesh(this.landGeometry('grass', 0), [this.materials.grass, this.materials.grassSide], land)
         const plants = this.addGarden(land, index)
+        const grass = this.addGrass(land, index)
         group.add(land)
         const pin = this.mesh(pinGeometry, this.materials.brass, group, 0.33, 0.5, -0.33)
         const error = this.mesh(new THREE.TorusGeometry(0.3, 0.025, 6, 32), material(0xff8a6b, { emissive: 0xc2452a, emissiveIntensity: 0.45, depthTest: false }), group, 0, 0.5, 0)
@@ -222,11 +226,12 @@ export class GardenScene {
         error.renderOrder = 4
         error.castShadow = false
         error.visible = false
-        this.cells.push({ row, col, group, target, land, body, terrace, plants, pin, error, value: undefined, mask: -1, started: -10, reactionAt: -10, direction: new THREE.Vector2() })
+        this.cells.push({ row, col, group, target, land, body, terrace, plants, grass, pin, error, value: undefined, mask: -1, started: -10, reactionAt: -10, direction: new THREE.Vector2() })
       }
     }
   }
 
+  // A gentle mix of species, colors, and sizes, so no two islands look alike.
   addGarden(parent, index, decorative = false) {
     // Plants pivot at the grass, turning first and then leaning, so breezes bend them from the base.
     const group = new THREE.Group()
@@ -234,38 +239,104 @@ export class GardenScene {
     group.rotation.y = seeded(index + 30) * Math.PI * 2
     group.position.y = LAND.grass.top
     parent.add(group)
-    const variant = decorative ? 0 : Math.floor(seeded(index + 29) * 6)
-    const top = 0
-    group.userData.perchHeight = variant <= 1 ? 1.0 : variant === 2 ? 1.07 : variant === 3 ? 0.68 : 0.46
-    if (variant <= 1) {
-      // A round lollipop tree: the canopy casts the long, soft shadow that sells the height.
-      const x = (seeded(index + 7) - 0.5) * 0.2, z = (seeded(index + 8) - 0.5) * 0.2
-      this.mesh(new THREE.CylinderGeometry(0.04, 0.06, 0.3, 7), this.materials.trunk, group, x, top + 0.13, z)
-      this.mesh(new THREE.IcosahedronGeometry(0.25, 2), variant ? this.materials.leafDark : this.materials.leaf, group, x, top + 0.42, z)
-      this.mesh(new THREE.IcosahedronGeometry(0.1, 1), this.materials.leafLight, group, x - 0.09, top + 0.55, z - 0.08)
-    } else if (variant === 2) {
+    const pick = decorative ? 0 : seeded(index + 29)
+    const size = 0.8 + seeded(index + 41) * 0.45
+    const x = (seeded(index + 7) - 0.5) * 0.18, z = (seeded(index + 8) - 0.5) * 0.18
+    const m = this.materials
+    let crown = 0.05
+    // A trunk with a cluster of canopy balls; returns the height of the treetop.
+    const tree = (tx, tz, scale, trunk, canopy) => {
+      this.mesh(new THREE.CylinderGeometry(0.035 * scale, 0.055 * scale, trunk * scale, 7), m.trunk, group, tx, trunk * scale / 2, tz)
+      let top = 0
+      for (const [material, radius, y, dx = 0, dz = 0, stretch = 1] of canopy) {
+        this.mesh(new THREE.IcosahedronGeometry(radius * scale, 2), material, group, tx + dx * scale, y * scale, tz + dz * scale).scale.y = stretch
+        top = Math.max(top, (y + radius * stretch) * scale)
+      }
+      return top
+    }
+    const greens = [m.leaf, m.leafDark, m.lime]
+    const green = greens[Math.floor(seeded(index + 51) * greens.length)]
+    if (pick < 0.16) {
+      // Round lollipop tree in one of three greens.
+      crown = tree(x, z, size, 0.3, [[green, 0.25, 0.42], [m.leafLight, 0.1, 0.55, -0.09, -0.08]])
+    } else if (pick < 0.26) {
+      // Cherry blossom, with a few fallen petals underneath.
+      crown = tree(x, z, size, 0.28, [[m.cherry, 0.2, 0.42, 0.06, 0.02], [m.cherryLight, 0.17, 0.5, -0.08, -0.04], [m.cherry, 0.14, 0.38, -0.04, 0.12]])
+      for (let i = 0; i < 4; i++) this.mesh(new THREE.CircleGeometry(0.022, 6).rotateX(-Math.PI / 2), m.cherryLight, group, Math.cos(i * 1.9) * 0.24, 0.006, Math.sin(i * 1.9) * 0.24)
+    } else if (pick < 0.34) {
+      // A warm autumn tree.
+      const warm = seeded(index + 52) < 0.5 ? m.amber : m.peach
+      crown = tree(x, z, size, 0.3, [[warm, 0.24, 0.42], [m.amberLight, 0.1, 0.56, -0.09, -0.07]])
+    } else if (pick < 0.42) {
+      // A tall, slender poplar.
+      crown = tree(x, z, size, 0.22, [[seeded(index + 53) < 0.5 ? m.poplar : m.leafDark, 0.15, 0.48, 0, 0, 2.1], [m.leafLight, 0.06, 0.62, -0.06, -0.05]])
+    } else if (pick < 0.5) {
+      // A layered pine.
       for (let i = 0; i < 3; i++) {
-        const cone = this.mesh(new THREE.ConeGeometry(0.21 - i * 0.045, 0.26, 8), this.materials.leafDark, group, 0.02, top + 0.16 + i * 0.15, 0.02)
+        const cone = this.mesh(new THREE.ConeGeometry((0.2 - i * 0.045) * size, 0.26 * size, 8), m.pine, group, x, (0.16 + i * 0.15) * size, z)
         cone.rotation.y = i * 0.6
       }
-    } else if (variant === 3) {
-      this.mesh(new THREE.IcosahedronGeometry(0.16, 2), this.materials.leaf, group, -0.08, top + 0.1, 0.04)
-      this.mesh(new THREE.IcosahedronGeometry(0.12, 2), this.materials.leafLight, group, 0.12, top + 0.07, -0.06)
-      this.addFlower(group, -0.02, top, -0.2, index)
-    } else if (variant === 4) {
-      for (let i = 0; i < 5; i++) this.addFlower(group, Math.cos(i * 2.4) * 0.2, top, Math.sin(i * 2.4) * 0.2, index + i)
+      crown = 0.6 * size
+    } else if (pick < 0.56) {
+      // A young sapling.
+      crown = tree(x, z, 0.65, 0.3, [[m.lime, 0.2, 0.42], [m.leafLight, 0.08, 0.54, -0.07, -0.06]])
+    } else if (pick < 0.62) {
+      // A little grove of two different trees.
+      // Its two crowns sit off-center, so birds treat it as meadow rather than a perch.
+      tree(-0.13, -0.08, 0.7, 0.3, [[m.leaf, 0.24, 0.42]])
+      tree(0.14, 0.11, 0.6, 0.3, [[seeded(index + 54) < 0.5 ? m.cherry : m.amber, 0.24, 0.42]])
+      crown = 0.3
+    } else if (pick < 0.72) {
+      // A berry bush.
+      this.mesh(new THREE.IcosahedronGeometry(0.16, 2), green, group, -0.06, 0.1, 0.04)
+      this.mesh(new THREE.IcosahedronGeometry(0.12, 2), m.leafLight, group, 0.11, 0.07, -0.06)
+      for (let i = 0; i < 5; i++) this.mesh(new THREE.IcosahedronGeometry(0.022, 1), seeded(index + i) < 0.5 ? m.berry : m.flower, group, -0.06 + Math.cos(i * 1.3) * 0.13, 0.13 + Math.sin(i * 2.1) * 0.05, 0.04 + Math.sin(i * 1.3) * 0.13)
+      crown = 0.26
+    } else if (pick < 0.88) {
+      // A flower patch in mixed colors.
+      const count = 5 + Math.floor(seeded(index + 55) * 3)
+      for (let i = 0; i < count; i++) this.addFlower(group, Math.cos(i * 2.4) * (0.1 + i * 0.03), 0, Math.sin(i * 2.4) * (0.1 + i * 0.03), index + i)
     } else {
-      const rock = this.mesh(new THREE.DodecahedronGeometry(0.13, 0), this.materials.rock, group, -0.1, top + 0.05, -0.06)
+      // A mossy rock among flowers.
+      const rock = this.mesh(new THREE.DodecahedronGeometry(0.13, 0), m.rock, group, -0.1, 0.05, -0.06)
       rock.scale.set(1.3, 0.75, 1)
-      for (let i = 0; i < 3; i++) this.addFlower(group, -0.16 + i * 0.16, top, 0.2, index + i)
+      this.mesh(new THREE.IcosahedronGeometry(0.07, 1), m.lime, group, -0.12, 0.12, -0.08).scale.set(1.2, 0.45, 1)
+      for (let i = 0; i < 3; i++) this.addFlower(group, -0.16 + i * 0.16, 0, 0.2, index + i)
     }
+    // Perches sit on top of the canopy; anything under 0.8 is open meadow for walkers.
+    group.userData.perchHeight = LAND.grass.top + crown
     this.mergeDetails(group)
     return group
   }
 
+  // Little tufts of grass that sway in a slow wave across the garden.
+  addGrass(parent, index) {
+    const group = new THREE.Group()
+    group.rotation.order = 'ZXY'
+    group.position.y = LAND.grass.top
+    parent.add(group)
+    const blades = [this.materials.bladeLight, this.materials.blade, this.materials.bladeDark]
+    const tufts = 8 + Math.floor(seeded(index + 61) * 5)
+    for (let t = 0; t < tufts; t++) {
+      const angle = seeded(index * 7 + t) * Math.PI * 2, radius = 0.12 + seeded(index * 5 + t) * 0.21
+      const tx = Math.cos(angle) * radius, tz = Math.sin(angle) * radius
+      // Five blades fan out from each tuft, so it reads as a little starburst from above.
+      const spin = seeded(index * 11 + t) * Math.PI
+      for (let b = 0; b < 5; b++) {
+        const height = 0.09 + seeded(index * 3 + t * 5 + b) * 0.06
+        const leaf = this.mesh(new THREE.ConeGeometry(0.017, height, 3).translate(0, height / 2, 0), blades[(t + b) % blades.length], group, tx, 0, tz)
+        leaf.rotation.set(0.55 + (b % 2) * 0.25, spin + b * Math.PI * 2 / 5, 0, 'YXZ')
+      }
+    }
+    this.mergeDetails(group)
+    group.children.forEach((child) => { child.castShadow = false })
+    return group
+  }
+
   addFlower(parent, x, y, z, index) {
-    const head = [this.materials.flower, this.materials.blossom, this.materials.petal][index % 3]
-    this.mesh(new THREE.CylinderGeometry(0.008, 0.01, 0.07, 4), this.materials.leafDark, parent, x, y + 0.03, z)
+    const m = this.materials
+    const head = [m.flower, m.blossom, m.petal, m.lavender, m.peach][index % 5]
+    this.mesh(new THREE.CylinderGeometry(0.008, 0.01, 0.07, 4), m.leafDark, parent, x, y + 0.03, z)
     this.mesh(new THREE.IcosahedronGeometry(0.04, 1), head, parent, x, y + 0.075, z).scale.y = 0.6
   }
 
@@ -628,6 +699,9 @@ export class GardenScene {
       const lean = wind?.amount ?? 0
       cell.plants.rotation.x = cell.direction.y * reaction * 0.13 + Math.sin(motionTime * 0.9 + cell.col) * 0.006 + (lean ? wind.z * lean : 0)
       cell.plants.rotation.z = -cell.direction.x * reaction * 0.13 - (lean ? wind.x * lean : 0)
+      // Grass waves gently all the time and flattens further when a breeze passes.
+      cell.grass.rotation.x = Math.sin(motionTime * 1.3 + cell.col * 0.55 + cell.row * 0.35) * 0.08 + (lean ? wind.z * lean * 1.8 : 0)
+      cell.grass.rotation.z = Math.cos(motionTime * 1.05 + cell.row * 0.6 + cell.col * 0.3) * 0.06 - (lean ? wind.x * lean * 1.8 : 0)
     }
     this.particles = this.particles.filter((particle) => this.time - particle.started < 0.85)
     this.particleMesh.count = this.particles.length

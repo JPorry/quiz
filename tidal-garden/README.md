@@ -66,7 +66,11 @@ Land tiles are rounded slabs with a sand cliff and a grass terrace. Each tile
 picks its outline from its eight neighbors: sides facing water pull in and
 round off, sides facing land run flush into the next tile, and inner corners
 get a concave fillet, so connected land reads as one organic island. Outlines
-are cached per neighbor pattern. Undecided cells are the unfinished
+are cached per neighbor pattern. Each land tile grows its own planting from a
+gentle mix: round trees in three greens, cherry blossoms, autumn trees, tall
+poplars, pines, saplings, small groves, berry bushes, flower patches, and
+mossy rocks, each at its own size. Tufts of grass dot every island and sway in a
+slow wave across the garden. Undecided cells are the unfinished
 part of the model: empty cream plaster sockets with a sketched paper floor and
 no water poured yet, which the water laps against. A new board assembles in a
 wave of popping sockets; building a tile pushes its socket away as the water
