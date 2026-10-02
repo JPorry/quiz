@@ -11,6 +11,7 @@ import { SocketBoard, SOCKET_TOP } from './sockets.js'
 import { Breeze } from './breeze.js'
 import { Finale, FINALE_VIEW } from './finale.js'
 import { glide } from './glide.js'
+import { CloudShadows } from './clouds.js'
 
 const COLORS = {
   sand: 0xf4dfae, cliff: 0xd9a868, grass: 0x92d46f, grassSide: 0x58a352,
@@ -124,7 +125,9 @@ export class GardenScene {
     this.waterUniforms.uGust = { value: 0 }
     this.buildBoardGuides()
     this.buildParticles()
-    this.buildClouds()
+    // Now and then, at random, the shadow of a cloud drifts over the garden.
+    this.clouds = new CloudShadows(this, { tray: TRAY })
+    this.cloudMaterial = this.clouds.material
     this.hover = this.createHover()
     this.scene.add(this.hover)
     this.completions = new RegionCompletions(this)
@@ -383,40 +386,6 @@ export class GardenScene {
     this.particleDummy = new THREE.Object3D()
     for (let i = 0; i < PARTICLES; i++) this.particleMesh.setColorAt(i, new THREE.Color(0xffffff))
     this.particleColors = { water: new THREE.Color(COLORS.foam), land: new THREE.Color(COLORS.flower) }
-  }
-
-  // Soft cloud shadows drift over the diorama now and then.
-  buildClouds() {
-    this.cloudMaterial = new THREE.ShaderMaterial({
-      transparent: true, depthWrite: false, depthTest: false,
-      uniforms: { uTime: { value: 0 }, uWindShift: { value: this.breeze.shift }, uFade: { value: 1 } },
-      vertexShader: `varying vec2 vXZ; void main() { vXZ = (modelMatrix * vec4(position, 1.0)).xz; gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1.0); }`,
-      fragmentShader: `
-        varying vec2 vXZ;
-        uniform float uTime;
-        uniform vec2 uWindShift;
-        uniform float uFade;
-        float hash(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
-        float noise(vec2 p) {
-          vec2 i = floor(p), f = fract(p);
-          vec2 u = f * f * (3.0 - 2.0 * f);
-          return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + 1.0), u.x), u.y);
-        }
-        void main() {
-          vec2 p = vXZ * 0.17 + vec2(uTime * 0.028, uTime * 0.011) - uWindShift * 0.35;
-          float n = noise(p) * 0.6 + noise(p * 2.1 + 3.7) * 0.3 + noise(p * 4.3 + 9.1) * 0.1;
-          float cloud = smoothstep(0.6, 0.74, n);
-          vec2 edge = abs(vXZ) - ${(TRAY / 2 - 0.25).toFixed(2)};
-          float inside = 1.0 - smoothstep(0.0, 0.25, max(edge.x, edge.y));
-          gl_FragColor = vec4(0.06, 0.22, 0.38, cloud * inside * 0.15 * uFade);
-          #include <colorspace_fragment>
-        }
-      `,
-    })
-    const clouds = new THREE.Mesh(new THREE.PlaneGeometry(TRAY, TRAY).rotateX(-Math.PI / 2), this.cloudMaterial)
-    clouds.position.y = 1.4
-    clouds.renderOrder = 20
-    this.scene.add(clouds)
   }
 
   createHover() {
@@ -719,7 +688,7 @@ export class GardenScene {
     this.time = time / 1000
     const motionTime = this.reducedMotion ? 0 : this.time
     this.waterUniforms.uTime.value = motionTime
-    this.cloudMaterial.uniforms.uTime.value = motionTime
+    this.clouds.update(this.time, this.reducedMotion)
     this.waterRipples.animate(this.time, this.ripples)
     this.waterLife.update(this.time, delta, this.reducedMotion)
     this.breeze.update(this.time, delta, this.reducedMotion)

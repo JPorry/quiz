@@ -85,7 +85,11 @@ the garden. Its front is ragged, its strength comes in patches and puffs, and
 its heading swirls, so trees and flowers bow from their base at different
 moments and angles, loose leaves tumble along curling paths, and the water's
 wave marks hurry along.
-Cloud shadows drift over the tray now and then.
+Now and then a cloud's shadow drifts across the tray: a soft, ragged cluster of
+puffs that enters from a random side along a random line and takes 15 to 45
+seconds to cross. The sky stays clear for most of the game: the first cloud
+arrives after half a minute or so, and later ones come one to two minutes
+apart, at random. Reduced motion keeps the sky clear.
 
 The water is flat pigment. One cached distance field to the same rounded
 coastline drives a pale shallow rim, a lapping foam lip, calmer lakes, and a
