@@ -90,3 +90,6 @@ For the first deployment:
 4. Open the **Actions** tab to follow the deployment.
 
 The published URL will be shown in the completed deployment job.
+
+The same deployment builds the standalone Tidal Garden project in
+`tidal-garden/` and publishes it under `/tidal-garden/` on the same site.

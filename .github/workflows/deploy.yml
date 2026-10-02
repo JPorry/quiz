@@ -26,6 +26,9 @@ jobs:
         with:
           node-version: 22.19.0
           cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            tidal-garden/package-lock.json
 
       - name: Set up GitHub Pages
         uses: actions/configure-pages@v6
@@ -35,6 +38,17 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Install Tidal Garden dependencies
+        working-directory: tidal-garden
+        run: npm ci --no-audit --no-fund
+
+      - name: Build Tidal Garden
+        working-directory: tidal-garden
+        run: npm run build
+
+      - name: Publish Tidal Garden under /tidal-garden/
+        run: cp -R tidal-garden/dist dist/tidal-garden
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5

@@ -1,0 +1,110 @@
+# Tidal Garden
+
+A standalone Three.js interpretation of the Binary puzzle, rendered as a
+miniature island diorama seen from above. This project has its own Vite
+configuration, dependencies, build, and storage namespace.
+
+## Run
+
+```sh
+npm ci
+npm run dev -- --port 5180
+```
+
+The server listens on the local network, so a phone on the same Wi-Fi can use
+the network address printed by Vite.
+
+```sh
+npm test
+npm run build
+npm run test:visual
+npm run test:rendering
+npm run test:touch
+```
+
+Visual tests expect the development server at `http://127.0.0.1:5180` and a
+Playwright Chromium installation. Set `TIDAL_TEST_URL` to test another server.
+Screenshots and canvas diagnostics are written to `test-results/`.
+
+## Puzzle
+
+The existing Binary engine and 20 level layouts are copied into this project.
+Water is `0`, land is `1`, and an empty tile is `null`.
+
+- Every row and column contains five of each terrain type.
+- Three identical terrain tiles cannot occur consecutively.
+- Completed rows and columns must have distinct terrain patterns.
+
+Fixed clues carry a gold dot. Placement, erase, individual undo, reset
+confirmation, logical hints, garden selection, completion tracking, and
+per-garden saved grids and undo history are implemented. Optional placement
+sounds are synthesized locally. Keyboard terrain selection uses `0`/`W`,
+`1`/`L`, and `E`; the board supports focus and arrow navigation.
+
+## Art
+
+The garden is a little diorama: a tray of sea above a layer of sand, seen
+from a fixed orthographic camera tilted 10 degrees from straight down. Every
+cell is the same size and rows stay parallel, so there is no pan, zoom, or
+orbit to fight with taps, while the tilt still reveals the south-facing cliffs.
+Add `?tilt=<degrees>` to the URL to try other angles.
+
+Land tiles are rounded slabs with a sand cliff and a grass terrace. Each tile
+picks its outline from its eight neighbors: sides facing water pull in and
+round off, sides facing land run flush into the next tile, and inner corners
+get a concave fillet, so connected land reads as one organic island. Outlines
+are cached per neighbor pattern. Undecided cells float as pale mist sandbars.
+
+Depth comes from light. A low sun casts soft shadows, and shadowed areas see
+only a pale blue sky light, which tints them blue rather than grey. The sun
+crosses the sky as the garden fills, from morning light in the northeast to
+golden hour in the northwest, so shadows slowly swing across the board.
+Cloud shadows drift over the tray now and then.
+
+The water is flat pigment. One cached distance field to the same rounded
+coastline drives a pale shallow rim, a lapping foam lip, calmer lakes, and a
+few breathing wave marks in open water. Slow swells of light roll across it,
+sunlight shimmers over the shallows, and glints twinkle in open water. Fish
+shadows cruise between the islands, steering clear of land and each other,
+and every few seconds one leaps clear of the surface with a splash.
+
+New land springs up past its height and settles while its plants grow. New
+water bursts up in a column that collapses into a ring-shaped crown and a
+spray of droplets, floods its tile with light from the center, and sends a
+foam ring rolling outward; sometimes a fish jumps out. Whatever was on the
+tile before sinks away beneath it, and both send ripple rings across the
+water, blocked by land and the tray edge, and a spring through neighboring
+terrain and foliage.
+Phone rendering is capped at 30fps and 1.25x pixel density with 1024px shadows
+refreshed at most five times per second. Hidden pages pause scene rendering;
+desktop rendering is capped at 45fps.
+
+A faint white outline defines the 10x10 puzzle without numbered markers or
+counting overlays. Hover, click, and keyboard focus illuminate both the active
+row and column; the selected cell remains highlighted after the pointer leaves.
+
+Fully enclosed small islands grow extra flowers, while enclosed lakes unfurl
+lily pads. Three randomized land celebrations and three water celebrations
+provide petal blooms, drifting lights, meadow waves, lotus sparkles, fountains,
+and ripple choruses. A patch must have an entirely assigned cardinal shoreline;
+unresolved cells and board edges cannot complete it. Undo or erase removes its
+finished details, and reload restores them without replaying celebrations.
+Reduced-motion preferences retain the finished details but disable animation.
+
+Completed patches of at least two cells also become persistent wildlife habitats.
+Single-cell islands and lakes keep their flowers, lily pads, and celebrations
+without adding animals. Larger ponds gain koi
+shoals, floating otter pairs, duck families, or frogs on lily pads. Land gains
+perching songbirds, squirrels, butterflies, or rabbits. Residents are small,
+round, and big-eyed, with eyes set high so they read from above. They surface,
+fly in, or hop into place, then wander their whole habitat: each steers toward
+spots it picks for itself, keeps its distance from its neighbors, walks around
+tree trunks, and rests now and then. Ducklings paddle in a line behind their
+mother, songbirds hop between treetops, and frogs croak on their lily pads. Fish and birds have additional color variations. Habitat choices are
+seeded by the patch and puzzle so reload restores the same residents; undo
+removes them if their shoreline reopens. Swimming paths stay within connected
+water cells, and reduced-motion mode freezes residents in their settled poses.
+
+All scene assets are generated in code. Interface fonts load from Google
+Fonts with local serif and sans-serif fallbacks. The primary 3D scene remains
+fully local.
