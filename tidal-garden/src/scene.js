@@ -12,6 +12,9 @@ import { Breeze } from './breeze.js'
 import { Finale, FINALE_VIEW } from './finale.js'
 import { glide } from './glide.js'
 import { CloudShadows } from './clouds.js'
+import { LineFlourish } from './flourish.js'
+import { Rain } from './rain.js'
+import { newlyBalanced } from './lines.js'
 
 const COLORS = {
   sand: 0xf4dfae, cliff: 0xd9a868, grass: 0x92d46f, grassSide: 0x58a352,
@@ -60,9 +63,10 @@ function slab(shape, bottom, top) {
 }
 
 export class GardenScene {
-  constructor(container, { onCell, safeArea, finaleArea }) {
+  constructor(container, { onCell, safeArea, finaleArea, onFlourish }) {
     this.container = container
     this.onCell = onCell
+    this.onFlourish = onFlourish
     this.safeArea = safeArea
     this.finaleArea = finaleArea
     this.mobile = container.clientWidth < 700
@@ -128,10 +132,12 @@ export class GardenScene {
     // Now and then, at random, the shadow of a cloud drifts over the garden.
     this.clouds = new CloudShadows(this, { tray: TRAY })
     this.cloudMaterial = this.clouds.material
+    this.rain = new Rain(this, { reach: TRAY / 2 })
     this.hover = this.createHover()
     this.scene.add(this.hover)
     this.completions = new RegionCompletions(this)
     this.finale = new Finale(this)
+    this.flourish = new LineFlourish(this)
     this.appliedView = ''
     this.bindEvents()
     this.resizeObserver = new ResizeObserver(() => this.resize())
@@ -442,6 +448,7 @@ export class GardenScene {
     const hadGrid = !!this.grid && this.clues === clues
     if (!hadGrid) { this.clearSelection(); this.completions.clear() }
     const changed = this.cells.filter((cell) => grid[cell.row][cell.col] !== cell.value)
+    const before = this.grid
     this.grid = grid.map((row) => [...row])
     this.clues = clues
     this.complete = complete
@@ -475,6 +482,14 @@ export class GardenScene {
     this.daylightTarget = complete ? 1 : filled / 100
     if (!hadGrid) { this.daylight = this.daylightTarget; this.daylightVelocity = 0 }
     if (hadGrid && changed.length > 0 && changed.length <= 4) changed.forEach((cell) => this.react(cell))
+    // A single placement that completes a balanced row or column sends a gleam along it.
+    if (hadGrid && changed.length === 1 && changed[0].value !== null) {
+      const lines = newlyBalanced(before, grid)
+      if (lines.length) {
+        if (!this.reducedMotion) this.flourish.start(lines, changed[0], this.time)
+        this.onFlourish?.(lines)
+      }
+    }
     this.completions.update(grid, hadGrid && changed.length > 0 && changed.length <= 4)
     this.updateAccessibility()
     this.showHover(this.hoverCell)
@@ -689,6 +704,7 @@ export class GardenScene {
     const motionTime = this.reducedMotion ? 0 : this.time
     this.waterUniforms.uTime.value = motionTime
     this.clouds.update(this.time, this.reducedMotion)
+    this.rain.update(this.time, delta, this.clouds, this.reducedMotion)
     this.waterRipples.animate(this.time, this.ripples)
     this.waterLife.update(this.time, delta, this.reducedMotion)
     this.breeze.update(this.time, delta, this.reducedMotion)
@@ -747,6 +763,7 @@ export class GardenScene {
     this.particleMesh.instanceMatrix.needsUpdate = true
     if (this.particleMesh.instanceColor) this.particleMesh.instanceColor.needsUpdate = true
     this.completions.animate(this.time)
+    this.flourish.update(this.time)
     this.crossTiles.forEach((plane, index) => {
       if (plane.visible) plane.position.y = this.cellHeight(this.cells[index]) + (this.cells[index].value === 1 ? this.cells[index].land.position.y : 0) + 0.02
     })

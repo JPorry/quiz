@@ -89,7 +89,16 @@ Now and then a cloud's shadow drifts across the tray: a soft, ragged cluster of
 puffs that enters from a random side along a random line and takes 15 to 45
 seconds to cross. The sky stays clear for most of the game: the first cloud
 arrives after half a minute or so, and later ones come one to two minutes
-apart, at random. Reduced motion keeps the sky clear.
+apart, at random. About one cloud in three is a little darker and brings a
+passing shower: slanted rain falls beneath it, building as it drifts over the
+tray and easing off as it leaves, and each drop dimples the water or splashes
+on the grass. Once a shower has passed, a faint rainbow often hangs over the
+garden for a quarter of a minute. Reduced motion keeps the sky clear.
+
+When a placement completes a row or column that follows every rule, a soft
+gleam runs out along it from that tile and the tiles it passes give a little
+bounce, with two bell notes when sound is on. Finishing a row and a column at
+once sends the gleam both ways and plays the notes a step higher.
 
 The water is flat pigment. One cached distance field to the same rounded
 coastline drives a pale shallow rim, a lapping foam lip, calmer lakes, and a
