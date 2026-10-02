@@ -15,7 +15,7 @@ try {
     const center = (row, col) => page.evaluate(([r, c]) => __tidal.cellPosition(r, c), [row, col])
 
     const width = (await center(0, 9)).x - (await center(0, 0)).x
-    assert.ok(width / 9 >= viewport.width / 10.2, `Phone cells span the screen: ${(width / 9).toFixed(1)}px`)
+    assert.ok(width / 9 >= 27, `Phone cells are finger-sized: ${(width / 9).toFixed(1)}px`)
 
     const empties = (await snapshot()).grid.flatMap((row, r) => row.map((value, c) => value === null ? [r, c] : null)).filter(Boolean)
     const [startRow, startCol] = empties[Math.floor(empties.length / 2)]

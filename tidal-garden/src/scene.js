@@ -569,11 +569,9 @@ export class GardenScene {
       this.renderer.shadowMap.needsUpdate = true
     }
     this.profile = profile
-    // Fit the whole tray into the open band of the layout. Phones fit just the cells, edge to edge,
-    // and let the tray's water rim run off the sides of the screen.
+    // Fit the whole tray into the open band of the layout.
     const safe = this.safeArea?.() ?? { top: 0, bottom: height, left: 0, right: width }
-    const span = this.mobile ? 10.08 : TRAY + 0.1
-    const boardWidth = span
+    const boardWidth = TRAY + 0.1
     const boardDepth = (TRAY + 0.1) * Math.cos(TILT) + 0.75 * Math.sin(TILT)
     const unit = Math.max(boardWidth / Math.max(120, safe.right - safe.left), boardDepth / Math.max(120, safe.bottom - safe.top))
     this.camera.left = -width * unit / 2

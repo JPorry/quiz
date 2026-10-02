@@ -96,8 +96,9 @@ function boardSafeArea() {
   const phone = world.width <= 700
   const top = $(phone ? '.garden-journal' : '.scene-caption').getBoundingClientRect().bottom - world.top + (phone ? 8 : 14)
   const bottom = $('#placement-status').getBoundingClientRect().top - world.top - (phone ? 2 : 14)
-  const left = phone ? 0 : $('.garden-journal').getBoundingClientRect().right - world.left + 36
-  return { top, bottom, left, right: world.width - (phone ? 0 : 36) }
+  // Phones keep a little breathing room on either side of the tray.
+  const left = phone ? 12 : $('.garden-journal').getBoundingClientRect().right - world.left + 36
+  return { top, bottom, left, right: world.width - (phone ? 12 : 36) }
 }
 
 try {
