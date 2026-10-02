@@ -397,6 +397,7 @@ if (import.meta.env.DEV) {
         level: game.level, grid: game.grid.map((row) => [...row]), filled: game.filled,
         complete: game.complete, history: game.history.length,
         camera: scene?.camera.position.toArray(), daylight: scene?.daylight,
+        clouds: scene?.clouds.clouds.length,
         finale: scene && { active: scene.finale.active, mode: scene.finale.mode, ...scene.finale.view, card: !!finale?.card, flock: scene.finale.flock.filter((bird) => bird.root.visible).length, fireflies: scene.finale.fireflies.length, lanterns: scene.finale.lanterns.filter((lantern) => lantern.root.visible).length },
         calls: scene?.renderer.info.render.calls,
         rendering: scene && { ...scene.profile, frames: scene.renderedFrames, buffer: [scene.renderer.domElement.width, scene.renderer.domElement.height] },
@@ -422,6 +423,7 @@ if (import.meta.env.DEV) {
       }
     },
     gust() { scene?.breeze.start(scene.time) },
+    cloud(progress = 0) { return scene?.clouds.spawn(scene.time, progress) },
     cellPosition(row, col) {
       const rect = access.children[row * 10 + col].getBoundingClientRect()
       return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }
