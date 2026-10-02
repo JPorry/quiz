@@ -136,9 +136,23 @@ try {
       assert.ok(completed.completionEvents.some((event) => event.value === 1), 'Completing islands should celebrate')
       assert.ok(completed.completedRegions.every((region) => region.ornaments > 0))
       assert.ok(completed.activeCompletions.length <= 5, 'Effects are bounded')
+      assert.equal(completed.finale.active, true, 'Finishing a garden starts the finale')
+      assert.equal(completed.finale.mode, 'celebrate')
+      assert.equal(await page.locator('.garden-app.finale').count(), 1, 'The interface steps aside for the finale')
+      await page.getByRole('button', { name: /Grow the next garden/ }).waitFor({ state: 'visible' })
+      const finale = await page.evaluate(() => __tidal.snapshot)
+      assert.equal(finale.finale.card, true, 'The finale card appears')
+      assert.ok(finale.finale.blend > 0.5 && finale.finale.dusk > 0.3, `The camera lifts and evening falls: ${JSON.stringify(finale.finale)}`)
+      assert.ok(finale.finale.fireflies > 0, 'Fireflies come out over the islands')
+      assert.ok(finale.camera[2] / finale.camera[1] > Math.tan(15 * Math.PI / 180), 'The finale camera is lifted to show the cliffs')
+      await page.screenshot({ path: 'test-results/garden-finale.png' })
       await page.getByRole('button', { name: 'Stay a little longer', exact: true }).click()
+      await page.waitForFunction(() => __tidal.snapshot.finale.blend === 0 && __tidal.snapshot.finale.yaw === 0)
+      assert.equal(await page.locator('.garden-app.finale').count(), 0, 'Staying brings the interface back')
       await page.waitForTimeout(800)
       await page.screenshot({ path: 'test-results/garden-complete.png' })
+      await page.getByRole('button', { name: 'See it at dusk', exact: true }).click()
+      await page.waitForFunction(() => __tidal.snapshot.finale.active && __tidal.snapshot.finale.mode === 'revisit')
     }
     results.push({ viewport, pixels, animatedPixels: changed, layout })
     await context.close()
@@ -151,7 +165,7 @@ try {
     const closing = region.cells.flatMap((cell) => terrainNeighbors(puzzle.solution, cell.row, cell.col).map((neighbor) => ({ row: cell.row + neighbor.row, col: cell.col + neighbor.col, value: neighbor.value }))).find((cell) => cell.value !== value && puzzle.puzzle[cell.row]?.[cell.col] === null)
     const grid = puzzle.solution.map((row) => [...row])
     grid[closing.row][closing.col] = null
-    // Leave a second distant cell unresolved so the end-of-level modal does not obscure the effect.
+    // Leave a second distant cell unresolved so the end-of-level finale does not take over the scene.
     const spare = grid.flatMap((row, r) => row.map((_, c) => ({ row: r, col: c }))).find((cell) => puzzle.puzzle[cell.row][cell.col] === null && Math.abs(cell.row - closing.row) + Math.abs(cell.col - closing.col) > 6)
     grid[spare.row][spare.col] = null
     const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } })

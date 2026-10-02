@@ -264,3 +264,45 @@ dialog { color: #27433a; }
   .piece-stage { width: 58px; height: 66px; }
   .piece-tile { width: 52px; height: 52px; border-radius: 14px; }
 }
+
+/* The finale: the interface steps aside, evening falls, and a small card waits at the bottom. */
+.dusk { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 4.4s ease 1.2s;
+  background: radial-gradient(circle at 12% 0%, #f0a17a59, transparent 46%), radial-gradient(ellipse at 50% 45%, #3c7884 0%, #2b5a6e 52%, #1d3e55 100%); }
+.garden-journal, .game-dock, .scene-caption, .quiet-footer { transition: opacity .6s ease, translate .6s ease, visibility 0s; }
+.garden-app.finale .dusk { opacity: 1; }
+.garden-app.finale-quick .dusk { transition-duration: 1.6s; transition-delay: 0s; }
+.garden-app.finale :is(.garden-journal, .game-dock, .scene-caption, .quiet-footer) { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .6s ease, translate .6s ease, visibility 0s .6s; }
+.garden-app.finale :is(.game-dock, .quiet-footer) { translate: 0 24px; }
+.garden-app.finale :is(.garden-journal, .scene-caption) { translate: 0 -14px; }
+.garden-app.finale .world canvas { cursor: grab; }
+.garden-app.finale .world canvas:active { cursor: grabbing; }
+.finale-card { position: absolute; z-index: 5; left: 50%; bottom: 34px; width: min(440px, calc(100% - 32px)); transform: translate(-50%, 18px); opacity: 0; visibility: hidden;
+  padding: 22px 24px 16px; border-radius: 16px; color: #f6f2dc; background: #163a44a6; border: 1px solid #ffffff24; box-shadow: 0 18px 60px #0b222e55;
+  backdrop-filter: blur(14px) saturate(1.2); -webkit-backdrop-filter: blur(14px) saturate(1.2); transition: opacity .7s ease, transform .7s cubic-bezier(.2, .9, .3, 1), visibility 0s .7s; }
+.finale-card.visible { opacity: 1; visibility: visible; transform: translate(-50%, 0); transition: opacity .7s ease, transform .7s cubic-bezier(.2, .9, .3, 1), visibility 0s; }
+.finale-card .eyebrow { margin: 0 0 10px; color: #f3d9a6; gap: 0; }
+.finale-card .eyebrow > span { background: #f3d9a6; margin-right: 8px; }
+.finale-card .eyebrow b { font-weight: 650; margin-left: 4px; }
+.finale-card .eyebrow em { font-style: normal; text-transform: none; font-size: 11px; color: #f6f2dc; }
+.finale-card h2 { font-size: 34px; margin: 0 0 10px; color: #fbf6df; }
+.finale-meta { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 11px; color: #cfe3dc; }
+.finale-meta > span:not(.time-divider) { display: flex; align-items: center; gap: 6px; }
+.finale-meta svg { width: 12px; height: 12px; }
+.finale-meta b { color: #fbf6df; font-weight: 600; }
+.finale-meta .time-divider { background: #d3ead64a; margin: 0; }
+.finale-actions { display: flex; gap: 10px; margin-top: 18px; }
+.finale-actions .primary-button { flex: 1.5; background: #f3d9a6; color: #1f3f3d; font-weight: 600; }
+.finale-actions .primary-button:hover { background: #ffe6b8; }
+.finale-actions .secondary-button { flex: 1; background: #ffffff14; color: #eef3e3; border: 1px solid #ffffff26; }
+.finale-actions .secondary-button:hover { background: #ffffff22; }
+.finale-tip { margin: 12px 0 0; text-align: center; font-size: 10px; color: #d6e6df99; }
+@media (min-width: 1100px) {
+  .finale-card { left: 42px; bottom: 42px; width: 380px; transform: translateY(18px); }
+  .finale-card.visible { transform: none; }
+  .finale-card h2 { font-size: 40px; line-height: 1.04; }
+}
+@media (max-width: 700px) {
+  .finale-card { bottom: max(14px, env(safe-area-inset-bottom)); padding: 18px 18px 12px; }
+  .finale-card h2 { font-size: 28px; }
+  .finale-actions .primary-button, .finale-actions .secondary-button { padding: 10px 12px; }
+}

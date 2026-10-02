@@ -9,6 +9,7 @@ import { WaterRipples } from './waterRipples.js'
 import { WaterLife } from './waterLife.js'
 import { SocketBoard, SOCKET_TOP } from './sockets.js'
 import { Breeze } from './breeze.js'
+import { Finale, FINALE_VIEW } from './finale.js'
 
 const COLORS = {
   sand: 0xf4dfae, cliff: 0xd9a868, grass: 0x92d46f, grassSide: 0x58a352,
@@ -20,6 +21,7 @@ const COLORS = {
   trayWater: 0x2f9fb0, trayEarth: 0xd2a467, foam: 0xf3fbf8,
 }
 const MAT_SIZE = 16
+const PARTICLES = 240
 const RIPPLE_COUNT = 8
 const TRAY = 10.6
 const WATER_Y = 0.06
@@ -54,10 +56,11 @@ function slab(shape, bottom, top) {
 }
 
 export class GardenScene {
-  constructor(container, { onCell, safeArea }) {
+  constructor(container, { onCell, safeArea, finaleArea }) {
     this.container = container
     this.onCell = onCell
     this.safeArea = safeArea
+    this.finaleArea = finaleArea
     this.mobile = container.clientWidth < 700
     this.cells = []
     this.targets = []
@@ -96,7 +99,8 @@ export class GardenScene {
     this.touchMode = matchMedia('(pointer: coarse)').matches
     this.materials = Object.fromEntries(Object.entries(COLORS).map(([name, color]) => [name, material(color)]))
     // Shadows only see the sky, which tints them a soft blue instead of grey.
-    this.scene.add(new THREE.HemisphereLight(0xbcd9ff, 0x9fd0c8, 1.45))
+    this.sky = new THREE.HemisphereLight(0xbcd9ff, 0x9fd0c8, 1.45)
+    this.scene.add(this.sky)
     const sun = new THREE.DirectionalLight(0xfff1d6, 2.5)
     sun.castShadow = true
     sun.shadow.mapSize.set(this.profile.shadowSize, this.profile.shadowSize)
@@ -106,6 +110,7 @@ export class GardenScene {
     sun.shadow.bias = -0.0004
     this.scene.add(sun)
     this.sun = sun
+    this.dusk = 0
     this.placeSun(0)
     this.buildWorld()
     this.buildCells()
@@ -119,6 +124,8 @@ export class GardenScene {
     this.hover = this.createHover()
     this.scene.add(this.hover)
     this.completions = new RegionCompletions(this)
+    this.finale = new Finale(this)
+    this.appliedView = ''
     this.bindEvents()
     this.resizeObserver = new ResizeObserver(() => this.resize())
     this.resizeObserver.observe(container)
@@ -144,13 +151,18 @@ export class GardenScene {
 
   // The sun crosses the sky as the garden fills: morning light from the northeast,
   // golden hour from the northwest, so shadows slowly swing across the board.
-  placeSun(progress) {
-    const azimuth = THREE.MathUtils.lerp(0.75, -0.75, progress)
-    const elevation = THREE.MathUtils.lerp(0.95, 0.62, progress * progress)
+  // A finished garden carries on into a low sunset and a blue evening.
+  placeSun(progress, dusk = this.dusk) {
+    const lerp = THREE.MathUtils.lerp
+    const azimuth = lerp(lerp(0.75, -0.75, progress), -1.15, dusk)
+    const elevation = lerp(lerp(0.95, 0.62, progress * progress), 0.34, dusk)
     this.sun.position.set(Math.sin(azimuth) * Math.cos(elevation), Math.sin(elevation), -Math.cos(azimuth) * Math.cos(elevation)).multiplyScalar(22)
     const golden = THREE.MathUtils.smoothstep(progress, 0.6, 1)
-    this.sun.color.setHex(0xfff1d6).lerp(new THREE.Color(0xffc887), golden * 0.7)
-    this.sun.intensity = 2.5 + golden * 0.25
+    this.sun.color.setHex(0xfff1d6).lerp(new THREE.Color(0xffc887), golden * 0.7).lerp(new THREE.Color(0xff9a5c), dusk)
+    this.sun.intensity = lerp(2.5 + golden * 0.25, 2, dusk)
+    this.sky.color.setHex(0xbcd9ff).lerp(new THREE.Color(0x8494d4), dusk)
+    this.sky.groundColor.setHex(0x9fd0c8).lerp(new THREE.Color(0x5d8a9c), dusk)
+    this.sky.intensity = lerp(1.45, 1.2, dusk)
   }
 
   buildWorld() {
@@ -360,24 +372,26 @@ export class GardenScene {
   }
 
   buildParticles() {
-    this.particleMesh = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.03, 0), material(0xffffff), 100)
+    this.particleMesh = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.03, 0), material(0xffffff), PARTICLES)
     this.particleMesh.count = 0
     this.particleMesh.castShadow = false
     this.scene.add(this.particleMesh)
     this.particleDummy = new THREE.Object3D()
-    for (let i = 0; i < 100; i++) this.particleMesh.setColorAt(i, new THREE.Color(0xffffff))
+    for (let i = 0; i < PARTICLES; i++) this.particleMesh.setColorAt(i, new THREE.Color(0xffffff))
+    this.particleColors = { water: new THREE.Color(COLORS.foam), land: new THREE.Color(COLORS.flower) }
   }
 
   // Soft cloud shadows drift over the diorama now and then.
   buildClouds() {
     this.cloudMaterial = new THREE.ShaderMaterial({
       transparent: true, depthWrite: false, depthTest: false,
-      uniforms: { uTime: { value: 0 }, uWindShift: { value: this.breeze.shift } },
+      uniforms: { uTime: { value: 0 }, uWindShift: { value: this.breeze.shift }, uFade: { value: 1 } },
       vertexShader: `varying vec2 vXZ; void main() { vXZ = (modelMatrix * vec4(position, 1.0)).xz; gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1.0); }`,
       fragmentShader: `
         varying vec2 vXZ;
         uniform float uTime;
         uniform vec2 uWindShift;
+        uniform float uFade;
         float hash(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
         float noise(vec2 p) {
           vec2 i = floor(p), f = fract(p);
@@ -390,7 +404,7 @@ export class GardenScene {
           float cloud = smoothstep(0.6, 0.74, n);
           vec2 edge = abs(vXZ) - ${(TRAY / 2 - 0.25).toFixed(2)};
           float inside = 1.0 - smoothstep(0.0, 0.25, max(edge.x, edge.y));
-          gl_FragColor = vec4(0.06, 0.22, 0.38, cloud * inside * 0.15);
+          gl_FragColor = vec4(0.06, 0.22, 0.38, cloud * inside * 0.15 * uFade);
           #include <colorspace_fragment>
         }
       `,
@@ -513,7 +527,7 @@ export class GardenScene {
       const speed = 0.3 + seeded(i + 12) * 0.65
       this.particles.push({ x, z, height: this.cellHeight(origin), started: this.time, vx: Math.cos(angle) * speed, vz: Math.sin(angle) * speed, vy: 0.85 + seeded(i + 88) * 0.7, water: origin.value === 0 })
     }
-    this.particles = this.particles.slice(-100)
+    this.particles = this.particles.slice(-PARTICLES)
   }
 
   updateAccessibility() {
@@ -558,7 +572,10 @@ export class GardenScene {
     let down = null, gesture = false
     const touchLike = (event) => event.pointerType === 'touch' || event.pointerType === 'pen'
     const endAim = () => { this.aim = null }
+    // While the finished garden is on show, dragging turns the island instead of placing tiles.
+    const turning = () => this.finale.active
     canvas.addEventListener('pointerdown', (event) => {
+      if (turning()) { this.finale.grab(event.clientX); canvas.setPointerCapture?.(event.pointerId); return }
       if (!touchLike(event)) { down = { x: event.clientX, y: event.clientY }; return }
       if (!this.touchMode) { this.touchMode = true; this.clearSelection() }
       touches.add(event.pointerId)
@@ -567,6 +584,7 @@ export class GardenScene {
       this.aim = { id: event.pointerId, cell: this.cellAt(event.clientX, event.clientY) }
     })
     canvas.addEventListener('pointermove', (event) => {
+      if (turning()) { this.finale.move(event.clientX); return }
       if (!touchLike(event)) {
         if (event.movementX || event.movementY) this.touchMode = false
         if (!this.touchMode) this.showHover(this.cellAt(event.clientX, event.clientY))
@@ -576,6 +594,7 @@ export class GardenScene {
     })
     canvas.addEventListener('pointerleave', (event) => { if (!touchLike(event)) this.showHover(null) })
     canvas.addEventListener('pointerup', (event) => {
+      if (turning() || this.finale.drag) { this.finale.release(); down = null; touches.delete(event.pointerId); return }
       if (!touchLike(event)) {
         const moved = !down || Math.hypot(event.clientX - down.x, event.clientY - down.y) > 6
         down = null
@@ -590,6 +609,7 @@ export class GardenScene {
       if (cell) this.onCell(cell.row, cell.col)
     })
     canvas.addEventListener('pointercancel', (event) => {
+      this.finale.release()
       down = null
       touches.delete(event.pointerId)
       if (this.aim?.id === event.pointerId) endAim()
@@ -628,8 +648,44 @@ export class GardenScene {
     this.completions.clear()
   }
 
-  cameraOffset() {
-    return new THREE.Vector3(0, Math.cos(TILT) * 30, Math.sin(TILT) * 30)
+  cameraOffset(tilt = TILT, yaw = 0) {
+    return new THREE.Vector3(Math.sin(yaw) * Math.sin(tilt) * 30, Math.cos(tilt) * 30, Math.cos(yaw) * Math.sin(tilt) * 30)
+  }
+
+  // How much world fits per pixel, and where the board centers, for a given open area.
+  framing(safe, tilt, turning) {
+    // A turning tray needs room for its diagonal; the lifted view also shows trees and the tray's sides.
+    const boardWidth = (turning ? TRAY * Math.SQRT2 : TRAY) + 0.1
+    const boardDepth = boardWidth * Math.cos(tilt) + (turning ? 2.2 : 0.75) * Math.sin(tilt)
+    const unit = Math.max(boardWidth / Math.max(120, safe.right - safe.left), boardDepth / Math.max(120, safe.bottom - safe.top))
+    return { unit, x: (safe.left + safe.right) / 2, y: (safe.top + safe.bottom) / 2 }
+  }
+
+  // Blends the play view and the finale view, then points the camera.
+  applyView() {
+    const { width, height } = this.size ?? {}
+    if (!width || !height) return
+    const { blend, yaw } = this.finale.view
+    const tilt = THREE.MathUtils.lerp(TILT, FINALE_VIEW.tilt, blend)
+    const play = this.framing(this.safeArea?.() ?? { top: 0, bottom: height, left: 0, right: width }, TILT, false)
+    const show = blend > 0 ? this.framing(this.finaleArea?.() ?? { top: 0, bottom: height, left: 0, right: width }, FINALE_VIEW.tilt, true) : play
+    const unit = THREE.MathUtils.lerp(play.unit, show.unit, blend)
+    const x = THREE.MathUtils.lerp(play.x, show.x, blend), y = THREE.MathUtils.lerp(play.y, show.y, blend)
+    this.camera.position.copy(this.cameraOffset(tilt, yaw))
+    this.camera.lookAt(0, 0, 0)
+    this.camera.left = -width * unit / 2
+    this.camera.right = width * unit / 2
+    this.camera.top = height * unit / 2
+    this.camera.bottom = -height * unit / 2
+    this.camera.setViewOffset(width, height, width / 2 - x, height / 2 - y, width, height)
+    this.camera.updateProjectionMatrix()
+    // Points glow at a fixed size in the world, whatever the zoom.
+    this.finale.glowMaterial.uniforms.uScale.value = this.renderer.getPixelRatio() / unit
+    // The puzzle's markings step aside while the garden is admired.
+    this.boundaryMaterial.opacity = 0.32 * (1 - blend)
+    this.cloudMaterial.uniforms.uFade.value = 1 - blend
+    for (const cell of this.cells) cell.pin.scale.setScalar(Math.max(0.001, 1 - blend))
+    if (blend === 0) this.positionAccess()
   }
 
   resize() {
@@ -646,17 +702,9 @@ export class GardenScene {
     }
     this.profile = profile
     // Fit the whole tray into the open band of the layout.
-    const safe = this.safeArea?.() ?? { top: 0, bottom: height, left: 0, right: width }
-    const boardWidth = TRAY + 0.1
-    const boardDepth = (TRAY + 0.1) * Math.cos(TILT) + 0.75 * Math.sin(TILT)
-    const unit = Math.max(boardWidth / Math.max(120, safe.right - safe.left), boardDepth / Math.max(120, safe.bottom - safe.top))
-    this.camera.left = -width * unit / 2
-    this.camera.right = width * unit / 2
-    this.camera.top = height * unit / 2
-    this.camera.bottom = -height * unit / 2
-    this.camera.setViewOffset(width, height, width / 2 - (safe.left + safe.right) / 2, height / 2 - (safe.top + safe.bottom) / 2, width, height)
-    this.camera.updateProjectionMatrix()
+    this.size = { width, height }
     this.renderer.setSize(width, height)
+    this.applyView()
     this.positionAccess()
   }
 
@@ -673,10 +721,15 @@ export class GardenScene {
     this.breeze.update(this.time, delta, this.reducedMotion)
     this.waterUniforms.uGust.value = this.breeze.strength
     this.sockets.animate(this.time, this.reducedMotion)
+    this.finale.update(this.time, delta)
+    const view = this.finale.view
+    const viewKey = `${view.blend}:${view.yaw}`
+    if (viewKey !== this.appliedView) { this.appliedView = viewKey; this.applyView() }
     // The sun drifts toward its new place over a few seconds, so each tile nudges the light gently.
-    const sunMoving = Math.abs(this.daylightTarget - this.daylight) > 0.0002
+    const sunMoving = Math.abs(this.daylightTarget - this.daylight) > 0.0002 || view.dusk !== this.dusk
     if (sunMoving) {
       this.daylight = this.reducedMotion ? this.daylightTarget : this.daylight + (this.daylightTarget - this.daylight) * (1 - Math.exp(-delta / 2.4))
+      this.dusk = view.dusk
       this.placeSun(this.daylight)
     }
     for (const cell of this.cells) {
@@ -707,12 +760,14 @@ export class GardenScene {
     this.particleMesh.count = this.particles.length
     this.particles.forEach((particle, index) => {
       const age = this.time - particle.started
-      const scale = Math.max(0, 1 - age / 0.85)
+      const scale = Math.max(0, 1 - age / 0.85) * (particle.petal ? 1.5 : 1)
       this.particleDummy.position.set(particle.x + particle.vx * age, Math.max(0.08, particle.height + particle.vy * age - 2.3 * age * age), particle.z + particle.vz * age)
       this.particleDummy.scale.set(scale, scale * (particle.water ? 1.6 : 0.6), scale)
+      // Petals tumble as they fall; splashes and leaves keep their stretch upright.
+      this.particleDummy.rotation.set(particle.petal ? age * 6 : 0, particle.petal ? age * 4 : 0, 0)
       this.particleDummy.updateMatrix()
       this.particleMesh.setMatrixAt(index, this.particleDummy.matrix)
-      this.particleMesh.setColorAt(index, new THREE.Color(particle.water ? COLORS.foam : COLORS.flower))
+      this.particleMesh.setColorAt(index, particle.color ?? (particle.water ? this.particleColors.water : this.particleColors.land))
     })
     this.particleMesh.instanceMatrix.needsUpdate = true
     if (this.particleMesh.instanceColor) this.particleMesh.instanceColor.needsUpdate = true
@@ -726,7 +781,7 @@ export class GardenScene {
     }
     // Shadows follow every frame while something that casts them is moving: the sun, a breeze, or a new tile.
     const settling = this.cells.some((cell) => this.time - cell.started < 0.9)
-    if (sunMoving || this.breeze.active || settling || time - this.lastShadowFrame >= this.profile.shadowInterval) {
+    if (sunMoving || this.breeze.active || settling || this.finale.busy || time - this.lastShadowFrame >= this.profile.shadowInterval) {
       this.renderer.shadowMap.needsUpdate = true
       this.lastShadowFrame = time
     }
