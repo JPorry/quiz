@@ -18,7 +18,7 @@ try {
     const context = await browser.newContext({ viewport: { width, height: width === 1440 ? 1000 : width === 390 ? 844 : 720 } })
     context.setDefaultTimeout(20000)
     await context.addInitScript((grid) => {
-      localStorage.setItem('tidal-garden.v1', JSON.stringify({ version: 1, level: 0, completed: [], grids: { 0: { grid, history: [], seconds: 0 } } }))
+      localStorage.setItem('tidal-garden.v2', JSON.stringify({ version: 1, level: 0, completed: [], grids: { 0: { grid, history: [], seconds: 0 } } }))
     }, grid)
     const page = await context.newPage()
     page.on('pageerror', (error) => errors.push(error.message))
@@ -68,7 +68,7 @@ try {
     await context.close()
   }
   const quiet = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' })
-  await quiet.addInitScript((grid) => localStorage.setItem('tidal-garden.v1', JSON.stringify({ version: 1, level: 0, completed: [], grids: { 0: { grid, history: [], seconds: 0 } } })), grid)
+  await quiet.addInitScript((grid) => localStorage.setItem('tidal-garden.v2', JSON.stringify({ version: 1, level: 0, completed: [], grids: { 0: { grid, history: [], seconds: 0 } } })), grid)
   const page = await quiet.newPage()
   await page.clock.install()
   await page.goto(url)

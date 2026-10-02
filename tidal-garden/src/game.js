@@ -1,7 +1,9 @@
-import { getValidBinaryLines, isValidBinarySolution } from './binaryLogic.js'
+import { isValidBinarySolution } from './binaryLogic.js'
+import { easiestDeductions } from './solver.js'
 import { PUZZLES } from './puzzles.js'
 
-const STORAGE_KEY = 'tidal-garden.v1'
+// v2: the gardens were regenerated, so progress saved for the old ones no longer applies.
+const STORAGE_KEY = 'tidal-garden.v2'
 export const GARDEN_NAMES = [
   'First light', 'Quiet currents', 'Emerald shallows', 'Soft horizons',
   'Stillwater', 'The jade coast', 'Morning dew', 'Hidden springs',
@@ -46,20 +48,13 @@ export function findViolations(grid) {
   return invalid
 }
 
-export function findHint(grid) {
-  const lines = getValidBinaryLines(grid.length)
-  const candidates = (values) => lines.filter((line) => values.every((v, i) => v === null || v === line[i]))
-  for (let row = 0; row < grid.length; row++) {
-    for (let col = 0; col < grid.length; col++) {
-      if (grid[row][col] !== null) continue
-      const rowCandidates = candidates(grid[row])
-      const colCandidates = candidates(grid.map((line) => line[col]))
-      if (!rowCandidates.length || !colCandidates.length) continue
-      const allowed = [0, 1].filter((v) => rowCandidates.some((line) => line[col] === v) && colCandidates.some((line) => line[row] === v))
-      if (allowed.length === 1) return { row, col, value: allowed[0] }
-    }
-  }
-  return null
+// The easiest move available right now, matching the garden's solution, and why it works.
+export function findHint(grid, solution) {
+  const next = easiestDeductions(grid)
+  if (!next) return null
+  const move = next.deductions.find(({ row, col, value }) => !solution || solution[row][col] === value)
+  if (!move) return null
+  return { row: move.row, col: move.col, value: move.value, technique: move.technique, axis: move.line.axis }
 }
 
 export class GardenGame {

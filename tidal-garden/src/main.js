@@ -171,7 +171,7 @@ function render() {
   $('#undo').disabled = !game.history.length
   $('#hint').disabled = game.complete
   // The raised piece already shows the selection, so the status line only speaks up when it matters.
-  const status = game.complete ? 'A world in balance' : invalid.size ? 'A little out of balance' : ''
+  const status = game.complete ? 'A world in balance' : invalid.size ? 'A little out of balance' : hintCell ? hintText(hintCell) : ''
   $('#placement-status p').textContent = status
   $('#placement-status').classList.toggle('invalid', invalid.size > 0)
   document.querySelectorAll('[data-value]').forEach((button) => {
@@ -201,21 +201,33 @@ $('#sound').addEventListener('click', () => {
   refreshIcons()
   if (soundEnabled) playTone(0)
 })
+// Says which tile to fill and the reasoning behind it, so the hint teaches the technique.
+function hintText({ row, col, value, technique, axis }) {
+  const kind = value === 0 ? 'water' : 'land', other = value === 0 ? 'land' : 'water'
+  const why = {
+    pair: `it's beside two ${other} tiles in a row`,
+    gap: `it sits between two ${other} tiles`,
+    count: `its ${axis} already has five ${other}`,
+    line: `it's the only way to finish its ${axis}`,
+  }[technique]
+  return `Row ${row + 1}, column ${col + 1} is ${kind}: ${why}`
+}
+
 $('#hint').addEventListener('click', () => {
   if (findViolations(game.grid).size) {
     $('#placement-status p').textContent = 'Check the coral-marked tiles first'
     return
   }
-  hintCell = findHint(game.grid)
+  hintCell = findHint(game.grid, game.puzzle.solution)
   if (!hintCell) {
-    $('#placement-status p').textContent = 'Compare completed rows and columns'
+    $('#placement-status p').textContent = 'One of your tiles is out of place'
     return
   }
   game.selected = hintCell.value
   render()
   scene?.showHover(null)
   scene?.selectCell(hintCell, { force: true })
-  $('#placement-status p').textContent = `Row ${hintCell.row + 1}, column ${hintCell.col + 1} needs ${hintCell.value === 0 ? 'water' : 'land'}`
+  $('#placement-status p').textContent = hintText(hintCell)
 })
 
 const modal = $('#modal')

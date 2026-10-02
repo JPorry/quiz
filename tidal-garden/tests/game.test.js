@@ -23,15 +23,18 @@ test('every garden is valid, unique, and consistent with its fixed terrain', () 
 test('placement, erase, fixed clues, and one-step undo preserve the puzzle', () => {
   const game = new GardenGame(memoryStorage())
   const original = copyGrid(game.grid)
-  assert.equal(game.place(0, 3, 1), false)
-  assert.equal(game.place(0, 0, 1), true)
-  assert.equal(game.place(0, 0, 1), false)
-  assert.equal(game.place(0, 1, 0), true)
-  assert.equal(game.place(0, 0, null), true)
+  const cells = original.flatMap((row, r) => row.map((value, c) => ({ r, c, value })))
+  const fixed = cells.find((cell) => cell.value !== null)
+  const [a, b] = cells.filter((cell) => cell.value === null)
+  assert.equal(game.place(fixed.r, fixed.c, 1 - fixed.value), false)
+  assert.equal(game.place(a.r, a.c, 1), true)
+  assert.equal(game.place(a.r, a.c, 1), false)
+  assert.equal(game.place(b.r, b.c, 0), true)
+  assert.equal(game.place(a.r, a.c, null), true)
   assert.equal(game.undo(), true)
-  assert.equal(game.grid[0][0], 1)
+  assert.equal(game.grid[a.r][a.c], 1)
   game.undo()
-  assert.equal(game.grid[0][1], null)
+  assert.equal(game.grid[b.r][b.c], null)
   game.undo()
   assert.deepEqual(game.grid, original)
 })
@@ -65,9 +68,15 @@ test('balance, triples, and duplicate lines report terrain conflicts', () => {
 
 test('hints are logical placements consistent with the unique solution', () => {
   const grid = copyGrid(PUZZLES[0].puzzle)
-  const hint = findHint(grid)
+  const hint = findHint(grid, PUZZLES[0].solution)
   assert.ok(hint)
   assert.equal(hint.value, PUZZLES[0].solution[hint.row][hint.col])
+  assert.ok(['pair', 'gap'].includes(hint.technique), 'The first garden opens with the simplest moves')
+  for (const garden of PUZZLES) {
+    const working = copyGrid(garden.puzzle)
+    for (let move = findHint(working, garden.solution); move; move = findHint(working, garden.solution)) working[move.row][move.col] = move.value
+    assert.deepEqual(working, garden.solution, 'Following hints alone solves every garden')
+  }
 })
 
 test('completion is recorded and independent gardens retain their own progress', () => {

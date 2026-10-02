@@ -28,6 +28,13 @@ function countPixels(buffer) {
   return { teal, green, variation: variation.size, total: png.width * png.height }
 }
 
+// An empty tile in the first garden with land just south of it, so new land visibly joins up.
+const target = (() => {
+  const { puzzle } = PUZZLES[0]
+  for (let row = 0; row < 9; row++) for (let col = 0; col < 10; col++) if (puzzle[row][col] === null && puzzle[row + 1][col] === 1) return [row, col]
+  throw new Error('The first garden needs an empty tile above land')
+})()
+
 try {
   const viewports = process.env.TIDAL_TEST_REDUCED_ONLY || process.env.TIDAL_TEST_COMPLETIONS_ONLY ? [] : [{ width: 1440, height: 1000 }, { width: 390, height: 844 }, { width: 320, height: 720 }]
   for (const viewport of viewports) {
@@ -54,11 +61,11 @@ try {
     await page.screenshot({ path: `test-results/garden-${viewport.width}.png` })
     const initial = await page.evaluate(() => __tidal.snapshot.filled)
     await page.getByRole('button', { name: 'Place land', exact: true }).click()
-    const position = await page.evaluate(() => __tidal.cellPosition(0, 0))
+    const position = await page.evaluate((target) => __tidal.cellPosition(...target), target)
     await page.mouse.move(position.x, position.y)
     const guides = await page.evaluate(() => __tidal.snapshot)
-    assert.deepEqual(guides.hover, { row: 0, col: 0 })
-    assertCross(guides, { row: 0, col: 0 })
+    assert.deepEqual(guides.hover, { row: target[0], col: target[1] })
+    assertCross(guides, { row: target[0], col: target[1] })
     assert.equal(await page.locator('#coordinate, .journal-note').count(), 0, 'Counting overlays are removed')
     assert.deepEqual(guides.boundary, { segments: 4, color: 0xffffff, opacity: 0.32 })
     assert.equal(guides.targets, 100, 'Only board cells are interactive')
@@ -68,24 +75,24 @@ try {
     await page.waitForFunction((filled) => __tidal.snapshot.filled === filled + 1, initial)
     console.log('  Placement passed; checking selection persistence')
     const reaction = await page.evaluate(() => __tidal.snapshot)
-    assert.deepEqual(reaction.selected, { row: 0, col: 0 })
+    assert.deepEqual(reaction.selected, { row: target[0], col: target[1] })
     await page.mouse.move(2, 2)
-    assertCross(await page.evaluate(() => __tidal.snapshot), { row: 0, col: 0 })
+    assertCross(await page.evaluate(() => __tidal.snapshot), { row: target[0], col: target[1] })
     const other = await page.evaluate(() => __tidal.cellPosition(3, 4))
     await page.mouse.move(other.x, other.y)
     assertCross(await page.evaluate(() => __tidal.snapshot), { row: 3, col: 4 })
     await page.getByRole('button', { name: 'Place land', exact: true }).click()
-    assertCross(await page.evaluate(() => __tidal.snapshot), { row: 0, col: 0 })
-    assert.ok(reaction.terrain[0].mask & 4, 'New land must connect to its southern neighbor')
-    assert.ok(reaction.terrain[10].mask & 1, 'Existing land must connect back to new terrain')
-    assert.ok(reaction.terrain[10].reactionAt > 0, 'Neighboring terrain should respond to placement')
+    assertCross(await page.evaluate(() => __tidal.snapshot), { row: target[0], col: target[1] })
+    assert.ok(reaction.terrain[target[0] * 10 + target[1]].mask & 4, 'New land must connect to its southern neighbor')
+    assert.ok(reaction.terrain[(target[0] + 1) * 10 + target[1]].mask & 1, 'Existing land must connect back to new terrain')
+    assert.ok(reaction.terrain[(target[0] + 1) * 10 + target[1]].reactionAt > 0, 'Neighboring terrain should respond to placement')
     assert.ok(reaction.ripples.some((ripple) => ripple[2] > 0), 'Placement should launch a water ripple')
     await page.getByRole('button', { name: 'Undo', exact: true }).click()
     assert.equal(await page.evaluate(() => __tidal.snapshot.filled), initial)
     await page.mouse.click(position.x, position.y)
     await page.reload()
     await page.waitForSelector('#world[data-rendered="true"]')
-    assert.equal(await page.evaluate(() => __tidal.snapshot.grid[0][0]), 1)
+    assert.equal(await page.evaluate((target) => __tidal.snapshot.grid[target[0]][target[1]], target), 1)
     await page.getByRole('button', { name: 'Start again', exact: true }).click()
     await page.getByRole('button', { name: 'Keep growing', exact: true }).click()
     assert.equal(await page.evaluate(() => __tidal.snapshot.filled), initial + 1)
@@ -94,10 +101,10 @@ try {
     assert.equal(await page.evaluate(() => __tidal.snapshot.filled), initial)
     assert.equal(await page.evaluate(() => __tidal.snapshot.guides.some(Boolean)), false, 'Reset clears selection')
     console.log('  Undo, reload, and reset passed')
-    const focus = page.getByRole('button', { name: 'Row 1, column 1: undecided', exact: true })
+    const focus = page.getByRole('button', { name: `Row ${target[0] + 1}, column ${target[1] + 1}: undecided`, exact: true })
     await focus.focus()
-    assertCross(await page.evaluate(() => __tidal.snapshot), { row: 0, col: 0 })
-    assert.deepEqual(await page.evaluate(() => __tidal.snapshot.selected), { row: 0, col: 0 }, 'Keyboard selection persists')
+    assertCross(await page.evaluate(() => __tidal.snapshot), { row: target[0], col: target[1] })
+    assert.deepEqual(await page.evaluate(() => __tidal.snapshot.selected), { row: target[0], col: target[1] }, 'Keyboard selection persists')
     await page.mouse.move(2, 2)
     await page.screenshot({ path: `test-results/focus-${viewport.width}.png` })
     await page.getByRole('button', { name: 'Garden rules', exact: true }).click()
@@ -150,7 +157,7 @@ try {
     const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } })
     context.setDefaultTimeout(15000)
     await context.addInitScript((grid) => {
-      if (!localStorage.getItem('tidal-garden.v1')) localStorage.setItem('tidal-garden.v1', JSON.stringify({ version: 1, level: 0, completed: [], grids: { 0: { grid, history: [], seconds: 0 } } }))
+      if (!localStorage.getItem('tidal-garden.v2')) localStorage.setItem('tidal-garden.v2', JSON.stringify({ version: 1, level: 0, completed: [], grids: { 0: { grid, history: [], seconds: 0 } } }))
     }, grid)
     const page = await context.newPage()
     page.on('pageerror', (error) => errors.push(error.message))
