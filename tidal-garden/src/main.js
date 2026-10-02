@@ -158,26 +158,32 @@ function playTone(value) {
   oscillator.stop(now + 0.65)
 }
 
-// Two soft bell notes when a row or column clicks into place, a step higher for a pair.
+// A soft whoosh of wind when a row or column clicks into place, a little longer for a pair.
 function playFlourish(lines) {
   if (!soundEnabled || game.complete) return
   soundContext ??= new AudioContext()
   soundContext.resume()
   const now = soundContext.currentTime
-  const notes = lines.length > 1 ? [783.99, 1174.66] : [659.25, 987.77]
-  notes.forEach((frequency, index) => {
-    const oscillator = soundContext.createOscillator()
-    const gain = soundContext.createGain()
-    const start = now + 0.08 + index * 0.11
-    oscillator.type = 'triangle'
-    oscillator.frequency.setValueAtTime(frequency, start)
-    gain.gain.setValueAtTime(0, start)
-    gain.gain.linearRampToValueAtTime(0.03, start + 0.02)
-    gain.gain.exponentialRampToValueAtTime(0.001, start + 0.9)
-    oscillator.connect(gain).connect(soundContext.destination)
-    oscillator.start(start)
-    oscillator.stop(start + 1)
-  })
+  const length = lines.length > 1 ? 1.3 : 0.95
+  const noise = soundContext.createBuffer(1, Math.ceil(soundContext.sampleRate * length), soundContext.sampleRate)
+  const samples = noise.getChannelData(0)
+  for (let i = 0; i < samples.length; i++) samples[i] = Math.random() * 2 - 1
+  const source = soundContext.createBufferSource()
+  source.buffer = noise
+  // A band of noise that sweeps up and back down sounds like air rushing past.
+  const filter = soundContext.createBiquadFilter()
+  filter.type = 'bandpass'
+  filter.Q.value = 1.4
+  filter.frequency.setValueAtTime(380, now)
+  filter.frequency.exponentialRampToValueAtTime(1500, now + length * 0.4)
+  filter.frequency.exponentialRampToValueAtTime(500, now + length)
+  const gain = soundContext.createGain()
+  gain.gain.setValueAtTime(0, now)
+  gain.gain.linearRampToValueAtTime(0.05, now + length * 0.3)
+  gain.gain.exponentialRampToValueAtTime(0.001, now + length)
+  source.connect(filter).connect(gain).connect(soundContext.destination)
+  source.start(now)
+  source.stop(now + length)
 }
 
 // A rising arpeggio for a finished garden.
@@ -421,7 +427,7 @@ if (import.meta.env.DEV) {
         camera: scene?.camera.position.toArray(), daylight: scene?.daylight,
         clouds: scene?.clouds.clouds.length,
         flourishes: scene?.flourish.count,
-        rain: scene && { strength: scene.rain.strength, drops: scene.rain.drops.length, marks: scene.rain.marks.length, rainbow: !!scene.rain.rainbow },
+        rain: scene && { strength: scene.rain.strength, drops: scene.rain.drops.length, marks: scene.rain.marks.length },
         finale: scene && { active: scene.finale.active, mode: scene.finale.mode, ...scene.finale.view, card: !!finale?.card, flock: scene.finale.flock.filter((bird) => bird.root.visible).length, fireflies: scene.finale.fireflies.length, lanterns: scene.finale.lanterns.filter((lantern) => lantern.root.visible).length },
         calls: scene?.renderer.info.render.calls,
         rendering: scene && { ...scene.profile, frames: scene.renderedFrames, buffer: [scene.renderer.domElement.width, scene.renderer.domElement.height] },
@@ -448,7 +454,6 @@ if (import.meta.env.DEV) {
     },
     gust() { scene?.breeze.start(scene.time) },
     cloud(progress = 0, options) { return scene?.clouds.spawn(scene.time, progress, options) },
-    rainbow() { scene?.rain.showRainbow(scene.time) },
     // Holds every running flourish at a given age, so a screenshot can catch it mid-sweep.
     holdFlourish(age) { scene?.flourish.active.forEach((flourish) => { flourish.hold = age }) },
     cellPosition(row, col) {

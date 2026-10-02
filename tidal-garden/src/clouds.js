@@ -47,7 +47,6 @@ export class CloudShadows {
     this.random = random
     this.reach = tray / 2
     this.clouds = []
-    this.departed = []
     this.next = cloudDelay(random, true)
     this.puffs = Array.from({ length: SLOTS * PUFFS }, () => new THREE.Vector4())
     this.slots = Array.from({ length: SLOTS }, () => new THREE.Vector4())
@@ -115,8 +114,6 @@ export class CloudShadows {
       this.spawn(time)
       this.next = time + cloudDelay(this.random)
     }
-    // Clouds that drifted off this frame, so a passing shower can leave a rainbow behind.
-    this.departed = this.clouds.filter((cloud) => cloudCenter(cloud, time).done)
     this.clouds = this.clouds.filter((cloud) => !cloudCenter(cloud, time).done)
     for (let c = 0; c < SLOTS; c++) {
       const cloud = this.clouds[c]

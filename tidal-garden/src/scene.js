@@ -482,7 +482,7 @@ export class GardenScene {
     this.daylightTarget = complete ? 1 : filled / 100
     if (!hadGrid) { this.daylight = this.daylightTarget; this.daylightVelocity = 0 }
     if (hadGrid && changed.length > 0 && changed.length <= 4) changed.forEach((cell) => this.react(cell))
-    // A single placement that completes a balanced row or column sends a gleam along it.
+    // A single placement that completes a balanced row or column sends a gust along it.
     if (hadGrid && changed.length === 1 && changed[0].value !== null) {
       const lines = newlyBalanced(before, grid)
       if (lines.length) {
@@ -739,13 +739,19 @@ export class GardenScene {
       } else cell.land.visible = cell.value === 1
       cell.plants.scale.setScalar(Math.max(0.001, clamp((this.time - cell.started - 0.25) / 0.5, 0, 1) ** 0.5 * (1 + Math.sin(t * Math.PI) * 0.15)))
       if (this.reducedMotion) cell.plants.scale.setScalar(1)
-      const wind = cell.value === 1 ? this.breeze.windAt(cell.col - 4.5, cell.row - 4.5, this.time) : null
-      const lean = wind?.amount ?? 0
-      cell.plants.rotation.x = cell.direction.y * reaction * 0.13 + Math.sin(motionTime * 0.9 + cell.col) * 0.006 + (lean ? wind.z * lean : 0)
-      cell.plants.rotation.z = -cell.direction.x * reaction * 0.13 - (lean ? wind.x * lean : 0)
+      // Ambient breezes and the gust along a finished line both bend plants from the base.
+      let leanX = 0, leanZ = 0
+      if (cell.value === 1 && !this.reducedMotion) {
+        const wind = this.breeze.windAt(cell.col - 4.5, cell.row - 4.5, this.time)
+        leanX += wind.x * wind.amount; leanZ += wind.z * wind.amount
+        const gust = this.flourish.windAt(cell, this.time)
+        leanX += gust.x * gust.amount; leanZ += gust.z * gust.amount
+      }
+      cell.plants.rotation.x = cell.direction.y * reaction * 0.13 + Math.sin(motionTime * 0.9 + cell.col) * 0.006 + leanZ
+      cell.plants.rotation.z = -cell.direction.x * reaction * 0.13 - leanX
       // Grass waves gently all the time and flattens further when a breeze passes.
-      cell.grass.rotation.x = Math.sin(motionTime * 1.3 + cell.col * 0.55 + cell.row * 0.35) * 0.08 + (lean ? wind.z * lean * 1.8 : 0)
-      cell.grass.rotation.z = Math.cos(motionTime * 1.05 + cell.row * 0.6 + cell.col * 0.3) * 0.06 - (lean ? wind.x * lean * 1.8 : 0)
+      cell.grass.rotation.x = Math.sin(motionTime * 1.3 + cell.col * 0.55 + cell.row * 0.35) * 0.08 + leanZ * 1.8
+      cell.grass.rotation.z = Math.cos(motionTime * 1.05 + cell.row * 0.6 + cell.col * 0.3) * 0.06 - leanX * 1.8
     }
     this.particles = this.particles.filter((particle) => this.time - particle.started < 0.85)
     this.particleMesh.count = this.particles.length
@@ -773,7 +779,7 @@ export class GardenScene {
     }
     // Shadows follow every frame while something that casts them is moving: the sun, a breeze, or a new tile.
     const settling = this.cells.some((cell) => this.time - cell.started < 0.9)
-    if (sunMoving || this.breeze.active || settling || this.finale.busy || time - this.lastShadowFrame >= this.profile.shadowInterval) {
+    if (sunMoving || this.breeze.active || this.flourish.count || settling || this.finale.busy || time - this.lastShadowFrame >= this.profile.shadowInterval) {
       this.renderer.shadowMap.needsUpdate = true
       this.lastShadowFrame = time
     }

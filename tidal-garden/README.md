@@ -92,13 +92,14 @@ arrives after half a minute or so, and later ones come one to two minutes
 apart, at random. About one cloud in three is a little darker and brings a
 passing shower: slanted rain falls beneath it, building as it drifts over the
 tray and easing off as it leaves, and each drop dimples the water or splashes
-on the grass. Once a shower has passed, a faint rainbow often hangs over the
-garden for a quarter of a minute. Reduced motion keeps the sky clear.
+on the grass. Reduced motion keeps the sky clear.
 
-When a placement completes a row or column that follows every rule, a soft
-gleam runs out along it from that tile and the tiles it passes give a little
-bounce, with two bell notes when sound is on. Finishing a row and a column at
-once sends the gleam both ways and plays the notes a step higher.
+When a placement completes a row or column that follows every rule, a gust of
+wind rushes out along it from that tile: plants and grass bow and shake as it
+passes, with a little spilling onto the rows either side, the tiles give a soft
+bounce, leaves and petals tumble along with it, and the water ruffles. With
+sound on, a soft whoosh plays. Finishing a row and a column at once sends gusts
+along both.
 
 The water is flat pigment. One cached distance field to the same rounded
 coastline drives a pale shallow rim, a lapping foam lip, calmer lakes, and a

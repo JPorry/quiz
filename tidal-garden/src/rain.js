@@ -18,8 +18,7 @@ export function showerStrength(center, size, reach) {
 }
 
 // A passing shower: slanted streaks fall beneath a rain cloud, each drop dimpling the
-// water or splashing on the grass, and once the cloud has moved on a faint rainbow
-// often hangs over the garden for a while.
+// water or splashing on the grass.
 export class Rain {
   constructor(garden, { reach, random = Math.random }) {
     this.garden = garden
@@ -44,47 +43,12 @@ export class Rain {
     for (let i = 0; i < this.capacity; i++) this.rings.setColorAt(i, new THREE.Color(0xffffff))
     garden.scene.add(this.rings)
     this.ringColor = new THREE.Color()
-    this.buildRainbow()
-    this.rainbow = null
     this.strength = 0
   }
 
-  // A soft arc of pastel bands on a card that always faces the camera.
-  buildRainbow() {
-    this.rainbowMaterial = new THREE.ShaderMaterial({
-      // A translucent tint rather than added light, so it stays colored over pale sockets and sand.
-      transparent: true, depthWrite: false, depthTest: false,
-      uniforms: { uOpacity: { value: 0 } },
-      vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-      fragmentShader: `
-        varying vec2 vUv;
-        uniform float uOpacity;
-        vec3 spectrum(float t) {
-          return clamp(vec3(abs(t * 6.0 - 3.0) - 1.0, 2.0 - abs(t * 6.0 - 2.0), 2.0 - abs(t * 6.0 - 4.0)), 0.0, 1.0);
-        }
-        void main() {
-          // The arc's center sits at the bottom middle of the card.
-          vec2 p = (vUv - vec2(0.5, 0.0)) * vec2(2.0, 1.0);
-          float radius = length(p);
-          float band = (radius - 0.72) / 0.2;
-          if (band < 0.0 || band > 1.0) discard;
-          vec3 color = mix(spectrum(1.0 - band * 0.82), vec3(1.0), 0.18);
-          float edges = smoothstep(0.0, 0.25, band) * smoothstep(1.0, 0.7, band);
-          // It fades toward its feet, as rainbows do.
-          float feet = smoothstep(0.05, 0.55, p.y / radius);
-          gl_FragColor = vec4(color, edges * feet * uOpacity);
-          #include <colorspace_fragment>
-        }
-      `,
-    })
-    this.rainbowMesh = new THREE.Mesh(new THREE.PlaneGeometry(16, 8), this.rainbowMaterial)
-    this.rainbowMesh.renderOrder = 21
-    this.rainbowMesh.visible = false
-    this.garden.scene.add(this.rainbowMesh)
-  }
-
-  showRainbow(time) {
-    this.rainbow = { started: time, roll: (this.random() - 0.5) * 0.5, drop: 1.5 + this.random() * 1.5, side: (this.random() - 0.5) * 3 }
+  // A little cat's-paw ripple on open water, for gusts that skim across it.
+  ruffle(x, z, time) {
+    this.marks.push({ x, z, y: WATER_Y + 0.008, land: false, born: time })
   }
 
   surface(x, z) {
@@ -112,18 +76,15 @@ export class Rain {
         if (!cloud.rain) continue
         const center = cloudCenter(cloud, time)
         const amount = showerStrength(center, cloud.size, this.reach)
-        cloud.rained = Math.max(cloud.rained ?? 0, amount)
         strength = Math.max(strength, amount)
         // A heavier shower drops more at once; fractions carry over between frames.
         cloud.owed = (cloud.owed ?? 0) + amount * (this.garden.mobile ? 80 : 140) * dt
         while (cloud.owed >= 1 && this.drops.length < this.capacity) { cloud.owed -= 1; this.spawnDrop(cloud, center, time) }
         cloud.owed = Math.min(cloud.owed, 4)
       }
-      if (!this.rainbow && clouds.departed.some((cloud) => cloud.rain && cloud.rained > 0.5) && this.random() < 0.75) this.showRainbow(time)
     }
     this.strength = strength
     this.updateDrops(time)
-    this.updateRainbow(time, reducedMotion)
   }
 
   updateDrops(time) {
@@ -155,22 +116,5 @@ export class Rain {
     this.rings.count = this.marks.length
     this.rings.instanceMatrix.needsUpdate = true
     if (this.rings.instanceColor) this.rings.instanceColor.needsUpdate = true
-  }
-
-  updateRainbow(time, reducedMotion) {
-    const rainbow = this.rainbow
-    if (!rainbow) { this.rainbowMesh.visible = false; return }
-    const age = time - rainbow.started
-    const opacity = smooth(age / 3.5) * (1 - smooth((age - 12) / 6))
-    if (age > 18 || reducedMotion) { this.rainbow = null; this.rainbowMesh.visible = false; return }
-    // It faces the camera and rises from behind the garden, so it reads at any camera angle.
-    const camera = this.garden.camera
-    const up = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion)
-    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion)
-    this.rainbowMesh.quaternion.copy(camera.quaternion)
-    this.rainbowMesh.rotateZ(rainbow.roll)
-    this.rainbowMesh.position.set(0, 1.6, 0).addScaledVector(up, -rainbow.drop).addScaledVector(right, rainbow.side)
-    this.rainbowMaterial.uniforms.uOpacity.value = opacity * 0.3 * (1 - (this.garden.finale?.view.blend ?? 0))
-    this.rainbowMesh.visible = true
   }
 }
