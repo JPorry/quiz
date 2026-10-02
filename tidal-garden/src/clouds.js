@@ -14,6 +14,8 @@ export function cloudDelay(random, first = false) {
 // beyond one side of the tray and out past the other, along a random line.
 export function makeCloud(random, reach, born) {
   const heading = random() * TAU
+  // About one cloud in three brings a passing shower.
+  const rain = random() < 0.35
   const size = 1.8 + random() * 1.5
   const dir = { x: Math.cos(heading), z: Math.sin(heading) }
   const across = { x: -dir.z, z: dir.x }
@@ -24,12 +26,12 @@ export function makeCloud(random, reach, born) {
     return { x: dir.x * along + across.x * side, z: dir.z * along + across.z * side, r: size * (0.42 + random() * 0.38) }
   })
   return {
-    born, dir, puffs, size,
+    born, dir, puffs, size, rain,
     start: { x: -dir.x * distance + across.x * lateral, z: -dir.z * distance + across.z * lateral },
     speed: 0.55 + random() * 0.35,
     travel: distance * 2,
     seed: random() * 100,
-    strength: 0.32 + random() * 0.1,
+    strength: 0.32 + random() * 0.1 + (rain ? 0.08 : 0),
   }
 }
 
@@ -45,6 +47,7 @@ export class CloudShadows {
     this.random = random
     this.reach = tray / 2
     this.clouds = []
+    this.departed = []
     this.next = cloudDelay(random, true)
     this.puffs = Array.from({ length: SLOTS * PUFFS }, () => new THREE.Vector4())
     this.slots = Array.from({ length: SLOTS }, () => new THREE.Vector4())
@@ -95,9 +98,11 @@ export class CloudShadows {
   }
 
   // `progress` starts a cloud partway through its crossing, so tools can show one right away.
-  spawn(time, progress = 0) {
+  // `rain` forces a shower on or off.
+  spawn(time, progress = 0, { rain } = {}) {
     if (this.clouds.length >= SLOTS) return false
     const cloud = makeCloud(this.random, this.reach, time)
+    if (rain !== undefined && rain !== cloud.rain) { cloud.strength += rain ? 0.08 : -0.08; cloud.rain = rain }
     cloud.born -= progress * cloud.travel / cloud.speed
     this.clouds.push(cloud)
     return true
@@ -110,6 +115,8 @@ export class CloudShadows {
       this.spawn(time)
       this.next = time + cloudDelay(this.random)
     }
+    // Clouds that drifted off this frame, so a passing shower can leave a rainbow behind.
+    this.departed = this.clouds.filter((cloud) => cloudCenter(cloud, time).done)
     this.clouds = this.clouds.filter((cloud) => !cloudCenter(cloud, time).done)
     for (let c = 0; c < SLOTS; c++) {
       const cloud = this.clouds[c]

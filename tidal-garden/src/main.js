@@ -134,7 +134,7 @@ function finaleSafeArea() {
 }
 
 try {
-  scene = new GardenScene($('#world'), { onCell: placeCell, safeArea: boardSafeArea, finaleArea: finaleSafeArea })
+  scene = new GardenScene($('#world'), { onCell: placeCell, safeArea: boardSafeArea, finaleArea: finaleSafeArea, onFlourish: playFlourish })
 } catch (error) {
   $('#world').innerHTML = `<div class="render-error"><p>Your garden needs WebGL to bloom.</p><small>Please open it in a browser with hardware acceleration enabled.</small></div>`
   console.error(error)
@@ -156,6 +156,28 @@ function playTone(value) {
   oscillator.connect(gain).connect(soundContext.destination)
   oscillator.start(now)
   oscillator.stop(now + 0.65)
+}
+
+// Two soft bell notes when a row or column clicks into place, a step higher for a pair.
+function playFlourish(lines) {
+  if (!soundEnabled || game.complete) return
+  soundContext ??= new AudioContext()
+  soundContext.resume()
+  const now = soundContext.currentTime
+  const notes = lines.length > 1 ? [783.99, 1174.66] : [659.25, 987.77]
+  notes.forEach((frequency, index) => {
+    const oscillator = soundContext.createOscillator()
+    const gain = soundContext.createGain()
+    const start = now + 0.08 + index * 0.11
+    oscillator.type = 'triangle'
+    oscillator.frequency.setValueAtTime(frequency, start)
+    gain.gain.setValueAtTime(0, start)
+    gain.gain.linearRampToValueAtTime(0.03, start + 0.02)
+    gain.gain.exponentialRampToValueAtTime(0.001, start + 0.9)
+    oscillator.connect(gain).connect(soundContext.destination)
+    oscillator.start(start)
+    oscillator.stop(start + 1)
+  })
 }
 
 // A rising arpeggio for a finished garden.
@@ -398,6 +420,8 @@ if (import.meta.env.DEV) {
         complete: game.complete, history: game.history.length,
         camera: scene?.camera.position.toArray(), daylight: scene?.daylight,
         clouds: scene?.clouds.clouds.length,
+        flourishes: scene?.flourish.count,
+        rain: scene && { strength: scene.rain.strength, drops: scene.rain.drops.length, marks: scene.rain.marks.length, rainbow: !!scene.rain.rainbow },
         finale: scene && { active: scene.finale.active, mode: scene.finale.mode, ...scene.finale.view, card: !!finale?.card, flock: scene.finale.flock.filter((bird) => bird.root.visible).length, fireflies: scene.finale.fireflies.length, lanterns: scene.finale.lanterns.filter((lantern) => lantern.root.visible).length },
         calls: scene?.renderer.info.render.calls,
         rendering: scene && { ...scene.profile, frames: scene.renderedFrames, buffer: [scene.renderer.domElement.width, scene.renderer.domElement.height] },
@@ -423,7 +447,10 @@ if (import.meta.env.DEV) {
       }
     },
     gust() { scene?.breeze.start(scene.time) },
-    cloud(progress = 0) { return scene?.clouds.spawn(scene.time, progress) },
+    cloud(progress = 0, options) { return scene?.clouds.spawn(scene.time, progress, options) },
+    rainbow() { scene?.rain.showRainbow(scene.time) },
+    // Holds every running flourish at a given age, so a screenshot can catch it mid-sweep.
+    holdFlourish(age) { scene?.flourish.active.forEach((flourish) => { flourish.hold = age }) },
     cellPosition(row, col) {
       const rect = access.children[row * 10 + col].getBoundingClientRect()
       return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }
