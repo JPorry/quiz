@@ -10,6 +10,7 @@ import { WaterLife } from './waterLife.js'
 import { SocketBoard, SOCKET_TOP } from './sockets.js'
 import { Breeze } from './breeze.js'
 import { Finale, FINALE_VIEW } from './finale.js'
+import { glide } from './glide.js'
 
 const COLORS = {
   sand: 0xf4dfae, cliff: 0xd9a868, grass: 0x92d46f, grassSide: 0x58a352,
@@ -26,6 +27,8 @@ const RIPPLE_COUNT = 8
 const TRAY = 10.6
 const WATER_Y = 0.06
 const clamp = THREE.MathUtils.clamp
+// How long the light takes to settle after a tile: it eases out of rest and in to its new place.
+const DAYLIGHT_EASE = 2.6
 // The camera looks almost straight down; a small tilt reveals the south-facing cliffs.
 const TILT = (() => {
   const tilt = Number(new URLSearchParams(location.search).get('tilt'))
@@ -76,6 +79,7 @@ export class GardenScene {
     this.landGeometries = new Map()
     this.daylight = 0
     this.daylightTarget = 0
+    this.daylightVelocity = 0
     this.scene = new THREE.Scene()
     this.camera = new THREE.OrthographicCamera(-10, 10, 10, -10, 0.1, 120)
     this.camera.position.copy(this.cameraOffset())
@@ -500,7 +504,7 @@ export class GardenScene {
     this.sockets.update(grid, this.time, { intro: !hadGrid, animate: !this.reducedMotion })
     const filled = grid.flat().filter((value) => value !== null).length
     this.daylightTarget = complete ? 1 : filled / 100
-    if (!hadGrid) this.daylight = this.daylightTarget
+    if (!hadGrid) { this.daylight = this.daylightTarget; this.daylightVelocity = 0 }
     if (hadGrid && changed.length > 0 && changed.length <= 4) changed.forEach((cell) => this.react(cell))
     this.completions.update(grid, hadGrid && changed.length > 0 && changed.length <= 4)
     this.updateAccessibility()
@@ -725,10 +729,12 @@ export class GardenScene {
     const view = this.finale.view
     const viewKey = `${view.blend}:${view.yaw}`
     if (viewKey !== this.appliedView) { this.appliedView = viewKey; this.applyView() }
-    // The sun drifts toward its new place over a few seconds, so each tile nudges the light gently.
-    const sunMoving = Math.abs(this.daylightTarget - this.daylight) > 0.0002 || view.dusk !== this.dusk
+    // The sun drifts toward its new place over several seconds, so each tile nudges the light gently:
+    // it starts from rest rather than lurching the moment a tile lands.
+    const sunMoving = Math.abs(this.daylightTarget - this.daylight) > 0.0002 || Math.abs(this.daylightVelocity) > 0.00005 || view.dusk !== this.dusk
     if (sunMoving) {
-      this.daylight = this.reducedMotion ? this.daylightTarget : this.daylight + (this.daylightTarget - this.daylight) * (1 - Math.exp(-delta / 2.4))
+      if (this.reducedMotion) { this.daylight = this.daylightTarget; this.daylightVelocity = 0 }
+      else ({ value: this.daylight, velocity: this.daylightVelocity } = glide(this.daylight, this.daylightTarget, this.daylightVelocity, DAYLIGHT_EASE, delta))
       this.dusk = view.dusk
       this.placeSun(this.daylight)
     }
