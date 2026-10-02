@@ -1,4 +1,4 @@
-import { createIcons, ArrowRight, Check, ChevronDown, CircleHelp, Clock3, Fingerprint, Grid3x3, Lightbulb, RotateCcw, Scale, Sprout, Undo2, Volume2, VolumeX, X } from 'lucide'
+import { createIcons, ArrowRight, Check, ChevronDown, CircleHelp, Clock3, Fingerprint, Grid3x3, Lightbulb, MoonStar, RotateCcw, Scale, Sprout, Undo2, Volume2, VolumeX, X } from 'lucide'
 import { GardenGame, GARDEN_NAMES, findViolations, findHint } from './game.js'
 import { GardenScene } from './scene.js'
 import './style.css'
@@ -20,6 +20,7 @@ const PARTICLES = Array.from({ length: 10 }, (_, i) => `<i style="--a: ${i * 36 
 const piece = (kind, value, label, name) => `<button class="piece ${kind}" data-value="${value}" aria-label="${label}" aria-pressed="false"><span class="piece-stage"><span class="piece-shadow"></span><span class="piece-ring"></span><span class="piece-tile">${PIECE_ART[kind]}</span><span class="piece-burst" aria-hidden="true">${PARTICLES}</span></span><span class="piece-name">${name}</span></button>`
 app.innerHTML = `
   <main class="garden-app">
+    <div class="dusk" aria-hidden="true"></div>
     <div class="world" id="world">
       <div class="board-access" role="group" aria-label="Garden puzzle grid"></div>
     </div>
@@ -63,13 +64,23 @@ app.innerHTML = `
         <button class="text-tool" id="reset">${icon('rotate-ccw')}<span>Start again</span></button>
       </div>
     </footer>
+    <section class="finale-card" id="finale-card" aria-labelledby="finale-title" inert>
+      <p class="eyebrow"><span></span>Garden <b id="finale-number">01</b>&nbsp;·&nbsp;<em id="finale-name">First light</em></p>
+      <h2 id="finale-title">A world in balance.</h2>
+      <p class="finale-meta"><span>${icon('clock-3')}Grown in <b id="finale-time">00:00</b></span><span class="time-divider"></span><span><b id="finale-count">1</b> of 20 gardens</span></p>
+      <div class="finale-actions">
+        <button class="secondary-button" id="finale-stay">Stay a little longer</button>
+        <button class="primary-button" id="finale-next"><span id="finale-next-label">Grow the next garden</span> ${icon('arrow-right')}</button>
+      </div>
+      <p class="finale-tip">Drag to turn the island</p>
+    </section>
     <div class="quiet-footer"><span>LAND & WATER, IN EQUAL MEASURE</span><span>NO. <b id="edition-number">001</b></span></div>
   </main>
   <dialog id="modal"><button class="icon-button modal-close" aria-label="Close">${icon('x')}</button><div id="modal-content"></div></dialog>
 `
 
 const $ = (selector) => document.querySelector(selector)
-const refreshIcons = () => createIcons({ icons: { ArrowRight, Check, ChevronDown, CircleHelp, Clock3, Fingerprint, Grid3x3, Lightbulb, RotateCcw, Scale, Sprout, Undo2, Volume2, VolumeX, X }, attrs: { 'stroke-width': 1.6 } })
+const refreshIcons = () => createIcons({ icons: { ArrowRight, Check, ChevronDown, CircleHelp, Clock3, Fingerprint, Grid3x3, Lightbulb, MoonStar, RotateCcw, Scale, Sprout, Undo2, Volume2, VolumeX, X }, attrs: { 'stroke-width': 1.6 } })
 refreshIcons()
 
 const access = $('.board-access')
@@ -109,8 +120,21 @@ function boardSafeArea() {
   return { top, bottom, left, right: world.width - (phone ? 12 : 36) }
 }
 
+// While the finished garden is on show, the interface steps aside: the island takes everything
+// between the masthead and the card at the bottom.
+// Wide screens keep the card in the journal's place on the left; narrower ones put it underneath.
+function finaleSafeArea() {
+  const world = $('#world').getBoundingClientRect()
+  const phone = world.width <= 700
+  const card = $('#finale-card')
+  const top = $('.masthead').getBoundingClientRect().bottom - world.top + (phone ? 0 : 6)
+  // Layout positions ignore the card's slide-in offset, so the framing holds still as it appears.
+  if (world.width >= 1100) return { top, bottom: world.height - 30, left: card.offsetLeft + card.offsetWidth + 30, right: world.width - 40 }
+  return { top, bottom: card.offsetTop - (phone ? 6 : 16), left: phone ? 10 : 40, right: world.width - (phone ? 10 : 40) }
+}
+
 try {
-  scene = new GardenScene($('#world'), { onCell: placeCell, safeArea: boardSafeArea })
+  scene = new GardenScene($('#world'), { onCell: placeCell, safeArea: boardSafeArea, finaleArea: finaleSafeArea })
 } catch (error) {
   $('#world').innerHTML = `<div class="render-error"><p>Your garden needs WebGL to bloom.</p><small>Please open it in a browser with hardware acceleration enabled.</small></div>`
   console.error(error)
@@ -134,17 +158,39 @@ function playTone(value) {
   oscillator.stop(now + 0.65)
 }
 
+// A rising arpeggio for a finished garden.
+function playChime() {
+  if (!soundEnabled) return
+  soundContext ??= new AudioContext()
+  soundContext.resume()
+  const now = soundContext.currentTime
+  ;[523.25, 659.25, 783.99, 1046.5, 1318.5].forEach((frequency, index) => {
+    const oscillator = soundContext.createOscillator()
+    const gain = soundContext.createGain()
+    const start = now + 0.25 + index * 0.16
+    oscillator.type = 'sine'
+    oscillator.frequency.setValueAtTime(frequency, start)
+    gain.gain.setValueAtTime(0, start)
+    gain.gain.linearRampToValueAtTime(0.04, start + 0.03)
+    gain.gain.exponentialRampToValueAtTime(0.001, start + 1.6)
+    oscillator.connect(gain).connect(soundContext.destination)
+    oscillator.start(start)
+    oscillator.stop(start + 1.7)
+  })
+}
+
 function placeCell(row, col) {
   scene?.selectCell({ row, col })
   if (!game.place(row, col)) return
   hintCell = null
   playTone(game.selected)
   render()
-  if (game.complete) showCompletion()
+  if (game.complete) { playChime(); startFinale('celebrate', { row, col }) }
 }
 
 // Picking a piece makes it hop up with a burst of splashes, leaves, or mist.
 let shownSelection
+let shownComplete = false
 function burst(button) {
   if (!button) return
   button.classList.remove('burst')
@@ -169,7 +215,13 @@ function render() {
   $('#remaining').textContent = game.complete ? 'In perfect balance' : `${game.remaining} to grow`
   $('#time').textContent = `${String(Math.floor(game.seconds / 60)).padStart(2, '0')}:${String(game.seconds % 60).padStart(2, '0')}`
   $('#undo').disabled = !game.history.length
-  $('#hint').disabled = game.complete
+  // A finished garden swaps the hint for a way back to its evening view.
+  if (game.complete !== shownComplete) {
+    shownComplete = game.complete
+    $('#hint').innerHTML = game.complete ? `${icon('moon-star')}<span>See it at dusk</span>` : `${icon('lightbulb')}<span>A little nudge</span>`
+    refreshIcons()
+  }
+  if (finale && !game.complete) endFinale()
   // The raised piece already shows the selection, so the status line only speaks up when it matters.
   const status = game.complete ? 'A world in balance' : invalid.size ? 'A little out of balance' : hintCell ? hintText(hintCell) : ''
   $('#placement-status p').textContent = status
@@ -214,6 +266,7 @@ function hintText({ row, col, value, technique, axis }) {
 }
 
 $('#hint').addEventListener('click', () => {
+  if (game.complete) { startFinale('revisit'); return }
   if (findViolations(game.grid).size) {
     $('#placement-status p').textContent = 'Check the coral-marked tiles first'
     return
@@ -261,18 +314,67 @@ $('#levels').addEventListener('click', () => {
     scene?.clearSelection()
     render()
     modal.close()
+    if (game.complete) startFinale('revisit')
   }))
 })
 
-function showCompletion() {
-  const next = (game.level + 1) % GARDEN_NAMES.length
-  openModal(`<span class="completion-icon">${icon('sprout')}</span><p class="eyebrow">${GARDEN_NAMES[game.level]}</p><h2>A world<br>in balance.</h2><p class="modal-description">Every pool has its place.<br>Every garden has room to grow.</p><button class="primary-button" id="next-garden">${game.level === 19 ? 'Return to first light' : 'Grow the next garden'} ${icon('arrow-right')}</button><button class="completion-stay" id="stay-garden">Stay a little longer</button>`)
-  $('#next-garden').addEventListener('click', () => { game.load(next); render(); modal.close() })
-  $('#stay-garden').addEventListener('click', () => modal.close())
+// The finale: the interface steps aside while the scene celebrates, then a small card
+// offers the next garden without covering the finished one.
+let finale = null
+const appRoot = $('.garden-app')
+const card = $('#finale-card')
+function startFinale(mode, origin = null) {
+  if (!scene) return
+  endCard()
+  finale = { mode }
+  appRoot.classList.add('finale')
+  appRoot.classList.toggle('finale-quick', mode !== 'celebrate')
+  scene.finale.start(mode, origin)
+  $('#finale-number').textContent = String(game.level + 1).padStart(2, '0')
+  $('#finale-name').textContent = GARDEN_NAMES[game.level]
+  $('#finale-time').textContent = $('#time').textContent
+  $('#finale-count').textContent = game.completed.length
+  $('#finale-next-label').textContent = game.level === GARDEN_NAMES.length - 1 ? 'Return to first light' : 'Grow the next garden'
+  finale.timer = setTimeout(showCard, scene.finale.plan.card * 1000)
 }
+function showCard() {
+  if (!finale || finale.card) return
+  clearTimeout(finale.timer)
+  finale.card = true
+  card.inert = false
+  card.classList.add('visible')
+  $('#finale-next').focus({ preventScroll: true })
+}
+function endCard() {
+  clearTimeout(finale?.timer)
+  card.classList.remove('visible')
+  card.inert = true
+}
+function endFinale() {
+  if (!finale) return
+  endCard()
+  finale = null
+  appRoot.classList.remove('finale', 'finale-quick')
+  scene?.finale.stop()
+}
+$('#finale-stay').addEventListener('click', () => { endFinale(); scene?.clearSelection() })
+$('#finale-next').addEventListener('click', () => {
+  endFinale()
+  game.load((game.level + 1) % GARDEN_NAMES.length)
+  hintCell = null
+  render()
+  if (game.complete) startFinale('revisit')
+})
+// A tap during the celebration brings the card forward without cutting the show short.
+$('#world').addEventListener('pointerdown', () => { if (finale) showCard() })
 
 document.addEventListener('keydown', (event) => {
   if (modal.open || event.target instanceof HTMLInputElement) return
+  if (finale) {
+    if (event.key === 'Escape') endFinale()
+    else if (!finale.card && !['Shift', 'Control', 'Alt', 'Meta'].includes(event.key)) showCard()
+    return
+  }
   if (event.key === '0' || event.key === 'w') game.selected = 0
   else if (event.key === '1' || event.key === 'l') game.selected = 1
   else if (event.key === 'e' || event.key === 'Backspace') { game.selected = null; event.preventDefault() }
@@ -285,6 +387,7 @@ setInterval(() => {
   if (!game.complete && !document.hidden && !modal.open) { game.seconds++; game.save(); render() }
 }, 1000)
 render()
+if (game.complete) startFinale('revisit')
 
 // Read-only development diagnostics keep visual and canvas tests grounded in the rendered scene.
 if (import.meta.env.DEV) {
@@ -294,6 +397,7 @@ if (import.meta.env.DEV) {
         level: game.level, grid: game.grid.map((row) => [...row]), filled: game.filled,
         complete: game.complete, history: game.history.length,
         camera: scene?.camera.position.toArray(), daylight: scene?.daylight,
+        finale: scene && { active: scene.finale.active, mode: scene.finale.mode, ...scene.finale.view, card: !!finale?.card, flock: scene.finale.flock.filter((bird) => bird.root.visible).length, fireflies: scene.finale.fireflies.length, lanterns: scene.finale.lanterns.filter((lantern) => lantern.root.visible).length },
         calls: scene?.renderer.info.render.calls,
         rendering: scene && { ...scene.profile, frames: scene.renderedFrames, buffer: [scene.renderer.domElement.width, scene.renderer.domElement.height] },
         ripples: scene?.ripples.map((ripple) => ripple.toArray()), particles: scene?.particles.length,

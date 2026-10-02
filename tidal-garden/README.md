@@ -131,6 +131,22 @@ seeded by the patch and puzzle so reload restores the same residents; undo
 removes them if their shoreline reopens. Swimming paths stay within connected
 water cells, and reduced-motion mode freezes residents in their settled poses.
 
+Finishing a garden plays a finale instead of covering it with a dialog, and
+every part of it is derived from the finished grid, so it works for any garden.
+The interface fades away and a wave of life rolls out from the last tile:
+islands bounce and shed petals while fish leap and ripples spread across the
+water. The camera lifts to 38 degrees and slowly turns the island, framed to
+fit the whole tray at any angle. The sun keeps going past golden hour into a
+low sunset and a blue evening, fireflies come out over the land, paper lanterns
+float up in open water, and a small flock sweeps in, circles the island, and
+flies off. A small card then offers the next garden; on wide screens it sits
+where the journal was. Dragging turns the island by hand; tapping or pressing
+a key brings the card forward early. "Stay a little longer" (or Escape) lowers
+the camera back to the board and brings the interface back, and "See it at
+dusk" returns to the evening view. Opening a finished garden goes straight to
+its evening view, without the wave or the flock. Reduced motion skips the
+turn, the wave, and the flock, and goes straight to the evening view.
+
 All scene assets are generated in code. Interface fonts load from Google
 Fonts with local serif and sans-serif fallbacks. The primary 3D scene remains
 fully local.
