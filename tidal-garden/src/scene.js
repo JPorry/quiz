@@ -8,6 +8,7 @@ import { renderProfile, frameIsDue, scheduledFrameTime } from './renderProfile.j
 import { WaterRipples } from './waterRipples.js'
 import { WaterLife } from './waterLife.js'
 import { SocketBoard, SOCKET_TOP } from './sockets.js'
+import { Breeze } from './breeze.js'
 
 const COLORS = {
   sand: 0xf4dfae, cliff: 0xd9a868, grass: 0x92d46f, grassSide: 0x58a352,
@@ -106,6 +107,9 @@ export class GardenScene {
     this.buildWorld()
     this.buildCells()
     this.sockets = new SocketBoard(this)
+    this.breeze = new Breeze(this)
+    this.waterUniforms.uWindShift = { value: this.breeze.shift }
+    this.waterUniforms.uGust = { value: 0 }
     this.buildBoardGuides()
     this.buildParticles()
     this.buildClouds()
@@ -224,11 +228,14 @@ export class GardenScene {
   }
 
   addGarden(parent, index, decorative = false) {
+    // Plants pivot at the grass, turning first and then leaning, so breezes bend them from the base.
     const group = new THREE.Group()
+    group.rotation.order = 'ZXY'
     group.rotation.y = seeded(index + 30) * Math.PI * 2
+    group.position.y = LAND.grass.top
     parent.add(group)
     const variant = decorative ? 0 : Math.floor(seeded(index + 29) * 6)
-    const top = LAND.grass.top
+    const top = 0
     group.userData.perchHeight = variant <= 1 ? 1.0 : variant === 2 ? 1.07 : variant === 3 ? 0.68 : 0.46
     if (variant <= 1) {
       // A round lollipop tree: the canopy casts the long, soft shadow that sells the height.
@@ -294,11 +301,12 @@ export class GardenScene {
   buildClouds() {
     this.cloudMaterial = new THREE.ShaderMaterial({
       transparent: true, depthWrite: false, depthTest: false,
-      uniforms: { uTime: { value: 0 } },
+      uniforms: { uTime: { value: 0 }, uWindShift: { value: this.breeze.shift } },
       vertexShader: `varying vec2 vXZ; void main() { vXZ = (modelMatrix * vec4(position, 1.0)).xz; gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1.0); }`,
       fragmentShader: `
         varying vec2 vXZ;
         uniform float uTime;
+        uniform vec2 uWindShift;
         float hash(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
         float noise(vec2 p) {
           vec2 i = floor(p), f = fract(p);
@@ -306,7 +314,7 @@ export class GardenScene {
           return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + 1.0), u.x), u.y);
         }
         void main() {
-          vec2 p = vXZ * 0.17 + vec2(uTime * 0.028, uTime * 0.011);
+          vec2 p = vXZ * 0.17 + vec2(uTime * 0.028, uTime * 0.011) - uWindShift * 0.35;
           float n = noise(p) * 0.6 + noise(p * 2.1 + 3.7) * 0.3 + noise(p * 4.3 + 9.1) * 0.1;
           float cloud = smoothstep(0.6, 0.74, n);
           vec2 edge = abs(vXZ) - ${(TRAY / 2 - 0.25).toFixed(2)};
@@ -591,10 +599,13 @@ export class GardenScene {
     this.cloudMaterial.uniforms.uTime.value = motionTime
     this.waterRipples.animate(this.time, this.ripples)
     this.waterLife.update(this.time, delta, this.reducedMotion)
+    this.breeze.update(this.time, delta, this.reducedMotion)
+    this.waterUniforms.uGust.value = this.breeze.strength
     this.sockets.animate(this.time, this.reducedMotion)
-    const sunMoving = Math.abs(this.daylightTarget - this.daylight) > 0.0005
+    // The sun drifts toward its new place over a few seconds, so each tile nudges the light gently.
+    const sunMoving = Math.abs(this.daylightTarget - this.daylight) > 0.0002
     if (sunMoving) {
-      this.daylight = this.reducedMotion ? this.daylightTarget : this.daylight + (this.daylightTarget - this.daylight) * Math.min(1, delta * 1.6)
+      this.daylight = this.reducedMotion ? this.daylightTarget : this.daylight + (this.daylightTarget - this.daylight) * (1 - Math.exp(-delta / 2.4))
       this.placeSun(this.daylight)
     }
     for (const cell of this.cells) {
@@ -613,8 +624,10 @@ export class GardenScene {
       } else cell.land.visible = cell.value === 1
       cell.plants.scale.setScalar(Math.max(0.001, clamp((this.time - cell.started - 0.25) / 0.5, 0, 1) ** 0.5 * (1 + Math.sin(t * Math.PI) * 0.15)))
       if (this.reducedMotion) cell.plants.scale.setScalar(1)
-      cell.plants.rotation.x = cell.direction.y * reaction * 0.13 + Math.sin(motionTime * 0.9 + cell.col) * 0.006
-      cell.plants.rotation.z = -cell.direction.x * reaction * 0.13
+      const gust = cell.value === 1 ? this.breeze.bend(cell.col - 4.5, cell.row - 4.5, this.time) : 0
+      const wind = this.breeze.gust?.dir
+      cell.plants.rotation.x = cell.direction.y * reaction * 0.13 + Math.sin(motionTime * 0.9 + cell.col) * 0.006 + (wind ? wind.y * gust : 0)
+      cell.plants.rotation.z = -cell.direction.x * reaction * 0.13 - (wind ? wind.x * gust : 0)
     }
     this.particles = this.particles.filter((particle) => this.time - particle.started < 0.85)
     this.particleMesh.count = this.particles.length
@@ -637,7 +650,9 @@ export class GardenScene {
       const cell = this.cells[this.activeCell.row * 10 + this.activeCell.col]
       this.hover.position.y = this.cellHeight(cell) + (cell.value === 1 ? cell.land.position.y : 0) + 0.04
     }
-    if (time - this.lastShadowFrame >= this.profile.shadowInterval) {
+    // Shadows follow every frame while something that casts them is moving: the sun, a breeze, or a new tile.
+    const settling = this.cells.some((cell) => this.time - cell.started < 0.9)
+    if (sunMoving || this.breeze.active || settling || time - this.lastShadowFrame >= this.profile.shadowInterval) {
       this.renderer.shadowMap.needsUpdate = true
       this.lastShadowFrame = time
     }

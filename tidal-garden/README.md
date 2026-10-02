@@ -62,7 +62,10 @@ floods in or the land rises, and clearing a tile pops a socket back up.
 Depth comes from light. A low sun casts soft shadows, and shadowed areas see
 only a pale blue sky light, which tints them blue rather than grey. The sun
 crosses the sky as the garden fills, from morning light in the northeast to
-golden hour in the northwest, so shadows slowly swing across the board.
+golden hour in the northwest, easing over a few seconds after each tile so
+shadows swing slowly across the board. Every so often a breeze sweeps over
+the garden: trees and flowers bow from their base as it passes, wind streaks
+and loose leaves drift across, and the water's wave marks hurry along.
 Cloud shadows drift over the tray now and then.
 
 The water is flat pigment. One cached distance field to the same rounded

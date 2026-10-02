@@ -99,6 +99,8 @@ export const waterFragmentHead = `
   uniform float uTime;
   uniform sampler2D uRim;
   uniform vec4 uSplashes[${SPLASH_SLOTS}];
+  uniform vec2 uWindShift;
+  uniform float uGust;
   float waterHash(vec2 p) {
     p = fract(p * vec2(123.34, 456.21));
     p += dot(p, p + 45.32);
@@ -121,18 +123,18 @@ export const waterFragmentColor = `
   water = mix(${srgb(WATER_COLORS.shallow)}, water, smoothstep(0.12, 0.24, shore + wobble));
 
   // Little wave marks drift across open water and breathe in and out.
-  vec2 wave = vXZ * vec2(2.1, 2.9) + vec2(uTime * 0.07, 0.0);
+  vec2 wave = (vXZ - uWindShift) * vec2(2.1, 2.9) + vec2(uTime * 0.07, 0.0);
   vec2 cell = floor(wave), local = fract(wave) - 0.5;
   float seed = waterHash(cell);
   local.x += (seed - 0.5) * 0.3;
   float crest = abs(local.y - 0.075 * sin(local.x * 13.0)) ;
   float mark = (1.0 - smoothstep(0.03, 0.06, crest)) * (1.0 - smoothstep(0.17, 0.23, abs(local.x)));
-  float breathe = smoothstep(0.1, 0.7, 0.5 + 0.5 * sin(uTime * 0.7 + seed * 6.283));
+  float breathe = max(smoothstep(0.1, 0.7, 0.5 + 0.5 * sin(uTime * 0.7 + seed * 6.283)), uGust * 0.8);
   water = mix(water, ${srgb(WATER_COLORS.mark)}, mark * step(0.64, seed) * breathe * smoothstep(0.45, 0.7, shore) * (1.0 - lake * 0.6));
 
   // Slow swells of light roll across the open water.
   float swell = sin(dot(vXZ, vec2(0.55, 0.83)) * 1.5 - uTime * 0.5 + waterNoise(vXZ * 0.45) * 2.6);
-  water = mix(water, ${srgb(WATER_COLORS.shallow)}, smoothstep(0.7, 1.0, swell) * 0.16 * smoothstep(0.3, 0.6, shore));
+  water = mix(water, ${srgb(WATER_COLORS.shallow)}, smoothstep(0.7 - uGust * 0.25, 1.0, swell) * (0.16 + uGust * 0.14) * smoothstep(0.3, 0.6, shore));
 
   // Sunlight shimmers in a moving web over the shallows.
   float web = abs(waterNoise(vXZ * 4.2 + uTime * 0.32) - waterNoise(vXZ * 4.2 - uTime * 0.27 + 7.1));

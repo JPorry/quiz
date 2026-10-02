@@ -305,6 +305,7 @@ if (import.meta.env.DEV) {
         })),
       }
     },
+    gust() { scene?.breeze.start(scene.time) },
     cellPosition(row, col) {
       const rect = access.children[row * 10 + col].getBoundingClientRect()
       return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }
