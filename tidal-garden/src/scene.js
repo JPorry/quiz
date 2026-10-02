@@ -624,10 +624,10 @@ export class GardenScene {
       } else cell.land.visible = cell.value === 1
       cell.plants.scale.setScalar(Math.max(0.001, clamp((this.time - cell.started - 0.25) / 0.5, 0, 1) ** 0.5 * (1 + Math.sin(t * Math.PI) * 0.15)))
       if (this.reducedMotion) cell.plants.scale.setScalar(1)
-      const gust = cell.value === 1 ? this.breeze.bend(cell.col - 4.5, cell.row - 4.5, this.time) : 0
-      const wind = this.breeze.gust?.dir
-      cell.plants.rotation.x = cell.direction.y * reaction * 0.13 + Math.sin(motionTime * 0.9 + cell.col) * 0.006 + (wind ? wind.y * gust : 0)
-      cell.plants.rotation.z = -cell.direction.x * reaction * 0.13 - (wind ? wind.x * gust : 0)
+      const wind = cell.value === 1 ? this.breeze.windAt(cell.col - 4.5, cell.row - 4.5, this.time) : null
+      const lean = wind?.amount ?? 0
+      cell.plants.rotation.x = cell.direction.y * reaction * 0.13 + Math.sin(motionTime * 0.9 + cell.col) * 0.006 + (lean ? wind.z * lean : 0)
+      cell.plants.rotation.z = -cell.direction.x * reaction * 0.13 - (lean ? wind.x * lean : 0)
     }
     this.particles = this.particles.filter((particle) => this.time - particle.started < 0.85)
     this.particleMesh.count = this.particles.length

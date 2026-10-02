@@ -76,9 +76,11 @@ Depth comes from light. A low sun casts soft shadows, and shadowed areas see
 only a pale blue sky light, which tints them blue rather than grey. The sun
 crosses the sky as the garden fills, from morning light in the northeast to
 golden hour in the northwest, easing over a few seconds after each tile so
-shadows swing slowly across the board. Every so often a breeze sweeps over
-the garden: trees and flowers bow from their base as it passes, wind streaks
-and loose leaves drift across, and the water's wave marks hurry along.
+shadows swing slowly across the board. Every so often a breeze wanders over
+the garden. Its front is ragged, its strength comes in patches and puffs, and
+its heading swirls, so trees and flowers bow from their base at different
+moments and angles, loose leaves tumble along curling paths, and the water's
+wave marks hurry along.
 Cloud shadows drift over the tray now and then.
 
 The water is flat pigment. One cached distance field to the same rounded
