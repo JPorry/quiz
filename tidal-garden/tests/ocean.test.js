@@ -52,3 +52,14 @@ test('terrain occupancy separates water from land and undecided tiles', () => {
   assert.equal(terrainIsSolid(terrain, 1.5, 0.5), false)
   assert.equal(terrainIsSolid(terrain, 40, 0.5), false)
 })
+
+test('empty sockets carve the water away and give it a shore to lap against', () => {
+  const grid = Array.from({ length: 10 }, () => Array(10).fill(0))
+  grid[4][4] = null
+  const field = createRimField(grid)
+  const { distance } = sampler(field)
+  const socket = (x, z) => field[(Math.floor((z + RIM.extent / 2) / RIM.extent * RIM.resolution) * RIM.resolution + Math.floor((x + RIM.extent / 2) / RIM.extent * RIM.resolution)) * 4 + 2]
+  assert.equal(socket(-0.5, -0.5), 255, 'No water is poured in an empty socket')
+  assert.equal(socket(0.5, -0.5), 0)
+  assert.ok(distance(0.1, -0.5) < 0.15, 'Water right beside a socket is at its shore')
+})

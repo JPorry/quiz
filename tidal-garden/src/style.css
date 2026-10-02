@@ -65,7 +65,7 @@ h1 em { font-weight: 400; color: #557b61; }
 .palette { display: flex; justify-content: center; gap: 26px; }
 .piece { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 0; background: none; color: #eef6e8; --side: #23889a; --glow: #8fe6ea; --particle: #c9f4f1; }
 .piece.land { --side: #c08a4f; --glow: #d9f2a4; --particle: #8fd16f; }
-.piece.erase { --side: #8fc7c0; --glow: #ffffff; --particle: #ffffff; }
+.piece.erase { --side: #cdbb94; --glow: #fff6df; --particle: #f6eedb; }
 .piece-stage { position: relative; width: 66px; height: 76px; display: grid; place-items: end center; }
 .piece-shadow { position: absolute; bottom: 0; width: 58px; height: 13px; border-radius: 50%; background: #0c3c4752; transition: transform .35s, opacity .35s; }
 .piece-ring { position: absolute; bottom: -1px; width: 62px; height: 16px; border-radius: 50%; border: 2px solid var(--glow); opacity: 0; pointer-events: none; }
@@ -84,11 +84,11 @@ h1 em { font-weight: 400; color: #557b61; }
 .piece.selected .art-waves { animation: piece-waves 2.4s linear infinite; }
 .piece.selected .art-glint { transform-origin: center; animation: piece-twinkle 2.2s ease-in-out infinite; }
 .piece.selected .art-tree { transform-origin: 50% 95%; animation: piece-sway 2.8s ease-in-out infinite; }
-.piece.selected .art-cloud { animation: piece-drift 3.2s ease-in-out infinite; }
+.piece.selected .art-cloud { transform-origin: center; animation: piece-drift 2.4s ease-in-out infinite; }
 @keyframes piece-waves { to { transform: translateX(24px); } }
 @keyframes piece-twinkle { 0%, 60%, 100% { transform: scale(.2); opacity: 0; } 75% { transform: scale(1.15) rotate(20deg); opacity: 1; } }
 @keyframes piece-sway { 0%, 100% { transform: rotate(-6deg); } 50% { transform: rotate(6deg); } }
-@keyframes piece-drift { 0%, 100% { transform: translateX(-3px) scale(1); } 50% { transform: translateX(3px) scale(1.06); } }
+@keyframes piece-drift { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(.9); opacity: .55; } }
 
 /* The pick: squash, hop, and settle, with a burst of whatever the piece is made of. */
 .piece.burst .piece-tile { animation: piece-hop .75s cubic-bezier(.25, .8, .35, 1); }

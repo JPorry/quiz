@@ -50,8 +50,10 @@ function coastBoxes(grid, inset, radius) {
   const half = grid.length / 2
   const land = (row, col) => grid[row]?.[col] === 1
   return grid.map((cells, row) => cells.map((_, col) => {
-    if (!land(row, col)) return []
     const cx = col + 0.5 - half, cz = row + 0.5 - half, core = 0.5 - inset
+    // Empty sockets are solid board too, so the water laps against their rims.
+    if (grid[row][col] === null) return [{ cx, cz, hx: 0.5, hz: 0.5, radius: 0.14 }]
+    if (!land(row, col)) return []
     const boxes = [{ cx, cz, hx: core, hz: core, radius }]
     if (land(row, col + 1)) boxes.push({ cx: cx + 0.5, cz, hx: 0.5, hz: core, radius: 0 })
     if (land(row + 1, col)) boxes.push({ cx, cz: cz + 0.5, hx: core, hz: 0.5, radius: 0 })
@@ -61,7 +63,7 @@ function coastBoxes(grid, inset, radius) {
 }
 
 // Red: distance from each point of water to the nearest land shore, in tiles.
-// Green: whether the point lies in an enclosed lake.
+// Green: whether the point lies in an enclosed lake. Blue: an empty socket, where no water is poured yet.
 export function createRimField(grid, { inset = 0.06, radius = 0.24 } = {}) {
   const half = grid.length / 2
   const { extent, resolution, min, max } = RIM
@@ -79,6 +81,7 @@ export function createRimField(grid, { inset = 0.06, radius = 0.24 } = {}) {
     const index = (row * resolution + col) * 4
     data[index] = Math.round((Math.min(max, Math.max(min, best)) - min) / (max - min) * 255)
     data[index + 1] = lakes[r0]?.[c0] ? 255 : 0
+    data[index + 2] = grid[r0]?.[c0] === null ? 255 : 0
     data[index + 3] = 255
   }
   return data
@@ -110,6 +113,7 @@ export const waterFragmentHead = `
 
 export const waterFragmentColor = `
   vec4 rimField = texture2D(uRim, vXZ / ${RIM.extent.toFixed(1)} + 0.5);
+  if (rimField.b > 0.5) discard;
   float shore = rimField.r * ${(RIM.max - RIM.min).toFixed(2)} + ${RIM.min.toFixed(2)};
   float lake = rimField.g;
   float wobble = (waterNoise(vXZ * 3.1 + uTime * 0.12) - 0.5) * 0.06;

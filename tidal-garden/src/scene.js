@@ -7,7 +7,7 @@ import { RegionCompletions } from './completions.js'
 import { renderProfile, frameIsDue, scheduledFrameTime } from './renderProfile.js'
 import { WaterRipples } from './waterRipples.js'
 import { WaterLife } from './waterLife.js'
-import { CloudBank } from './clouds.js'
+import { SocketBoard, SOCKET_TOP } from './sockets.js'
 
 const COLORS = {
   sand: 0xf4dfae, cliff: 0xd9a868, grass: 0x92d46f, grassSide: 0x58a352,
@@ -105,7 +105,7 @@ export class GardenScene {
     this.placeSun(0)
     this.buildWorld()
     this.buildCells()
-    this.clouds = new CloudBank(this)
+    this.sockets = new SocketBoard(this)
     this.buildBoardGuides()
     this.buildParticles()
     this.buildClouds()
@@ -152,10 +152,10 @@ export class GardenScene {
     // The diorama tray: a slice of sea above a layer of sand, sitting on a soft table shadow.
     this.tray = new THREE.Group()
     this.scene.add(this.tray)
-    this.mesh(new RoundedBoxGeometry(TRAY, 0.34, TRAY, 3, 0.16), this.materials.trayWater, this.tray, 0, -0.13, 0).castShadow = false
-    this.mesh(new RoundedBoxGeometry(TRAY, 0.42, TRAY, 3, 0.16), this.materials.trayEarth, this.tray, 0, -0.47, 0)
+    this.mesh(new RoundedBoxGeometry(TRAY, 0.34, TRAY, 3, 0.16), this.materials.trayWater, this.tray, 0, -0.2, 0).castShadow = false
+    this.mesh(new RoundedBoxGeometry(TRAY, 0.42, TRAY, 3, 0.16), this.materials.trayEarth, this.tray, 0, -0.54, 0)
     const table = new THREE.Mesh(new THREE.PlaneGeometry(60, 60).rotateX(-Math.PI / 2), new THREE.ShadowMaterial({ color: 0x0c3c47, opacity: 0.2 }))
-    table.position.y = -0.69
+    table.position.y = -0.76
     table.receiveShadow = true
     this.scene.add(table)
     this.rimTexture = new THREE.DataTexture(new Uint8Array(RIM.resolution * RIM.resolution * 4), RIM.resolution, RIM.resolution)
@@ -369,7 +369,7 @@ export class GardenScene {
 
   cellHeight(cell) {
     const value = cell.value
-    return value === 1 ? LAND.grass.top + 0.02 : value === null ? 0.45 : WATER_Y + 0.01
+    return value === 1 ? LAND.grass.top + 0.02 : value === null ? SOCKET_TOP + 0.01 : WATER_Y + 0.01
   }
 
   update(grid, clues, invalid, complete) {
@@ -404,7 +404,7 @@ export class GardenScene {
       this.renderer.shadowMap.needsUpdate = true
     }
     this.waterLife.grid = this.grid
-    this.clouds.update(grid, this.time, !this.reducedMotion)
+    this.sockets.update(grid, this.time, { intro: !hadGrid, animate: !this.reducedMotion })
     const filled = grid.flat().filter((value) => value !== null).length
     this.daylightTarget = complete ? 1 : filled / 100
     if (!hadGrid) this.daylight = this.daylightTarget
@@ -591,7 +591,7 @@ export class GardenScene {
     this.cloudMaterial.uniforms.uTime.value = motionTime
     this.waterRipples.animate(this.time, this.ripples)
     this.waterLife.update(this.time, delta, this.reducedMotion)
-    this.clouds.animate(this.time, this.reducedMotion)
+    this.sockets.animate(this.time, this.reducedMotion)
     const sunMoving = Math.abs(this.daylightTarget - this.daylight) > 0.0005
     if (sunMoving) {
       this.daylight = this.reducedMotion ? this.daylightTarget : this.daylight + (this.daylightTarget - this.daylight) * Math.min(1, delta * 1.6)

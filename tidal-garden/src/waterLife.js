@@ -98,8 +98,10 @@ export class WaterLife {
     })
   }
 
+  // Land and empty sockets are both solid; only poured water and the tray's margin are swimmable.
   isLand(x, z) {
-    return this.grid?.[Math.floor(z + 5)]?.[Math.floor(x + 5)] === 1
+    const value = this.grid?.[Math.floor(z + 5)]?.[Math.floor(x + 5)]
+    return value === 1 || value === null
   }
 
   // Open water, clear of the tray edge and a little way off every shore.
