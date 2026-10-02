@@ -7,12 +7,13 @@ import { RegionCompletions } from './completions.js'
 import { renderProfile, frameIsDue, scheduledFrameTime } from './renderProfile.js'
 import { WaterRipples } from './waterRipples.js'
 import { WaterLife } from './waterLife.js'
+import { CloudBank } from './clouds.js'
 
 const COLORS = {
   sand: 0xf4dfae, cliff: 0xd9a868, grass: 0x92d46f, grassSide: 0x58a352,
   leaf: 0x54b25c, leafLight: 0x9fe282, leafDark: 0x2f8a4c, blossom: 0xff9fb2, flower: 0xffe07a,
   petal: 0xffffff, rock: 0xb9c7c2, trunk: 0xa0704a, brass: 0xf3c34b,
-  mist: 0xc9ece7, mistSide: 0x9fd3cd, trayWater: 0x2f9fb0, trayEarth: 0xd2a467, foam: 0xf3fbf8,
+  trayWater: 0x2f9fb0, trayEarth: 0xd2a467, foam: 0xf3fbf8,
 }
 const MAT_SIZE = 16
 const RIPPLE_COUNT = 8
@@ -104,6 +105,7 @@ export class GardenScene {
     this.placeSun(0)
     this.buildWorld()
     this.buildCells()
+    this.clouds = new CloudBank(this)
     this.buildBoardGuides()
     this.buildParticles()
     this.buildClouds()
@@ -193,7 +195,6 @@ export class GardenScene {
   buildCells() {
     const targetMaterial = new THREE.MeshBasicMaterial({ visible: false })
     const targetGeometry = new THREE.PlaneGeometry(1, 1)
-    const mistGeometry = slab(roundedRect(0.76, 0.76, 0.2), 0, 0.11)
     const pinGeometry = new THREE.SphereGeometry(0.055, 12, 8)
     for (let row = 0; row < 10; row++) {
       for (let col = 0; col < 10; col++) {
@@ -206,10 +207,6 @@ export class GardenScene {
         target.castShadow = false
         target.userData.cell = { row, col }
         this.targets.push(target)
-        // Undecided tiles float as pale mist sandbars just above the water.
-        const sand = new THREE.Group()
-        this.mesh(mistGeometry, [this.materials.mist, this.materials.mistSide], sand)
-        group.add(sand)
         const land = new THREE.Group()
         const body = this.mesh(this.landGeometry('sand', 0), [this.materials.sand, this.materials.cliff], land)
         const terrace = this.mesh(this.landGeometry('grass', 0), [this.materials.grass, this.materials.grassSide], land)
@@ -221,7 +218,7 @@ export class GardenScene {
         error.renderOrder = 4
         error.castShadow = false
         error.visible = false
-        this.cells.push({ row, col, group, target, sand, land, body, terrace, plants, pin, error, value: undefined, mask: -1, started: -10, reactionAt: -10, direction: new THREE.Vector2() })
+        this.cells.push({ row, col, group, target, land, body, terrace, plants, pin, error, value: undefined, mask: -1, started: -10, reactionAt: -10, direction: new THREE.Vector2() })
       }
     }
   }
@@ -372,7 +369,7 @@ export class GardenScene {
 
   cellHeight(cell) {
     const value = cell.value
-    return value === 1 ? LAND.grass.top + 0.02 : value === null ? 0.13 : WATER_Y + 0.01
+    return value === 1 ? LAND.grass.top + 0.02 : value === null ? 0.45 : WATER_Y + 0.01
   }
 
   update(grid, clues, invalid, complete) {
@@ -385,7 +382,6 @@ export class GardenScene {
     for (const cell of this.cells) {
       const value = grid[cell.row][cell.col]
       if (value !== cell.value) { cell.previous = cell.value; cell.started = this.time; cell.value = value }
-      cell.sand.visible = value === null
       cell.land.visible = value === 1
       if (value === 1) {
         const mask = landMask(grid, cell.row, cell.col)
@@ -408,6 +404,7 @@ export class GardenScene {
       this.renderer.shadowMap.needsUpdate = true
     }
     this.waterLife.grid = this.grid
+    this.clouds.update(grid, this.time, !this.reducedMotion)
     const filled = grid.flat().filter((value) => value !== null).length
     this.daylightTarget = complete ? 1 : filled / 100
     if (!hadGrid) this.daylight = this.daylightTarget
@@ -594,6 +591,7 @@ export class GardenScene {
     this.cloudMaterial.uniforms.uTime.value = motionTime
     this.waterRipples.animate(this.time, this.ripples)
     this.waterLife.update(this.time, delta, this.reducedMotion)
+    this.clouds.animate(this.time, this.reducedMotion)
     const sunMoving = Math.abs(this.daylightTarget - this.daylight) > 0.0005
     if (sunMoving) {
       this.daylight = this.reducedMotion ? this.daylightTarget : this.daylight + (this.daylightTarget - this.daylight) * Math.min(1, delta * 1.6)
@@ -607,15 +605,8 @@ export class GardenScene {
       const age = this.time - cell.reactionAt
       const reaction = this.reducedMotion || age < 0 || age > 1.35 ? 0 : Math.sin(age * 10) * Math.exp(-age * 3.5) * (cell.reactionStrength ?? 0)
       cell.land.position.y = reaction * 0.05
-      cell.sand.position.y = reaction * 0.02 + (this.reducedMotion ? 0 : Math.sin(motionTime * 1.3 + cell.row * 0.7 + cell.col * 1.1) * 0.012)
-      cell.sand.scale.setScalar(0.6 + (1 - (1 - t) ** 3) * 0.4)
-      // Whatever was there before sinks away under the new terrain.
+      // Land replaced by water sinks away beneath it.
       const sinking = this.reducedMotion ? 1 : (this.time - cell.started) / 0.4
-      if (sinking < 1 && cell.previous === null && cell.value !== null) {
-        cell.sand.visible = true
-        cell.sand.position.y = -sinking * 0.16
-        cell.sand.scale.set(1 - sinking * 0.3, 1, 1 - sinking * 0.3)
-      } else cell.sand.visible = cell.value === null
       if (sinking < 1 && cell.previous === 1 && cell.value !== 1) {
         cell.land.visible = true
         cell.land.scale.y = Math.max(0.02, 1 - sinking * 1.1)

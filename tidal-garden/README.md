@@ -53,7 +53,10 @@ Land tiles are rounded slabs with a sand cliff and a grass terrace. Each tile
 picks its outline from its eight neighbors: sides facing water pull in and
 round off, sides facing land run flush into the next tile, and inner corners
 get a concave fillet, so connected land reads as one organic island. Outlines
-are cached per neighbor pattern. Undecided cells float as pale mist sandbars.
+are cached per neighbor pattern. Undecided cells are little clouds of morning
+mist resting on the water, so each garden starts shrouded and is revealed as
+it is solved. The clouds bob and breathe, roll back in when a tile is cleared,
+and burst apart when terrain is placed.
 
 Depth comes from light. A low sun casts soft shadows, and shadowed areas see
 only a pale blue sky light, which tints them blue rather than grey. The sun
