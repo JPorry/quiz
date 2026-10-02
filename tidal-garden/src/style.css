@@ -56,25 +56,72 @@ h1 em { font-weight: 400; color: #557b61; }
 .game-dock { position: absolute; z-index: 4; bottom: 58px; left: calc(300px + (100% - 300px) / 2); transform: translateX(-50%); width: 450px; }
 .placement-status { display: flex; align-items: center; justify-content: center; gap: 7px; font-size: 10px; color: #829688; margin: 0 0 14px; min-height: 14px; }
 .placement-status p { margin: 0; }
+.placement-status:has(p:empty) > span { visibility: hidden; }
+.game-dock .palette { margin-top: 18px; }
 .placement-status > span { height: 4px; width: 4px; border-radius: 50%; background: #61a599; }
 .placement-status.invalid { color: #ac7364; }
 .placement-status.invalid > span { background: #c98170; }
-.palette { display: grid; grid-template-columns: 1fr 1fr 48px; gap: 8px; background: #f5f7f0d9; border: 1px solid #ffffffb5; padding: 7px; border-radius: 8px; box-shadow: 0 8px 26px #516d5810; backdrop-filter: blur(8px); }
-.terrain-tool { min-width: 0; height: 60px; display: flex; align-items: center; gap: 13px; padding: 8px 15px; background: transparent; border: 1px solid transparent; border-radius: 5px; text-align: left; transition: background .25s, border-color .25s; position: relative; }
-.terrain-tool strong { display: block; font-size: 14px; font-weight: 600; }
-.terrain-tool small { display: block; font-size: 9px; margin-top: 3px; color: #86a194; }
-.terrain-tool.water { color: #3b8580; }
-.terrain-tool.land { color: #688952; }
-.terrain-tool.water.selected { background: #e0f0e8; border-color: #a8d0c4; }
-.terrain-tool.land.selected { background: #e8efdc; border-color: #becfad; }
-.terrain-tool:hover { background: #e9eee4; }
-.tool-art { display: grid; place-items: center; width: 31px; height: 34px; }
-.tool-art svg { width: 29px; height: 29px; stroke-width: 1.3; }
-.selected-dot { width: 4px; height: 4px; border-radius: 50%; background: currentColor; position: absolute; right: 10px; top: 12px; opacity: 0; }
-.selected .selected-dot { opacity: 1; }
-.erase-tool { display: grid; place-items: center; background: transparent; border-radius: 5px; color: #819285; }
-.erase-tool svg { width: 21px; }
-.erase-tool:hover, .erase-tool.selected { background: #e2e9de; }
+/* The terrain picker: three chunky diorama pieces. The chosen one hops up and glows. */
+.palette { display: flex; justify-content: center; gap: 26px; }
+.piece { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 0; background: none; color: #eef6e8; --side: #23889a; --glow: #8fe6ea; --particle: #c9f4f1; }
+.piece.land { --side: #c08a4f; --glow: #d9f2a4; --particle: #8fd16f; }
+.piece.erase { --side: #8fc7c0; --glow: #ffffff; --particle: #ffffff; }
+.piece-stage { position: relative; width: 66px; height: 76px; display: grid; place-items: end center; }
+.piece-shadow { position: absolute; bottom: 0; width: 58px; height: 13px; border-radius: 50%; background: #0c3c4752; transition: transform .35s, opacity .35s; }
+.piece-ring { position: absolute; bottom: -1px; width: 62px; height: 16px; border-radius: 50%; border: 2px solid var(--glow); opacity: 0; pointer-events: none; }
+.piece-tile { position: relative; width: 60px; height: 60px; margin-bottom: 9px; border-radius: 16px; overflow: hidden; box-shadow: 0 6px 0 var(--side), 0 8px 2px #0c3c4733, inset 0 2px 0 #ffffff55; filter: saturate(.62) brightness(.9); transform: translateY(0); transition: transform .4s cubic-bezier(.3, 1.6, .5, 1), filter .3s, box-shadow .3s; }
+.piece-tile svg { width: 100%; height: 100%; }
+.piece-name { font-size: 11px; font-weight: 650; letter-spacing: .02em; opacity: .7; transition: opacity .3s, transform .3s; }
+.piece.selected .piece-tile { filter: none; transform: translateY(-13px) rotate(-4deg); box-shadow: 0 6px 0 var(--side), 0 8px 2px #0c3c4733, inset 0 2px 0 #ffffff55, 0 0 0 3px #ffffffb0, 0 0 24px 6px color-mix(in srgb, var(--glow) 70%, transparent); }
+.piece.selected .piece-shadow { transform: scale(.72); opacity: .6; }
+.piece.selected .piece-name { opacity: 1; transform: translateY(-3px); }
+@media (hover: hover) { .piece:not(.selected):hover .piece-tile { transform: translateY(-5px); filter: saturate(.85); } }
+.piece:focus-visible { outline: none; }
+.piece:focus-visible .piece-tile { outline: 2px solid #f9ce83; outline-offset: 3px; }
+
+/* Idle life on the chosen piece. */
+.piece-tile svg * { transform-box: fill-box; }
+.piece.selected .art-waves { animation: piece-waves 2.4s linear infinite; }
+.piece.selected .art-glint { transform-origin: center; animation: piece-twinkle 2.2s ease-in-out infinite; }
+.piece.selected .art-tree { transform-origin: 50% 95%; animation: piece-sway 2.8s ease-in-out infinite; }
+.piece.selected .art-cloud { animation: piece-drift 3.2s ease-in-out infinite; }
+@keyframes piece-waves { to { transform: translateX(24px); } }
+@keyframes piece-twinkle { 0%, 60%, 100% { transform: scale(.2); opacity: 0; } 75% { transform: scale(1.15) rotate(20deg); opacity: 1; } }
+@keyframes piece-sway { 0%, 100% { transform: rotate(-6deg); } 50% { transform: rotate(6deg); } }
+@keyframes piece-drift { 0%, 100% { transform: translateX(-3px) scale(1); } 50% { transform: translateX(3px) scale(1.06); } }
+
+/* The pick: squash, hop, and settle, with a burst of whatever the piece is made of. */
+.piece.burst .piece-tile { animation: piece-hop .75s cubic-bezier(.25, .8, .35, 1); }
+.piece.burst .piece-ring { animation: piece-ripple .8s ease-out; }
+@keyframes piece-hop {
+  0% { transform: translateY(0) scale(1) rotate(0); }
+  16% { transform: translateY(5px) scale(1.16, .8) rotate(0); }
+  42% { transform: translateY(-26px) scale(.9, 1.12) rotate(-9deg); }
+  66% { transform: translateY(-8px) scale(1.08, .93) rotate(-2deg); }
+  84% { transform: translateY(-15px) scale(.98, 1.03) rotate(-5deg); }
+  100% { transform: translateY(-13px) scale(1) rotate(-4deg); }
+}
+@keyframes piece-ripple { 0% { transform: scale(.5); opacity: .9; } 100% { transform: scale(1.7); opacity: 0; } }
+.piece-burst { position: absolute; left: 50%; top: 26px; width: 0; height: 0; pointer-events: none; }
+.piece-burst i { position: absolute; left: -4px; top: -4px; width: 8px; height: 8px; border-radius: 50%; background: var(--particle); opacity: 0; }
+.piece.burst .piece-burst i { animation: piece-fling .8s cubic-bezier(.15, .75, .3, 1) forwards; animation-delay: calc(var(--i) * 12ms); }
+@keyframes piece-fling {
+  0% { opacity: 1; transform: rotate(var(--a)) translateY(-8px) scale(.3); }
+  65% { opacity: 1; }
+  100% { opacity: 0; transform: rotate(var(--a)) translateY(-50px) scale(1); }
+}
+.piece.water .piece-burst i { width: 7px; height: 10px; border-radius: 50% 50% 50% 50% / 65% 65% 35% 35%; }
+.piece.water .piece-burst i:nth-child(3n) { background: #ffffff; }
+.piece.land .piece-burst i { width: 9px; height: 6px; border-radius: 0 100% 0 100%; }
+.piece.land .piece-burst i:nth-child(3n) { background: #ff9fb2; width: 6px; height: 6px; border-radius: 50%; }
+.piece.land .piece-burst i:nth-child(4n) { background: #ffe07a; width: 6px; height: 6px; border-radius: 50%; }
+.piece.erase .piece-burst i { width: 13px; height: 13px; opacity: 0; }
+.piece.erase.burst .piece-burst i { animation-name: piece-puff; animation-duration: 1s; }
+@keyframes piece-puff {
+  0% { opacity: .95; transform: rotate(var(--a)) translateY(-6px) scale(.3); }
+  100% { opacity: 0; transform: rotate(var(--a)) translateY(-40px) scale(2); }
+}
+@media (prefers-reduced-motion: reduce) { .piece, .piece * { animation: none !important; } }
 .action-row { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 16px; }
 .text-tool { background: transparent; display: flex; align-items: center; gap: 7px; font-size: 10px; padding: 5px 0; color: #738a79; }
 .text-tool:hover { color: #294d3d; }
@@ -144,12 +191,6 @@ h2 { font: 400 42px/1.08 'DM Serif Display', Georgia, serif; margin: 0 0 24px; }
   .scene-caption { top: 219px; left: 24px; transform: none; font-size: 7px; gap: 6px; }
   .caption-line { width: 17px; }
   .game-dock { width: calc(100% - 40px); max-width: 440px; bottom: 49px; left: 50%; }
-  .palette { grid-template-columns: 1fr 1fr 40px; padding: 6px; gap: 5px; }
-  .terrain-tool { height: 54px; padding: 8px 10px; gap: 9px; }
-  .terrain-tool strong { font-size: 13px; }
-  .terrain-tool small { font-size: 8px; }
-  .tool-art { width: 26px; }
-  .tool-art svg { width: 25px; }
   .placement-status { font-size: 9px; margin-bottom: 11px; }
   .action-row { gap: 13px; margin-top: 14px; }
   .text-tool { font-size: 11px; gap: 5px; }
@@ -158,7 +199,7 @@ h2 { font: 400 42px/1.08 'DM Serif Display', Georgia, serif; margin: 0 0 24px; }
   dialog { padding: 34px 26px; }
   h2 { font-size: 36px; }
 }
-@media (max-width: 360px) { .terrain-tool { gap: 6px; padding: 8px; } .terrain-tool small { display: none; } .action-row { gap: 9px; } .text-tool { font-size: 8px; } }
+@media (max-width: 360px) { .palette { gap: 18px; } .action-row { gap: 9px; } .text-tool { font-size: 8px; } }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition: none !important; } }
 
 /* The ocean is the stage; the journal sits directly over its quieter shallows. */
@@ -220,4 +261,6 @@ dialog { color: #27433a; }
 }
 @media (max-width: 700px) and (max-height: 700px) {
   .terrain-counts { display: none; }
+  .piece-stage { width: 58px; height: 66px; }
+  .piece-tile { width: 52px; height: 52px; border-radius: 14px; }
 }

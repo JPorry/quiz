@@ -1,4 +1,4 @@
-import { createIcons, ArrowRight, Check, ChevronDown, CircleHelp, Clock3, Eraser, Fingerprint, Grid3x3, Lightbulb, RotateCcw, Scale, Sprout, Undo2, Volume2, VolumeX, Waves, X } from 'lucide'
+import { createIcons, ArrowRight, Check, ChevronDown, CircleHelp, Clock3, Fingerprint, Grid3x3, Lightbulb, RotateCcw, Scale, Sprout, Undo2, Volume2, VolumeX, X } from 'lucide'
 import { GardenGame, GARDEN_NAMES, findViolations, findHint } from './game.js'
 import { GardenScene } from './scene.js'
 import './style.css'
@@ -10,6 +10,14 @@ let soundContext
 let hintCell = null
 const app = document.querySelector('#app')
 const icon = (name) => `<i data-lucide="${name}" aria-hidden="true"></i>`
+// The picker is three little diorama pieces: a pool, a grassy islet, and a puff of mist.
+const PIECE_ART = {
+  water: `<svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" fill="#35b3c4"/><rect x="4" y="4" width="56" height="56" rx="11" fill="none" stroke="#7fdcd6" stroke-width="3"/><g class="art-waves" stroke="#b5f0ee" stroke-width="3" fill="none" stroke-linecap="round"><path d="M-24 24 q6 -5 12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0"/><path d="M-36 42 q6 -5 12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0"/></g><path class="art-glint" d="M47 13 l1.4 3.6 3.6 1.4 -3.6 1.4 -1.4 3.6 -1.4 -3.6 -3.6 -1.4 3.6 -1.4z" fill="#fff"/></svg>`,
+  land: `<svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" fill="#f4dfae"/><rect x="7" y="7" width="50" height="50" rx="11" fill="#92d46f"/><circle cx="17" cy="47" r="2.8" fill="#ffe07a"/><circle cx="47" cy="48" r="2.8" fill="#ff9fb2"/><circle cx="49" cy="17" r="2.6" fill="#fff"/><circle cx="14" cy="18" r="2.4" fill="#ff9fb2"/><ellipse cx="37" cy="40" rx="13" ry="7.5" fill="#2f6f3a" opacity=".28"/><g class="art-tree"><circle cx="31" cy="31" r="13" fill="#54b25c"/><circle cx="26" cy="26" r="5" fill="#9fe282"/></g></svg>`,
+  erase: `<svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" fill="#c9ece7"/><g fill="#fff" opacity=".5"><circle cx="12" cy="14" r="1.6"/><circle cx="52" cy="12" r="1.6"/><circle cx="50" cy="52" r="1.6"/><circle cx="13" cy="50" r="1.6"/></g><g class="art-cloud" fill="#fff"><circle cx="24" cy="36" r="8.5"/><circle cx="34" cy="29" r="11"/><circle cx="44" cy="36" r="8"/><rect x="22" y="34" width="24" height="10.5" rx="5.2"/></g></svg>`,
+}
+const PARTICLES = Array.from({ length: 10 }, (_, i) => `<i style="--a: ${i * 36 + (i % 2) * 14}deg; --i: ${i}"></i>`).join('')
+const piece = (kind, value, label, name) => `<button class="piece ${kind}" data-value="${value}" aria-label="${label}" aria-pressed="false"><span class="piece-stage"><span class="piece-shadow"></span><span class="piece-ring"></span><span class="piece-tile">${PIECE_ART[kind]}</span><span class="piece-burst" aria-hidden="true">${PARTICLES}</span></span><span class="piece-name">${name}</span></button>`
 app.innerHTML = `
   <main class="garden-app">
     <div class="world" id="world">
@@ -41,11 +49,11 @@ app.innerHTML = `
     </aside>
     <div class="scene-caption"><span class="caption-mark"></span><span>THE SHALLOWS</span><span class="caption-line"></span><span>GARDEN <b id="caption-level">01</b></span></div>
     <footer class="game-dock">
-      <div class="placement-status" id="placement-status" aria-live="polite"><span></span><p>Water selected</p></div>
+      <div class="placement-status" id="placement-status" aria-live="polite"><span></span><p></p></div>
       <div class="palette" role="group" aria-label="Place terrain">
-        <button class="terrain-tool water selected" data-value="0" aria-label="Place water" aria-pressed="true"><span class="tool-art water-art">${icon('waves')}</span><span><strong>Water</strong><small>Let it flow</small></span><b class="selected-dot"></b></button>
-        <button class="terrain-tool land" data-value="1" aria-label="Place land" aria-pressed="false"><span class="tool-art land-art">${icon('sprout')}</span><span><strong>Land</strong><small>Let it grow</small></span><b class="selected-dot"></b></button>
-        <button class="erase-tool" data-value="erase" aria-label="Erase terrain" aria-pressed="false" title="Erase terrain">${icon('eraser')}</button>
+        ${piece('water', 0, 'Place water', 'Water')}
+        ${piece('land', 1, 'Place land', 'Land')}
+        ${piece('erase', 'erase', 'Erase terrain', 'Clear')}
       </div>
       <div class="action-row">
         <button class="text-tool" id="undo" disabled>${icon('undo-2')}<span>Undo</span></button>
@@ -61,7 +69,7 @@ app.innerHTML = `
 `
 
 const $ = (selector) => document.querySelector(selector)
-const refreshIcons = () => createIcons({ icons: { ArrowRight, Check, ChevronDown, CircleHelp, Clock3, Eraser, Fingerprint, Grid3x3, Lightbulb, RotateCcw, Scale, Sprout, Undo2, Volume2, VolumeX, Waves, X }, attrs: { 'stroke-width': 1.6 } })
+const refreshIcons = () => createIcons({ icons: { ArrowRight, Check, ChevronDown, CircleHelp, Clock3, Fingerprint, Grid3x3, Lightbulb, RotateCcw, Scale, Sprout, Undo2, Volume2, VolumeX, X }, attrs: { 'stroke-width': 1.6 } })
 refreshIcons()
 
 const access = $('.board-access')
@@ -135,6 +143,18 @@ function placeCell(row, col) {
   if (game.complete) showCompletion()
 }
 
+// Picking a piece makes it hop up with a burst of splashes, leaves, or mist.
+let shownSelection
+function burst(button) {
+  if (!button) return
+  button.classList.remove('burst')
+  void button.offsetWidth
+  button.classList.add('burst')
+  clearTimeout(button.burstTimer)
+  button.burstTimer = setTimeout(() => button.classList.remove('burst'), 950)
+}
+const pieceFor = (value) => document.querySelector(`.piece[data-value="${value === null ? 'erase' : value}"]`)
+
 function render() {
   const invalid = findViolations(game.grid)
   scene?.update(game.grid, game.puzzle.puzzle, invalid, game.complete)
@@ -150,7 +170,8 @@ function render() {
   $('#time').textContent = `${String(Math.floor(game.seconds / 60)).padStart(2, '0')}:${String(game.seconds % 60).padStart(2, '0')}`
   $('#undo').disabled = !game.history.length
   $('#hint').disabled = game.complete
-  const status = game.complete ? 'A world in balance' : invalid.size ? 'A little out of balance' : game.selected === null ? 'Erase selected' : game.selected === 0 ? 'Water selected' : 'Land selected'
+  // The raised piece already shows the selection, so the status line only speaks up when it matters.
+  const status = game.complete ? 'A world in balance' : invalid.size ? 'A little out of balance' : ''
   $('#placement-status p').textContent = status
   $('#placement-status').classList.toggle('invalid', invalid.size > 0)
   document.querySelectorAll('[data-value]').forEach((button) => {
@@ -158,10 +179,14 @@ function render() {
     button.classList.toggle('selected', value === game.selected)
     button.setAttribute('aria-pressed', String(value === game.selected))
   })
+  if (shownSelection !== undefined && shownSelection !== game.selected) burst(pieceFor(game.selected))
+  shownSelection = game.selected
 }
 
 document.querySelectorAll('[data-value]').forEach((button) => button.addEventListener('click', () => {
-  game.selected = button.dataset.value === 'erase' ? null : Number(button.dataset.value)
+  const value = button.dataset.value === 'erase' ? null : Number(button.dataset.value)
+  if (value === game.selected) burst(button)
+  game.selected = value
   hintCell = null
   scene?.showHover(null)
   render()
