@@ -24,8 +24,6 @@ const TILT = (() => {
   const tilt = Number(new URLSearchParams(location.search).get('tilt'))
   return (tilt > 0 && tilt < 45 ? tilt : 10) * Math.PI / 180
 })()
-const LOUPE_SIZE = 104
-const LOUPE_SPAN = 1.6
 const LAND = { sand: { inset: 0.06, radius: 0.24, bottom: -0.32, top: 0.34 }, grass: { inset: 0.15, radius: 0.2, bottom: 0.3, top: 0.44 } }
 const seeded = (index) => THREE.MathUtils.euclideanModulo(Math.sin(index * 127.1 + 311.7) * 43758.5453, 1)
 const material = (color, options = {}) => new THREE.MeshLambertMaterial({ color, ...options })
@@ -89,11 +87,8 @@ export class GardenScene {
     this.aimPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.3)
     this.aimPoint = new THREE.Vector3()
     this.aim = null
-    this.loupeCamera = new THREE.OrthographicCamera(-LOUPE_SPAN / 2, LOUPE_SPAN / 2, LOUPE_SPAN / 2, -LOUPE_SPAN / 2, 0.1, 120)
-    this.loupe = document.createElement('div')
-    this.loupe.className = 'aim-loupe'
-    this.loupe.setAttribute('aria-hidden', 'true')
-    container.append(this.loupe)
+    // Touch play keeps the scene clean: no cell outlines or row and column guides.
+    this.touchMode = matchMedia('(pointer: coarse)').matches
     this.materials = Object.fromEntries(Object.entries(COLORS).map(([name, color]) => [name, material(color)]))
     // Shadows only see the sky, which tints them a soft blue instead of grey.
     this.scene.add(new THREE.HemisphereLight(0xbcd9ff, 0x9fd0c8, 1.45))
@@ -486,24 +481,22 @@ export class GardenScene {
     const touches = new Set()
     let down = null, gesture = false
     const touchLike = (event) => event.pointerType === 'touch' || event.pointerType === 'pen'
-    const endAim = () => {
-      this.aim = null
-      this.loupe.classList.remove('visible')
-      this.showHover(null)
-    }
+    const endAim = () => { this.aim = null }
     canvas.addEventListener('pointerdown', (event) => {
       if (!touchLike(event)) { down = { x: event.clientX, y: event.clientY }; return }
+      if (!this.touchMode) { this.touchMode = true; this.clearSelection() }
       touches.add(event.pointerId)
       if (touches.size > 1 || gesture) { gesture = true; endAim(); return }
-      // Touch aims first and commits on lift, so a finger covering the cell never guesses.
-      this.aim = { id: event.pointerId, x: event.clientX, y: event.clientY, cell: this.cellAt(event.clientX, event.clientY) }
-      this.showHover(this.aim.cell)
+      // Touch aims first and commits on lift, so sliding off a cell can still change the choice.
+      this.aim = { id: event.pointerId, cell: this.cellAt(event.clientX, event.clientY) }
     })
     canvas.addEventListener('pointermove', (event) => {
-      if (!touchLike(event)) { this.showHover(this.cellAt(event.clientX, event.clientY)); return }
-      if (this.aim?.id !== event.pointerId) return
-      Object.assign(this.aim, { x: event.clientX, y: event.clientY, cell: this.cellAt(event.clientX, event.clientY) })
-      this.showHover(this.aim.cell)
+      if (!touchLike(event)) {
+        if (event.movementX || event.movementY) this.touchMode = false
+        if (!this.touchMode) this.showHover(this.cellAt(event.clientX, event.clientY))
+        return
+      }
+      if (this.aim?.id === event.pointerId) this.aim.cell = this.cellAt(event.clientX, event.clientY)
     })
     canvas.addEventListener('pointerleave', (event) => { if (!touchLike(event)) this.showHover(null) })
     canvas.addEventListener('pointerup', (event) => {
@@ -528,31 +521,6 @@ export class GardenScene {
     })
   }
 
-  // A magnified view of the aimed cell, drawn just above the finger that hides it.
-  renderLoupe() {
-    const cell = this.aim?.cell
-    if (!cell) { this.loupe.classList.remove('visible'); return }
-    const rect = this.container.getBoundingClientRect()
-    const half = LOUPE_SIZE / 2
-    const x = clamp(this.aim.x - rect.left, half + 8, rect.width - half - 8)
-    let y = this.aim.y - rect.top - 92
-    if (y - half < 8) y = this.aim.y - rect.top + 92
-    const left = Math.round(x - half), top = Math.round(y - half)
-    const target = this.cells[cell.row * 10 + cell.col]
-    const center = new THREE.Vector3(cell.col - 4.5, this.cellHeight(target), cell.row - 4.5)
-    this.loupeCamera.quaternion.copy(this.camera.quaternion)
-    this.loupeCamera.position.copy(this.camera.position).add(center)
-    this.loupeCamera.updateMatrixWorld()
-    this.renderer.setScissorTest(true)
-    this.renderer.setScissor(left, rect.height - top - LOUPE_SIZE, LOUPE_SIZE, LOUPE_SIZE)
-    this.renderer.setViewport(left, rect.height - top - LOUPE_SIZE, LOUPE_SIZE, LOUPE_SIZE)
-    this.renderer.render(this.scene, this.loupeCamera)
-    this.renderer.setScissorTest(false)
-    this.renderer.setViewport(0, 0, rect.width, rect.height)
-    this.loupe.style.transform = `translate(${left}px, ${top}px)`
-    this.loupe.classList.add('visible')
-  }
-
   showHover(cell) {
     this.hoverCell = cell ? { row: cell.row, col: cell.col } : null
     const active = this.hoverCell ?? this.selectedCell
@@ -567,8 +535,9 @@ export class GardenScene {
     this.container.style.cursor = cell && this.clues?.[cell.row][cell.col] === null ? 'pointer' : 'default'
   }
 
-  selectCell(cell) {
-    this.selectedCell = cell ? { row: cell.row, col: cell.col } : null
+  // On touch screens only a hint marks a cell; ordinary taps leave the garden untouched.
+  selectCell(cell, { force = false } = {}) {
+    this.selectedCell = cell && (force || !this.touchMode) ? { row: cell.row, col: cell.col } : null
     this.showHover(this.hoverCell)
   }
 
@@ -600,10 +569,12 @@ export class GardenScene {
       this.renderer.shadowMap.needsUpdate = true
     }
     this.profile = profile
-    // Fit the whole tray, plus the sliver of south cliff the tilt reveals, into the open band of the layout.
+    // Fit the whole tray into the open band of the layout. Phones fit just the cells, edge to edge,
+    // and let the tray's water rim run off the sides of the screen.
     const safe = this.safeArea?.() ?? { top: 0, bottom: height, left: 0, right: width }
-    const boardWidth = TRAY + 0.1
-    const boardDepth = TRAY * Math.cos(TILT) + 0.75 * Math.sin(TILT) + 0.1
+    const span = this.mobile ? 10.08 : TRAY + 0.1
+    const boardWidth = span
+    const boardDepth = (TRAY + 0.1) * Math.cos(TILT) + 0.75 * Math.sin(TILT)
     const unit = Math.max(boardWidth / Math.max(120, safe.right - safe.left), boardDepth / Math.max(120, safe.bottom - safe.top))
     this.camera.left = -width * unit / 2
     this.camera.right = width * unit / 2
@@ -682,7 +653,6 @@ export class GardenScene {
       this.lastShadowFrame = time
     }
     this.renderer.render(this.scene, this.camera)
-    if (this.aim) this.renderLoupe()
     this.renderedFrames++
     this.container.dataset.rendered = 'true'
   }

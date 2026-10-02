@@ -94,10 +94,10 @@ for (let row = 0; row < 10; row++) {
 function boardSafeArea() {
   const world = $('#world').getBoundingClientRect()
   const phone = world.width <= 700
-  const top = $('.scene-caption').getBoundingClientRect().bottom - world.top + (phone ? 4 : 14)
+  const top = $(phone ? '.garden-journal' : '.scene-caption').getBoundingClientRect().bottom - world.top + (phone ? 8 : 14)
   const bottom = $('#placement-status').getBoundingClientRect().top - world.top - (phone ? 2 : 14)
-  const left = phone ? 6 : $('.garden-journal').getBoundingClientRect().right - world.left + 36
-  return { top, bottom, left, right: world.width - (phone ? 6 : 36) }
+  const left = phone ? 0 : $('.garden-journal').getBoundingClientRect().right - world.left + 36
+  return { top, bottom, left, right: world.width - (phone ? 0 : 36) }
 }
 
 try {
@@ -188,7 +188,7 @@ $('#hint').addEventListener('click', () => {
   game.selected = hintCell.value
   render()
   scene?.showHover(null)
-  scene?.selectCell(hintCell)
+  scene?.selectCell(hintCell, { force: true })
   $('#placement-status p').textContent = `Row ${hintCell.row + 1}, column ${hintCell.col + 1} needs ${hintCell.value === 0 ? 'water' : 'land'}`
 })
 
@@ -261,6 +261,8 @@ if (import.meta.env.DEV) {
         ripples: scene?.ripples.map((ripple) => ripple.toArray()), particles: scene?.particles.length,
         waterInteraction: scene && { activeRipples: scene.waterRipples.active, rippleVisible: scene.waterRipples.mesh.visible, rippleVertices: scene.waterRipples.mesh.geometry.attributes.position.count },
         hover: scene?.hoverCell,
+        aim: scene?.aim?.cell ?? null,
+        touchMode: scene?.touchMode,
         waterLife: scene && { time: scene.time, splashes: scene.waterLife.splashes.map((splash) => splash.toArray()), plumes: scene.waterLife.plumes.map((plume) => ({ started: plume.started, visible: plume.group.visible, height: plume.column.scale.y })), drops: scene.waterLife.drops.length, leaps: scene.waterLife.leapers.filter((leaper) => leaper.leap).length, shoal: scene.waterLife.shoal.map((fish) => ({ x: fish.x, z: fish.z, opacity: fish.opacity, hidden: fish.hidden })) },
         selected: scene?.selectedCell,
         activeCell: scene?.activeCell,
