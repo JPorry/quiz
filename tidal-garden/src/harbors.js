@@ -4,7 +4,7 @@ import { ferries } from './ferries.js'
 
 const LAND_TOP = 0.44
 const WATER_Y = 0.06
-const DOCK_SCALE = 1.7
+const DOCK_SCALE = 1.5
 const FERRY_SCALE = 1.3
 // Ferries are in no hurry: they amble along at about a quarter of a tile a second, and rest at
 // each dock for a good while before setting off again.
@@ -52,20 +52,20 @@ export class Harbors {
 
   cell(row, col) { return this.garden.cells[row * 10 + col] }
 
-  // A little wooden landing with a ticket hut under a colored roof, a lifebuoy, and a pennant.
+  // A little ticket hut on the grass under a colored roof, with a porch, a lifebuoy, and a pennant.
   buildDock(color) {
     const garden = this.garden
     const m = this.materials
     const roof = m.roofs[color]
     const group = new THREE.Group()
-    garden.mesh(new RoundedBoxGeometry(0.44, 0.04, 0.44, 3, 0.015), m.wood, group, 0, 0.02, 0)
-    for (const x of [-0.165, -0.055, 0.055, 0.165]) garden.mesh(new THREE.BoxGeometry(0.004, 0.003, 0.42), m.post, group, x, 0.041, 0)
-    for (const [x, z] of [[-0.19, 0.19], [0.19, 0.19]]) garden.mesh(new THREE.CylinderGeometry(0.018, 0.022, 0.05, 8), m.dark, group, x, 0.065, z)
-    const buoy = garden.mesh(new THREE.TorusGeometry(0.038, 0.014, 8, 18), roof, group, 0.14, 0.05, 0.13)
+    // The hut stands on the grass with only a little porch in front, so the tile still reads as land.
+    garden.mesh(new RoundedBoxGeometry(0.2, 0.02, 0.08, 2, 0.008), m.wood, group, -0.03, 0.01, 0.1)
+    for (const x of [-0.1, 0.04]) garden.mesh(new THREE.CylinderGeometry(0.012, 0.014, 0.04, 8), m.dark, group, x, 0.02, 0.15)
+    const buoy = garden.mesh(new THREE.TorusGeometry(0.034, 0.013, 8, 18), roof, group, 0.13, 0.014, 0.1)
     buoy.rotation.x = Math.PI / 2
     garden.mergeDetails(group)
     const hut = new THREE.Group()
-    hut.position.set(-0.04, 0.04, -0.06)
+    hut.position.set(-0.03, 0, -0.04)
     group.add(hut)
     garden.mesh(new RoundedBoxGeometry(0.2, 0.15, 0.17, 3, 0.03), m.cream, hut, 0, 0.075, 0)
     garden.mesh(new RoundedBoxGeometry(0.06, 0.09, 0.02, 2, 0.01), m.post, hut, 0, 0.045, 0.086)
@@ -76,7 +76,7 @@ export class Harbors {
     garden.mesh(new THREE.SphereGeometry(0.016, 8, 6), m.white, hut, 0, 0.275, 0)
     garden.mergeDetails(hut)
     const pole = new THREE.Group()
-    pole.position.set(0.17, 0.04, -0.15)
+    pole.position.set(0.14, 0, -0.12)
     group.add(pole)
     garden.mesh(new THREE.CylinderGeometry(0.007, 0.008, 0.3, 6), m.white, pole, 0, 0.15, 0)
     garden.mesh(new THREE.SphereGeometry(0.014, 8, 6), m.roofs[color], pole, 0, 0.305, 0)
@@ -219,7 +219,7 @@ export class Harbors {
     dock.flag.rotation.y = reducedMotion ? 0 : Math.sin(time * 3.1 + dock.at[0]) * 0.35
     dock.flag.scale.y = reducedMotion ? 1 : 1 + Math.sin(time * 5.3 + dock.at[1]) * 0.06
     const hop = age >= 0 && age < 0.6 ? Math.sin(age / 0.6 * Math.PI) : 0
-    dock.hut.position.y = 0.04 + hop * 0.06
+    dock.hut.position.y = hop * 0.06
     dock.hut.scale.set(1 + hop * 0.08, 1 - hop * 0.04 + (age >= 0 && age < 0.2 ? -0.1 : 0), 1 + hop * 0.08)
     dock.jetty.group.visible = age >= 0
     if (age < 0) return
