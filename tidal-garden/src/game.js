@@ -168,6 +168,18 @@ export class GardenGame {
     this.save()
   }
 
+  // Gardens open in order: the first is always open, and finishing one opens the next. A garden
+  // already finished, or the one being played, stays open.
+  isUnlocked(level) {
+    return level === 0 || level === this.level || this.completed.includes(level) || this.completed.includes(level - 1)
+  }
+
+  // The newest garden open to play: the furthest one along the map that isn't finished yet.
+  get frontier() {
+    for (let level = GARDENS.length - 1; level >= 0; level--) if (this.isUnlocked(level) && !this.completed.includes(level)) return level
+    return GARDENS.length - 1
+  }
+
   // Finished means a balanced garden whose every village and lighthouse matches its number, and
   // whose every pair of docks is joined by water and every pair of shrines by land.
   get complete() { return isValidBinarySolution(this.grid) && censusHolds(this.grid, this.puzzle.signs) && lighthousesHold(this.grid, this.puzzle.lights) && ferriesHold(this.grid, this.puzzle.ferries) && pilgrimsHold(this.grid, this.puzzle.pilgrims) }

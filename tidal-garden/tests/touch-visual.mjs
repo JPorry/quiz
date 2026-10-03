@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
 import { chromium } from 'playwright'
 
-const url = process.env.TIDAL_TEST_URL ?? 'http://127.0.0.1:5180'
+// ?play skips the title and map and opens straight into the garden.
+const url = `${process.env.TIDAL_TEST_URL ?? 'http://127.0.0.1:5180'}/?play`
 const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] })
 try {
   for (const viewport of [{ width: 390, height: 844 }, { width: 320, height: 720 }]) {

@@ -152,11 +152,6 @@ h2 { font: 400 42px/1.08 'DM Serif Display', Georgia, serif; margin: 0 0 24px; }
 .rule p { font-size: 12px; color: #7d8d7f; line-height: 1.65; margin: 0; }
 .given-note { font-size: 10px; color: #85937f; padding-top: 15px; border-top: 1px solid #dce3d7; display: flex; gap: 9px; align-items: center; }
 .given-note b { flex-shrink: 0; width: 9px; height: 9px; background: #9aa6ad; border-radius: 40% 55% 45% 50%; box-shadow: inset 0 2px 0 #7fa868; }
-.level-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
-.level-button { aspect-ratio: 1; border: 1px solid #dce5d8; border-radius: 5px; background: #e9eee2; font-size: 17px; color: #79927c; position: relative; }
-.level-button.current { background: #d6e8dd; border-color: #8eb09b; color: #416951; }
-.level-button.completed { background: #d9e9cc; }
-.level-button svg { position: absolute; bottom: 5px; right: 5px; width: 11px; height: 11px; }
 .completion-icon { display: grid; place-items: center; width: 64px; height: 64px; margin-bottom: 26px; border-radius: 50%; background: #e0ebd8; }
 .completion-icon svg { width: 34px; height: 34px; color: #709460; }
 .completion-stay { display: block; background: none; margin: 17px 0 0; font-size: 11px; color: #83927c; }
@@ -307,5 +302,104 @@ dialog { color: #27433a; }
   .finale-actions .primary-button, .finale-actions .secondary-button { padding: 10px 12px; }
 }
 .header-tools [hidden] { display: none; }
-.level-chapter { margin: 22px 0 10px; font: 600 11px 'DM Sans', sans-serif; letter-spacing: .06em; text-transform: uppercase; color: #6d8a74; }
-.level-chapter:first-of-type { margin-top: 4px; }
+
+/* Three screens: a title, a map of every garden, and the garden itself. The garden's own interface
+   only shows while playing; the scene stays behind the title as a living backdrop. */
+.garden-app:not([data-screen=play]) :is(.masthead, .garden-journal, .scene-caption, .game-dock, .quiet-footer, .finale-card, .board-access) { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .4s ease, visibility 0s .4s; }
+.garden-app[data-screen=play] :is(.masthead, .garden-journal, .scene-caption, .game-dock, .quiet-footer) { transition: opacity .5s ease .15s; }
+.play-button { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-width: 190px; min-height: 58px; padding: 0 30px; border-radius: 999px; font-size: 19px; font-weight: 700; color: #fffaf0; letter-spacing: .01em;
+  background: linear-gradient(180deg, #ffb36b 0%, #f08a5d 100%); box-shadow: 0 6px 0 #c9643f, 0 14px 26px #1d4f4a55, inset 0 2px 0 #ffd8a8; transition: transform .15s, box-shadow .15s; }
+.play-button:hover { transform: translateY(-2px); }
+.play-button:active { transform: translateY(4px); box-shadow: 0 2px 0 #c9643f, 0 6px 14px #1d4f4a55, inset 0 2px 0 #ffd8a8; }
+.play-button svg { width: 22px; height: 22px; fill: currentColor; }
+.round-button { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; color: #2c5f5a; background: #fffaf0; box-shadow: 0 4px 0 #d7c9a6, 0 8px 16px #1d4f4a33; }
+.round-button:active { transform: translateY(3px); box-shadow: 0 1px 0 #d7c9a6, 0 4px 10px #1d4f4a33; }
+.round-button svg { width: 20px; height: 20px; }
+.round-button[aria-pressed=true] { background: #e9f6e4; }
+
+/* The title: the garden glows softly behind a big friendly logo and a play button. */
+.title-screen { position: absolute; inset: 0; z-index: 10; display: grid; place-items: center; opacity: 0; visibility: hidden; transition: opacity .5s ease, visibility 0s .5s; }
+.garden-app[data-screen=title] .title-screen { opacity: 1; visibility: visible; transition: opacity .6s ease; }
+.title-veil { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 42%, #2f8a8433 0%, #23716cb3 58%, #1b5b5ae6 100%); backdrop-filter: blur(3px); }
+.title-content { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 24px; }
+.title-mark { width: 74px; height: 74px; border-radius: 50%; display: grid; place-items: center; color: #2f7a55; background: radial-gradient(circle at 35% 30%, #fffbe8, #e3f2c4); box-shadow: 0 8px 0 #b9d39a, 0 16px 30px #10403c55; margin-bottom: 22px; animation: title-bob 4s ease-in-out infinite; }
+.title-mark svg { width: 38px; height: 38px; }
+.title-logo { font-size: clamp(64px, 15vw, 118px); line-height: .9; margin: 0 0 18px; color: #fff8dc; text-shadow: 0 4px 0 #1f6c66, 0 10px 30px #0e3d3a80; }
+.title-logo em { color: #d9f0a6; }
+.title-tagline { margin: 0 0 34px; color: #d9efe4; font-size: 15px; text-shadow: 0 1px 8px #10403c80; }
+.title-progress { margin: 22px 0 0; color: #cfe9de; font-size: 13px; text-shadow: 0 1px 8px #10403c80; }
+.title-tools { position: absolute; top: max(20px, env(safe-area-inset-top)); right: 22px; display: flex; gap: 8px; }
+.title-tools .icon-button { color: #ecf5e8; border-color: #bce4dc70; background: #35858140; backdrop-filter: blur(8px); }
+#title-play { animation: play-breathe 2.6s ease-in-out infinite; }
+@keyframes title-bob { 50% { transform: translateY(-6px) rotate(-3deg); } }
+@keyframes play-breathe { 50% { scale: 1.04; } }
+
+/* The map: one long path of stepping-stone islands winding up through every chapter's sea. */
+.map-screen { position: absolute; inset: 0; z-index: 12; background: #6d7fbe; opacity: 0; visibility: hidden; transition: opacity .45s ease, visibility 0s .45s; }
+.garden-app[data-screen=map] .map-screen { opacity: 1; visibility: visible; transition: opacity .45s ease; }
+.map-scroll { position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; scrollbar-width: none; background: linear-gradient(90deg, #00000014, transparent 18%, transparent 82%, #00000014); }
+.map-scroll::-webkit-scrollbar { display: none; }
+.map-canvas { position: relative; margin: 0 auto; }
+.map-art-defs { position: absolute; }
+.map-sea { position: absolute; left: -50vw; right: -50vw; background: linear-gradient(180deg, var(--sea-top), var(--sea-bottom));
+  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 90px, #000 calc(100% - 90px), transparent 100%); mask-image: linear-gradient(180deg, transparent 0, #000 90px, #000 calc(100% - 90px), transparent 100%); }
+.map-sea.bottom { -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 90px); mask-image: linear-gradient(180deg, transparent 0, #000 90px); }
+.map-sea.top { -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 90px), transparent 100%); mask-image: linear-gradient(180deg, #000 calc(100% - 90px), transparent 100%); }
+.map-sea::after { content: ''; position: absolute; inset: 0; opacity: .35; background-image: radial-gradient(ellipse 22px 4px at 20% 30%, #fff 60%, transparent 62%), radial-gradient(ellipse 16px 3px at 70% 70%, #fff 60%, transparent 62%), radial-gradient(ellipse 12px 3px at 45% 10%, #fff 60%, transparent 62%); background-size: 260px 210px, 190px 170px, 150px 230px; }
+.map-path { position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.map-path path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.path-shadow { stroke: #1d4f4a33; stroke-width: 34px; transform: translateY(6px); }
+.path-sand { stroke: #f6e6bf; stroke-width: 26px; }
+.path-dash { stroke: #fffaf0; stroke-width: 4px; stroke-dasharray: 2 16; }
+.map-deco { position: absolute; width: 112px; height: 80px; translate: -50% -50%; pointer-events: none; animation: deco-sway 5s ease-in-out infinite; animation-delay: var(--sway); filter: drop-shadow(0 6px 6px #1d4f4a30); }
+.map-deco.flip { scale: -1 1; }
+@keyframes deco-sway { 50% { transform: translateY(-5px); } }
+.map-banner { position: absolute; left: 50%; translate: -50% -50%; display: flex; flex-direction: column; align-items: center; padding: 9px 30px 10px; color: #fffaf0; background: var(--ribbon); border-radius: 6px; box-shadow: 0 5px 0 color-mix(in srgb, var(--ribbon) 70%, #000), 0 12px 22px #1d4f4a40; white-space: nowrap; pointer-events: none; }
+.map-banner::before, .map-banner::after { content: ''; position: absolute; top: 9px; width: 22px; height: 100%; background: color-mix(in srgb, var(--ribbon) 78%, #000); z-index: -1; }
+.map-banner::before { left: -14px; clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 40% 50%); }
+.map-banner::after { right: -14px; clip-path: polygon(0 0, 100% 0, 60% 50%, 100% 100%, 0 100%); }
+.map-banner strong { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 23px; line-height: 1.1; }
+.map-banner small { font-size: 11px; opacity: .85; letter-spacing: .04em; }
+
+.map-node { position: absolute; width: 66px; height: 66px; translate: -50% -50%; padding: 0; background: none; border-radius: 50%; transition: scale .2s; }
+.node-top { position: absolute; inset: 0; border-radius: 50%; display: grid; place-items: center; font-weight: 750; font-size: 21px; color: #fffaf0;
+  background: radial-gradient(circle at 38% 30%, #9fe08c, #4fae5a 70%); box-shadow: inset 0 -5px 0 #3a8a48, 0 6px 0 #2f6f3a, 0 12px 18px #1d4f4a40; text-shadow: 0 2px 0 #2f6f3a99; }
+.map-node.open .node-top { background: radial-gradient(circle at 38% 30%, #ffd9a0, #f5a35d 70%); box-shadow: inset 0 -5px 0 #dd8445, 0 6px 0 #b8662e, 0 12px 18px #1d4f4a40; text-shadow: 0 2px 0 #b8662e99; }
+.map-node.locked .node-top { background: radial-gradient(circle at 38% 30%, #e9eef0, #b9c8cf 70%); box-shadow: inset 0 -5px 0 #a3b4bc, 0 6px 0 #8a9ca5, 0 10px 14px #1d4f4a30; color: #7f939c; text-shadow: none; }
+.map-node.locked { cursor: default; }
+.map-node.locked svg { width: 20px; height: 20px; }
+.map-node b { font-weight: 750; }
+.map-node:not(.locked):hover { scale: 1.07; }
+.map-node.chosen { scale: 1.12; }
+.map-node.frontier::before { content: ''; position: absolute; inset: -9px; border-radius: 50%; border: 3px solid #fffaf0; opacity: .8; animation: node-pulse 1.8s ease-out infinite; }
+@keyframes node-pulse { from { scale: .85; opacity: .9; } to { scale: 1.35; opacity: 0; } }
+.node-badge { position: absolute; right: -4px; bottom: -2px; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: #fff3b0; color: #5a8a3a; box-shadow: 0 2px 0 #d9c26a; }
+.node-badge svg { width: 15px; height: 15px; stroke-width: 3; }
+.map-node.opening .node-top { animation: node-open .7s cubic-bezier(.3, 1.6, .5, 1) .45s both; }
+@keyframes node-open { from { scale: .4; filter: grayscale(1); } }
+.map-node.nudge { animation: node-nudge .4s ease; }
+@keyframes node-nudge { 25% { translate: calc(-50% - 5px) -50%; } 75% { translate: calc(-50% + 5px) -50%; } }
+.map-marker { position: absolute; translate: -50% -100%; margin-top: -40px; pointer-events: none; z-index: 2; transition: left .9s ease-in-out, top .9s ease-in-out; }
+.map-marker span { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%; color: #2f7a55; background: radial-gradient(circle at 35% 30%, #fffbe8, #e3f2c4); border: 3px solid #fffaf0; box-shadow: 0 6px 14px #1d4f4a55; animation: marker-bob 1.6s ease-in-out infinite; }
+.map-marker span::after { content: ''; position: absolute; left: 50%; bottom: -9px; translate: -50% 0; border: 7px solid transparent; border-top-color: #fffaf0; }
+.map-marker svg { width: 24px; height: 24px; }
+.map-marker.hopping span { animation: marker-hop .45s ease-in-out 2, marker-bob 1.6s ease-in-out .9s infinite; }
+@keyframes marker-bob { 50% { transform: translateY(-6px); } }
+@keyframes marker-hop { 50% { transform: translateY(-22px) scale(1.05, .95); } }
+
+.map-bar { position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; padding: max(14px, env(safe-area-inset-top)) 18px 14px; pointer-events: none; }
+.map-bar > * { pointer-events: auto; }
+.map-progress { display: flex; align-items: center; gap: 6px; padding: 7px 16px 7px 8px; border-radius: 999px; background: #fffaf0; color: #2c5f5a; box-shadow: 0 4px 0 #d7c9a6, 0 8px 16px #1d4f4a33; font-size: 17px; }
+.map-progress span { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: #e3f2c4; color: #2f7a55; }
+.map-progress span svg { width: 18px; height: 18px; }
+.map-progress small { color: #7d9590; font-size: 13px; }
+
+.map-card { position: absolute; left: 50%; bottom: max(18px, env(safe-area-inset-bottom)); width: min(360px, calc(100% - 32px)); translate: -50% 130%; padding: 26px 24px 24px; border-radius: 22px; text-align: center; color: #27433a; background: #fffaf0; box-shadow: 0 8px 0 #e3d6b6, 0 22px 50px #10303080; transition: translate .4s cubic-bezier(.3, 1.3, .5, 1); }
+.map-card.visible { translate: -50% 0; }
+.map-card-close { position: absolute; top: 12px; right: 12px; width: 36px; height: 36px; box-shadow: 0 3px 0 #e3d6b6; }
+.map-card-chapter { margin: 0 0 6px; font-size: 11px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; color: #6f9a85; }
+.map-card h2 { margin: 0; font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 38px; line-height: 1; }
+.map-card-name { margin: 6px 0 10px; font-size: 16px; font-weight: 600; color: #557b61; }
+.map-card-status { margin: 0 0 20px; font-size: 13px; color: #7b8a7c; }
+.map-card .play-button { width: 100%; }
+@media (prefers-reduced-motion: reduce) { .map-deco, .map-marker span, .map-node.frontier::before, #title-play, .title-mark { animation: none !important; } }

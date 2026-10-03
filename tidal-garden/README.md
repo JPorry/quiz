@@ -26,6 +26,30 @@ Visual tests expect the development server at `http://127.0.0.1:5180` and a
 Playwright Chromium installation. Set `TIDAL_TEST_URL` to test another server.
 Screenshots and canvas diagnostics are written to `test-results/`.
 
+## Screens
+
+The game has three screens, each a step in the browser's history, so a phone's
+back button walks back through them.
+
+- **Title:** a big Tidal Garden logo and a Play button over the player's current
+  garden, softly blurred behind. It shows how many gardens are in balance, with
+  buttons for sound and the rules.
+- **Map:** one long winding path of stepping-stone islands, from garden 1 at
+  the bottom to garden 210 at the top, through a sea of its own color for each
+  chapter. A ribbon names each chapter, little illustrations drift beside the
+  path (islets, fish, huts, lighthouses, ferries, shrines, lanterns), finished
+  gardens are green with a check, the next open garden glows orange with a
+  pulse and a marker above it, and gardens further on stay locked until the
+  one before is finished. Tapping a garden brings up a card with its chapter,
+  name, and progress, and a Play, Continue, or Visit button. The map scrolls
+  to the marker when it opens, and the 3D scene rests while it covers it.
+- **Garden:** the game itself, with a map button in the header. Finishing a
+  garden plays the finale; Onward returns to the map, where the marker hops
+  along to the garden that just opened and its card comes up.
+
+Every visit opens on the title. Add `?play` to the URL to go straight into the
+current garden, as the visual tests do. The map's layout lives in `src/map.js`.
+
 ## Puzzle
 
 The game has seven chapters of thirty gardens each, 210 in all. The thirty
@@ -95,7 +119,7 @@ than its sign must be water. `scripts/generate-villages.mjs` builds the chapter
 into `src/villagePuzzles.js`: it signs a handful of a finished garden's smaller
 islands, carves starting tiles away while a player could still solve it by
 always taking the easiest move, and keeps the chapter climbing in difficulty.
-The level picker groups gardens by chapter, the caption names the chapter, and
+The map groups gardens by chapter, the caption names the chapter, and
 the chapter's first garden explains the signs.
 
 ## The Lighthouses
@@ -304,8 +328,8 @@ water. The camera lifts to 38 degrees and slowly turns the island, framed to
 fit the whole tray at any angle. The sun keeps going past golden hour into a
 low sunset and a blue evening, fireflies come out over the land, paper lanterns
 float up in open water, and a small flock sweeps in, circles the island, and
-flies off. A small card then offers the next garden; on wide screens it sits
-where the journal was. Dragging turns the island by hand; tapping or pressing
+flies off. A small card then offers the way onward, back to the map; on wide
+screens it sits where the journal was. Dragging turns the island by hand; tapping or pressing
 a key brings the card forward early. "Stay a little longer" (or Escape) lowers
 the camera back to the board and brings the interface back, and "See it at
 dusk" returns to the evening view. Opening a finished garden goes straight to
