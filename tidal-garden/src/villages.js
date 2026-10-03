@@ -1,9 +1,12 @@
 import * as THREE from 'three'
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
 import { villages } from './census.js'
 
 const LAND_TOP = 0.44
 const SMOKE = 240
 const PUFFS = 4
+// Signs are big on purpose: the number should read at a glance, even on a phone.
+const SIGN_SCALE = 1.7
 // Straw in a few sun-bleached tones, so neighboring huts are thatched a little differently.
 const ROOFS = [0xe2c070, 0xd8b45e, 0xe9cd88, 0xd2ab57]
 const clamp = THREE.MathUtils.clamp
@@ -41,36 +44,51 @@ export class Villages {
 
   cell(row, col) { return this.garden.cells[row * 10 + col] }
 
-  // A wooden sign on a post, its board tilted toward the camera with the island's number painted on.
+  // A chunky wooden sign on a post, its rounded board tipped toward the camera so the island's
+  // number reads at a glance: dark painted numerals with a cream outline, and a nail in each corner.
   buildSign(size) {
     const group = new THREE.Group()
     const garden = this.garden
-    garden.mesh(new THREE.CylinderGeometry(0.018, 0.022, 0.2, 8), this.materials.post, group, 0, 0.1, 0.03)
+    garden.mesh(new THREE.CylinderGeometry(0.018, 0.024, 0.16, 8), this.materials.post, group, 0, 0.08, 0.02)
     const board = new THREE.Group()
-    board.position.set(0, 0.2, 0.03)
-    board.rotation.x = -1.05
+    board.position.set(0, 0.17, 0.02)
+    board.rotation.x = -1.25
     group.add(board)
-    garden.mesh(new THREE.BoxGeometry(0.4, 0.28, 0.035), this.materials.board, board, 0, 0, 0)
+    garden.mesh(new RoundedBoxGeometry(0.42, 0.31, 0.045, 3, 0.05), this.materials.post, board, 0, 0, -0.004)
     const canvas = document.createElement('canvas')
-    canvas.width = 128; canvas.height = 96
+    canvas.width = 256; canvas.height = 184
     const context = canvas.getContext('2d')
-    context.fillStyle = '#e4b97d'
-    context.fillRect(0, 0, 128, 96)
+    const grain = context.createLinearGradient(0, 0, 0, 184)
+    grain.addColorStop(0, '#efc98f')
+    grain.addColorStop(1, '#ddb173')
+    context.fillStyle = grain
+    context.beginPath()
+    context.roundRect(0, 0, 256, 184, 34)
+    context.fill()
     context.strokeStyle = '#c9965a'
-    context.lineWidth = 3
-    for (const y of [30, 62]) { context.beginPath(); context.moveTo(6, y); context.lineTo(122, y + 2); context.stroke() }
-    context.fillStyle = '#4a2f1e'
-    context.font = 'bold 74px Georgia, serif'
+    context.lineWidth = 4
+    for (const y of [62, 122]) { context.beginPath(); context.moveTo(18, y); context.lineTo(238, y + 3); context.stroke() }
+    context.fillStyle = '#8a5a3c'
+    for (const [x, y] of [[24, 24], [232, 24], [24, 160], [232, 160]]) { context.beginPath(); context.arc(x, y, 7, 0, Math.PI * 2); context.fill() }
+    context.font = 'bold 150px Georgia, serif'
     context.textAlign = 'center'
     context.textBaseline = 'middle'
-    context.fillText(String(size), 64, 52)
+    context.lineJoin = 'round'
+    context.lineWidth = 16
+    context.strokeStyle = '#fff3dc'
+    context.strokeText(String(size), 128, 100)
+    context.fillStyle = '#3e2618'
+    context.fillText(String(size), 128, 100)
     const texture = new THREE.CanvasTexture(canvas)
     texture.colorSpace = THREE.SRGBColorSpace
-    const face = new THREE.Mesh(new THREE.PlaneGeometry(0.37, 0.25), new THREE.MeshLambertMaterial({ map: texture }))
-    face.position.z = 0.019
+    texture.anisotropy = 4
+    // A touch of its own light keeps the number legible in shade and at dusk.
+    const face = new THREE.Mesh(new THREE.PlaneGeometry(0.39, 0.28), new THREE.MeshLambertMaterial({ map: texture, transparent: true, emissive: 0xffffff, emissiveMap: texture, emissiveIntensity: 0.35 }))
+    face.position.z = 0.024
     board.add(face)
     return group
   }
+
 
   // A little round straw hut: earthen walls under a layered thatched cone, with a doorway that
   // glows with firelight once the village is alive, and smoke rising from the roof's crown.
@@ -110,7 +128,7 @@ export class Villages {
       const cell = this.cell(row, col)
       const group = this.buildSign(sign.size)
       group.position.y = LAND_TOP
-      group.rotation.y = (hash(row * 10 + col) - 0.5) * 0.4
+      group.rotation.y = (hash(row * 10 + col) - 0.5) * 0.16
       cell.land.add(group)
       this.signModels.set(row * 10 + col, { group, cell, down: null })
     }
@@ -210,11 +228,11 @@ export class Villages {
     }
     for (const model of this.signModels.values()) {
       model.cell.plants.visible = false
-      if (!model.down) { model.group.visible = true; model.group.scale.setScalar(1); model.group.position.y = LAND_TOP; continue }
+      if (!model.down) { model.group.visible = true; model.group.scale.setScalar(SIGN_SCALE); model.group.position.y = LAND_TOP; continue }
       // The sign spins down into the ground.
       const t = reducedMotion ? 1 : clamp((time - model.down.at) / 0.6, 0, 1)
       model.group.visible = t < 1
-      model.group.scale.setScalar(Math.max(0.001, 1 - t * t))
+      model.group.scale.setScalar(Math.max(0.001, SIGN_SCALE * (1 - t * t)))
       model.group.position.y = LAND_TOP - t * 0.15
       model.group.rotation.y += reducedMotion ? 0 : 0.25 * (1 - t)
     }
