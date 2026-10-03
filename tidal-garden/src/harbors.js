@@ -174,7 +174,11 @@ export class Harbors {
       route.state = state
       if (state.complete && !route.joined) {
         route.joined = { at: animate ? time : -100 }
-        route.trip = { phase: 'docked', at: 0, since: route.joined.at, until: route.joined.at + 5 + Math.random() * 3, surfaceAt: route.joined.at, splashed: !animate }
+        // A crossing that opens in play starts with the ferry bobbing up at the first dock. One that was
+        // already open when the garden opened finds its ferry resting at either dock, in no hurry.
+        route.trip = animate
+          ? { phase: 'docked', at: 0, since: time, until: time + 5 + Math.random() * 3, surfaceAt: time, splashed: false }
+          : { phase: 'docked', at: Math.random() < 0.5 ? 0 : 1, since: -100, until: time + 2 + Math.random() * REST[1] }
         route.ferry.heading = null
         if (animate) this.onJoined?.()
       } else if (!state.complete && route.joined) {
@@ -245,9 +249,9 @@ export class Harbors {
     if (trip.phase === 'docked' && time > trip.until && route.state?.path) {
       const to = 1 - trip.at
       const cells = trip.at === 0 ? route.state.path : [...route.state.path].reverse()
-      const points = [ferry.group.position.clone().setY(WATER_Y), ...cells.slice(1, -1).map(world), route.piers[to].mooring.clone()]
-      if (points[0].distanceTo(points[1]) < 0.05) points.shift()
-      if (points.length < 2) points.unshift(route.piers[trip.at].mooring.clone())
+      // Every crossing sets off from the jetty the ferry is resting at.
+      const points = [route.piers[trip.at].mooring.clone(), ...cells.slice(1, -1).map(world), route.piers[to].mooring.clone()]
+      if (points.length > 2 && points[0].distanceTo(points[1]) < 0.05) points.splice(1, 1)
       const curve = new THREE.CatmullRomCurve3(points, false, 'centripetal', 0.5)
       const duration = Math.max(4, curve.getLength() / SPEED)
       trip = route.trip = { phase: 'sailing', from: trip.at, to, cells, curve, start: time, duration }
