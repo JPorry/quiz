@@ -8,8 +8,9 @@ export function renderProfile(width, pixelRatio = 1, coarsePointer = false) {
   }
 }
 
+// With no previous frame (a first frame, or one after the scene rested), a frame is always due.
 export function frameIsDue(time, lastFrame, maxFps, hidden = false) {
-  return !hidden && time - lastFrame >= 1000 / maxFps - 0.5
+  return !hidden && (!Number.isFinite(lastFrame) || time - lastFrame >= 1000 / maxFps - 0.5)
 }
 
 export function scheduledFrameTime(time, lastFrame, maxFps) {
