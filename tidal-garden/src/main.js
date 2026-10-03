@@ -543,6 +543,8 @@ if (import.meta.env.DEV) {
     gust() { scene?.breeze.start(scene.time) },
     cloud(progress = 0, options) { return scene?.clouds.spawn(scene.time, progress, options) },
     // Holds every running flourish at a given age, so a screenshot can catch it mid-sweep.
+    // Holds every lit lighthouse at a moment of its lighting-up, for screenshots; null releases it.
+    holdLighthouse(age) { if (scene) scene.beacons.hold = age },
     holdFlourish(age) { scene?.flourish.active.forEach((flourish) => { flourish.hold = age }) },
     // Where a tile's centre appears on screen with the live camera, leaning included.
     screenPoint(row, col) {

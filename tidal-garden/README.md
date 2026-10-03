@@ -95,9 +95,13 @@ starting land tile carries a numbered badge: the count of water tiles its light
 reaches looking straight up, down, left, and right before land or the board's
 edge stops it. While it is dark, soft breathing dots mark the water it already
 sees, so its count can be read off the garden. When every beam ends at exactly
-its number, the tower gives a hop, the lamp lights, a gentle beam sweeps the
-sea, and a little sailboat sails out and back along the longest lit stretch,
-with a bright chime when sound is on. A lighthouse that already sees too much,
+its number, the badge pops off with a spin, the tower crouches and springs up
+half again as tall, overshooting and wobbling to rest, and the lamp flickers on
+twice before glowing steadily with a burst of sparkles. A little sailboat then
+sails out and back along the longest lit stretch, and a bright chime plays when
+sound is on. Now and then, at random, a lit lighthouse sweeps its beam slowly
+around once and lets it fade; undone, a lighthouse settles back down and its
+badge returns. A lighthouse that already sees too much,
 or can no longer see enough, is marked like any other mistake, and a garden is
 only finished when every lighthouse is lit.
 
