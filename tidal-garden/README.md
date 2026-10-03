@@ -116,7 +116,8 @@ move, and keeps the chapter climbing in difficulty.
 ## The Ferries
 
 A fourth chapter of ten adds ferries. Little wooden docks stand on starting
-land tiles in pairs, each with a ticket hut under a colored roof, a lifebuoy,
+land tiles in pairs, each a ticket hut on the grass under a colored roof, with a
+little porch, a lifebuoy,
 and a fluttering pennant. Docks with matching roofs must end up joined by water,
 moving up, down, left, and right, so their ferry can sail from beside one to
 beside the other. When the water first joins a pair, the huts give a happy hop,
