@@ -6,6 +6,9 @@ const LAND_TOP = 0.44
 const WATER_Y = 0.06
 const DOTS = 120
 const TOWER_SCALE = 1.75
+// How tall the striped shaft stands, and how much taller a lit lighthouse grows.
+const SHAFT = 0.336
+const TALL = 1.5
 const clamp = THREE.MathUtils.clamp
 const pop = (t) => { const x = clamp(t, 0, 1); return 1 + 2.4 * (x - 1) ** 3 + 1.4 * (x - 1) ** 2 }
 
@@ -60,6 +63,7 @@ export class Beacons {
     this.dots.frustumCulled = false
     garden.scene.add(this.dots)
     this.dummy = new THREE.Object3D()
+    this.sparkGeometry = new THREE.SphereGeometry(0.014, 8, 6)
     this.beamMaterial = new THREE.ShaderMaterial({
       transparent: true, depthWrite: false,
       // Light is added without touching alpha, so the beam glows over the page as well as the sea.
@@ -87,21 +91,38 @@ export class Beacons {
 
   cell(row, col) { return this.garden.cells[row * 10 + col] }
 
+  // A lighthouse in two parts, so it can grow: a striped shaft that stretches, and a top (gallery,
+  // lamp, and red cap) that rides up on it. A numbered badge stands in front, tipped to the camera.
   buildTower(sees) {
     const garden = this.garden
     const m = this.materials
     const group = new THREE.Group()
-    const tower = new THREE.Group()
-    group.add(tower)
-    garden.mesh(new THREE.CylinderGeometry(0.1, 0.12, 0.04, 16), m.dark, tower, 0, 0.02, 0)
-    garden.mesh(new THREE.CylinderGeometry(0.065, 0.095, 0.3, 16), m.white, tower, 0, 0.19, 0)
-    for (const y of [0.12, 0.24]) garden.mesh(new THREE.CylinderGeometry(0.09 - y * 0.1, 0.092 - y * 0.1, 0.045, 16), m.red, tower, 0, y, 0)
-    garden.mesh(new THREE.CylinderGeometry(0.085, 0.085, 0.018, 16), m.dark, tower, 0, 0.345, 0)
-    garden.mesh(new THREE.ConeGeometry(0.075, 0.08, 16), m.red, tower, 0, 0.455, 0)
-    garden.mesh(new THREE.SphereGeometry(0.014, 8, 6), m.dark, tower, 0, 0.5, 0)
-    garden.mergeDetails(tower)
-    const lamp = garden.mesh(new THREE.CylinderGeometry(0.052, 0.052, 0.07, 16), m.glassOff, group, 0, 0.39, 0)
-    // A small numbered badge stands in front of the tower, tipped toward the camera.
+    const body = new THREE.Group()
+    group.add(body)
+    const shaft = new THREE.Group()
+    body.add(shaft)
+    garden.mesh(new THREE.CylinderGeometry(0.1, 0.12, 0.04, 16), m.dark, shaft, 0, 0.02, 0)
+    garden.mesh(new THREE.CylinderGeometry(0.065, 0.095, 0.3, 16), m.white, shaft, 0, 0.19, 0)
+    for (const y of [0.12, 0.24]) garden.mesh(new THREE.CylinderGeometry(0.09 - y * 0.1, 0.092 - y * 0.1, 0.045, 16), m.red, shaft, 0, y, 0)
+    garden.mergeDetails(shaft)
+    const top = new THREE.Group()
+    top.position.y = SHAFT
+    body.add(top)
+    const crown = new THREE.Group()
+    top.add(crown)
+    garden.mesh(new THREE.CylinderGeometry(0.085, 0.085, 0.018, 16), m.dark, crown, 0, 0.009, 0)
+    garden.mesh(new THREE.ConeGeometry(0.075, 0.08, 16), m.red, crown, 0, 0.119, 0)
+    garden.mesh(new THREE.SphereGeometry(0.014, 8, 6), m.dark, crown, 0, 0.164, 0)
+    garden.mergeDetails(crown)
+    const lamp = garden.mesh(new THREE.CylinderGeometry(0.052, 0.052, 0.07, 16), m.glassOff, top, 0, 0.054, 0)
+    // Tiny sparkles that burst from the lamp as it lights.
+    const sparkles = Array.from({ length: 8 }, (_, i) => {
+      const spark = new THREE.Mesh(this.sparkGeometry, this.materials.glassOn)
+      spark.visible = false
+      spark.userData.angle = i / 8 * Math.PI * 2
+      top.add(spark)
+      return spark
+    })
     const badge = new THREE.Group()
     badge.position.set(0, 0.12, 0.19)
     badge.rotation.x = -1.2
@@ -112,13 +133,15 @@ export class Beacons {
     face.material.emissiveIntensity = 0.3
     face.position.z = 0.02
     badge.add(face)
-    const sweep = new THREE.Mesh(this.wedge, this.beamMaterial)
-    sweep.position.y = 0.39
+    // Each lighthouse has its own beam, so it can sweep now and then on its own.
+    const sweep = new THREE.Mesh(this.wedge, this.beamMaterial.clone())
+    sweep.position.y = 0.054
     sweep.visible = false
     sweep.renderOrder = 24
-    group.add(sweep)
-    return { group, lamp, sweep, badge }
+    top.add(sweep)
+    return { group, body, shaft, top, lamp, sparkles, sweep, badge }
   }
+
 
   buildBoat() {
     const garden = this.garden
@@ -139,8 +162,9 @@ export class Beacons {
   set(lights = []) {
     for (const tower of this.towers.values()) {
       tower.group.parent?.remove(tower.group)
+      tower.sweep.material.dispose()
       tower.group.traverse((child) => {
-        if (child.geometry !== this.wedge) child.geometry?.dispose()
+        if (child.geometry !== this.wedge && child.geometry !== this.sparkGeometry) child.geometry?.dispose()
         if (child.material?.map) child.material.map.dispose()
       })
       tower.boat.parent?.remove(tower.boat)
@@ -196,34 +220,102 @@ export class Beacons {
   }
 
   animate(time, reducedMotion) {
+    const dt = clamp(time - (this.lastTime ?? time), 0, 0.1)
+    this.lastTime = time
     for (const tower of this.towers.values()) {
       tower.cell.plants.visible = false
       const lit = tower.lit
-      const age = lit ? time - lit.at : -1
-      tower.lamp.material = lit && age >= 0 ? this.materials.glassOn : this.materials.glassOff
-      // The tower gives a little hop as its lamp comes on.
-      const hop = lit && !reducedMotion && age >= 0 && age < 0.5 ? Math.sin(age / 0.5 * Math.PI) * 0.12 : 0
-      tower.group.scale.setScalar(TOWER_SCALE * (1 + hop))
-      tower.sweep.visible = !!lit && !reducedMotion && age > 0.3
-      if (tower.sweep.visible) tower.sweep.rotation.y = time * 0.6 + tower.light.cell[0]
-      // The sailboat drifts out along the lit water and back again.
-      const route = tower.route
-      tower.boat.visible = !!lit && !!route && route.length > 1 && age > 0.6
-      if (tower.boat.visible) {
-        const span = route.length - 1
-        const t = reducedMotion ? 0.5 : (Math.sin((time - lit.at) * 0.35 / Math.max(1, span) * Math.PI * 2 - Math.PI / 2) + 1) / 2
-        const at = t * span, i = Math.min(span - 1, Math.floor(at)), f = at - i
-        tower.boat.position.lerpVectors(route[i], route[i + 1], f)
-        tower.boat.position.y = WATER_Y + 0.02 + Math.sin(time * 2.2) * 0.008
-        const heading = Math.atan2(route[i + 1].x - route[i].x, route[i + 1].z - route[i].z)
-        const going = Math.cos((time - lit.at) * 0.35 / Math.max(1, span) * Math.PI * 2 - Math.PI / 2) >= 0
-        tower.boat.rotation.set(Math.sin(time * 1.7) * 0.06, heading + (going ? 0 : Math.PI), Math.sin(time * 1.3) * 0.08)
-        tower.boat.scale.setScalar(2.2 * Math.min(1, pop((age - 0.6) / 0.5)))
-      }
+      const age = lit ? (reducedMotion ? 10 : this.hold ?? time - lit.at) : -1
+      this.grow(tower, age, dt)
+      this.lamp(tower, age, reducedMotion)
+      this.sweepNowAndThen(tower, time, age, reducedMotion)
+      this.sail(tower, time, age, reducedMotion)
     }
     // Dots breathe gently, so they read as light rather than markings.
     this.dots.material.opacity = reducedMotion ? 0.8 : 0.7 + Math.sin(time * 2.4) * 0.15
   }
+
+  // Lighting up: the badge pops off with a spin, the tower crouches, then springs up taller,
+  // overshoots, and wobbles to rest. Undone, it settles back down and the badge returns.
+  grow(tower, age, dt) {
+    let height = 1, width = 1, badge = 1, spin = 0
+    if (age >= 0) {
+      const off = age / 0.4
+      badge = off < 0.35 ? 1 + Math.sin(off / 0.35 * Math.PI / 2) * 0.22 : 1.22 * Math.max(0, 1 - ((off - 0.35) / 0.65) ** 2)
+      spin = Math.min(1, off) * Math.PI * 1.5
+      if (age < 0.2) height = 1
+      else if (age < 0.45) {
+        const u = Math.sin((age - 0.2) / 0.25 * Math.PI / 2)
+        height = 1 - 0.22 * u
+        width = 1 + 0.14 * u
+      } else {
+        const t = age - 0.45
+        height = TALL + (0.78 - TALL) * Math.exp(-4.5 * t) * Math.cos(11 * t)
+        width = 1 - (height - TALL) * 0.35
+      }
+      tower.height = height; tower.width = width; tower.badgeScale = badge
+    } else {
+      // Ease back to the way it stood before it was lit.
+      const ease = 1 - Math.exp(-dt * 8)
+      tower.height = (tower.height ?? 1) + (1 - (tower.height ?? 1)) * ease
+      tower.width = (tower.width ?? 1) + (1 - (tower.width ?? 1)) * ease
+      tower.badgeScale = (tower.badgeScale ?? 1) + (1 - (tower.badgeScale ?? 1)) * ease
+      height = tower.height; width = tower.width; badge = tower.badgeScale
+    }
+    tower.shaft.scale.set(width, height, width)
+    tower.top.position.y = SHAFT * height
+    tower.top.scale.setScalar(Math.max(0.85, Math.min(1.12, width)))
+    tower.badge.visible = badge > 0.01
+    tower.badge.scale.setScalar(Math.max(0.001, badge))
+    tower.badge.rotation.y = spin
+    // From above, height barely shows, so a grown lighthouse also stands a little larger overall.
+    tower.group.scale.setScalar(TOWER_SCALE * (1 + 0.2 * clamp((height - 1) / (TALL - 1), -0.5, 1.2)))
+  }
+
+  // The lamp flickers on twice and then glows, with a burst of sparkles as it catches.
+  lamp(tower, age, reducedMotion) {
+    const on = age >= 1 && !(age > 1.08 && age < 1.16) && !(age > 1.24 && age < 1.3)
+    tower.lamp.material = on ? this.materials.glassOn : this.materials.glassOff
+    for (const spark of tower.sparkles) {
+      const t = reducedMotion ? 1 : (age - 1.3) / 0.8
+      spark.visible = t > 0 && t < 1
+      if (!spark.visible) continue
+      const radius = 0.05 + t * 0.2, angle = spark.userData.angle + t * 0.8
+      spark.position.set(Math.cos(angle) * radius, 0.054 + Math.sin(t * Math.PI) * 0.08, Math.sin(angle) * radius)
+      spark.scale.setScalar(Math.max(0.001, (1 - t) * 1.2))
+    }
+  }
+
+  // Now and then, at random, a lit lighthouse sweeps its beam slowly around once and fades.
+  sweepNowAndThen(tower, time, age, reducedMotion) {
+    if (age < 0 || reducedMotion) { tower.sweep.visible = false; tower.nextSweep = null; tower.sweeping = null; return }
+    tower.nextSweep ??= time + 10 + Math.random() * 30
+    if (!tower.sweeping && time > tower.nextSweep) tower.sweeping = { start: time, from: Math.random() * Math.PI * 2 }
+    const sweeping = tower.sweeping
+    tower.sweep.visible = !!sweeping
+    if (!sweeping) return
+    const u = (time - sweeping.start) / 6
+    if (u >= 1) { tower.sweeping = null; tower.nextSweep = time + 35 + Math.random() * 50; tower.sweep.visible = false; return }
+    tower.sweep.rotation.y = sweeping.from + u * Math.PI * 1.6
+    tower.sweep.material.uniforms.uStrength.value = 0.2 * Math.sin(u * Math.PI)
+  }
+
+  // The sailboat sets out once the lamp is lit, drifting out along the lit water and back again.
+  sail(tower, time, age, reducedMotion) {
+    const route = tower.route
+    tower.boat.visible = age > 1.4 && !!route && route.length > 1
+    if (!tower.boat.visible) return
+    const span = route.length - 1
+    const phase = (age - 1.4) * 0.35 / Math.max(1, span) * Math.PI * 2 - Math.PI / 2
+    const t = reducedMotion ? 0.5 : (Math.sin(phase) + 1) / 2
+    const at = t * span, i = Math.min(span - 1, Math.floor(at)), f = at - i
+    tower.boat.position.lerpVectors(route[i], route[i + 1], f)
+    tower.boat.position.y = WATER_Y + 0.02 + Math.sin(time * 2.2) * 0.008
+    const heading = Math.atan2(route[i + 1].x - route[i].x, route[i + 1].z - route[i].z)
+    tower.boat.rotation.set(Math.sin(time * 1.7) * 0.06, heading + (Math.cos(phase) >= 0 ? 0 : Math.PI), Math.sin(time * 1.3) * 0.08)
+    tower.boat.scale.setScalar(2.2 * Math.min(1, pop((age - 1.4) / 0.5)))
+  }
+
 
   get litCount() { return [...this.towers.values()].filter((tower) => tower.lit).length }
   get dotCount() { return this.dots.count }
