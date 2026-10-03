@@ -5,7 +5,8 @@ import assert from 'node:assert/strict'
 import { PUZZLES } from '../src/puzzles.js'
 import { findEnclosedRegions, terrainNeighbors, COMPLETION_VARIANTS } from '../src/terrain.js'
 
-const url = process.env.TIDAL_TEST_URL ?? 'http://127.0.0.1:5180'
+// ?play skips the title and map and opens straight into the garden.
+const url = `${process.env.TIDAL_TEST_URL ?? 'http://127.0.0.1:5180'}/?play`
 mkdirSync('test-results', { recursive: true })
 const browser = await chromium.launch({ headless: true, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-webgl'] })
 const errors = []
@@ -139,7 +140,7 @@ try {
       assert.equal(completed.finale.active, true, 'Finishing a garden starts the finale')
       assert.equal(completed.finale.mode, 'celebrate')
       assert.equal(await page.locator('.garden-app.finale').count(), 1, 'The interface steps aside for the finale')
-      await page.getByRole('button', { name: /Grow the next garden/ }).waitFor({ state: 'visible' })
+      await page.getByRole('button', { name: /Onward/ }).waitFor({ state: 'visible' })
       const finale = await page.evaluate(() => __tidal.snapshot)
       assert.equal(finale.finale.card, true, 'The finale card appears')
       assert.ok(finale.finale.blend > 0.5 && finale.finale.dusk > 0.3, `The camera lifts and evening falls: ${JSON.stringify(finale.finale)}`)

@@ -3,7 +3,8 @@ import { PNG } from 'pngjs'
 import assert from 'node:assert/strict'
 import { mkdirSync } from 'node:fs'
 
-const url = process.env.TIDAL_TEST_URL ?? 'http://127.0.0.1:5180'
+// ?play skips the title and map and opens straight into the garden.
+const url = `${process.env.TIDAL_TEST_URL ?? 'http://127.0.0.1:5180'}/?play`
 mkdirSync('test-results', { recursive: true })
 const browser = await chromium.launch({ headless: true, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-webgl'] })
 try {

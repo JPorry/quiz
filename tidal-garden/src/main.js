@@ -1,6 +1,7 @@
-import { createIcons, Footprints, Ship, Sun, House, ArrowRight, Check, ChevronDown, CircleHelp, Clock3, Fingerprint, Grid3x3, Lightbulb, MoonStar, Move3d, RotateCcw, Scale, Sprout, Undo2, Volume2, VolumeX, X } from 'lucide'
-import { GardenGame, GARDEN_NAMES, CHAPTERS, chapterOf, findViolations, findHint } from './game.js'
+import { createIcons, Map as MapIcon, Lock, Play, Footprints, Ship, Sun, House, ArrowRight, Check, ChevronDown, CircleHelp, Clock3, Fingerprint, Grid3x3, Lightbulb, MoonStar, Move3d, RotateCcw, Scale, Sprout, Undo2, Volume2, VolumeX, X } from 'lucide'
+import { GardenGame, GARDENS, GARDEN_NAMES, CHAPTERS, chapterOf, findViolations, findHint } from './game.js'
 import { GardenScene } from './scene.js'
+import { mapLayout, mapMarkup, MAP_ART } from './map.js'
 import { DeviceTilt } from './tilt.js'
 import './style.css'
 
@@ -28,8 +29,9 @@ app.innerHTML = `
     <header class="masthead">
       <a class="brand" href="./" aria-label="Tidal Garden home"><span class="brand-icon">${icon('sprout')}</span><span>Tidal Garden</span></a>
       <div class="header-tools">
+        <button class="icon-button" id="to-map" aria-label="Garden map" title="Garden map">${icon('map')}</button>
         <button class="icon-button" id="tilt" aria-label="Tilt the garden with your phone" aria-pressed="false" title="Tilt with your phone" hidden>${icon('move-3d')}</button>
-        <button class="icon-button" id="sound" aria-label="Enable placement sounds" aria-pressed="false" title="Placement sounds">${icon('volume-x')}</button>
+        <button class="icon-button sound-toggle" id="sound" aria-label="Enable placement sounds" aria-pressed="false" title="Placement sounds">${icon('volume-x')}</button>
         <button class="icon-button" id="help" aria-label="Garden rules" title="Garden rules">${icon('circle-help')}</button>
       </div>
     </header>
@@ -76,13 +78,43 @@ app.innerHTML = `
       </div>
       <p class="finale-tip">Drag to turn the island</p>
     </section>
+    <section class="title-screen" id="title-screen" aria-label="Tidal Garden">
+      <div class="title-veil" aria-hidden="true"></div>
+      <div class="title-content">
+        <span class="title-mark" aria-hidden="true">${icon('sprout')}</span>
+        <h1 class="title-logo">Tidal<br><em>Garden.</em></h1>
+        <p class="title-tagline">A quiet place. A little land, a little water.</p>
+        <button class="play-button" id="title-play">${icon('play')}<span>Play</span></button>
+        <p class="title-progress" id="title-progress"></p>
+      </div>
+      <div class="title-tools">
+        <button class="icon-button sound-toggle" aria-label="Enable placement sounds" aria-pressed="false" title="Placement sounds">${icon('volume-x')}</button>
+        <button class="icon-button" id="title-help" aria-label="Garden rules" title="Garden rules">${icon('circle-help')}</button>
+      </div>
+    </section>
+    <section class="map-screen" id="map-screen" aria-label="Garden map" inert>
+      <div class="map-scroll" id="map-scroll"><div class="map-canvas" id="map-canvas"></div></div>
+      <header class="map-bar">
+        <button class="round-button" id="map-home" aria-label="Back to the title">${icon('house')}</button>
+        <div class="map-progress" aria-live="polite"><span>${icon('sprout')}</span><b id="map-count">0</b><small>/ ${GARDEN_NAMES.length}</small></div>
+        <button class="round-button sound-toggle" aria-label="Enable placement sounds" aria-pressed="false">${icon('volume-x')}</button>
+      </header>
+      <div class="map-card" id="map-card" role="dialog" aria-labelledby="map-card-title" inert>
+        <button class="round-button map-card-close" id="map-card-close" aria-label="Close">${icon('x')}</button>
+        <p class="map-card-chapter" id="map-card-chapter"></p>
+        <h2 id="map-card-title"></h2>
+        <p class="map-card-name" id="map-card-name"></p>
+        <p class="map-card-status" id="map-card-status"></p>
+        <button class="play-button" id="map-card-play">${icon('play')}<span id="map-card-play-label">Play</span></button>
+      </div>
+    </section>
     <div class="quiet-footer"><span>LAND & WATER, IN EQUAL MEASURE</span><span>NO. <b id="edition-number">001</b></span></div>
   </main>
   <dialog id="modal"><button class="icon-button modal-close" aria-label="Close">${icon('x')}</button><div id="modal-content"></div></dialog>
 `
 
 const $ = (selector) => document.querySelector(selector)
-const refreshIcons = () => createIcons({ icons: { Footprints, Ship, Sun, House, ArrowRight, Check, ChevronDown, CircleHelp, Clock3, Fingerprint, Grid3x3, Lightbulb, MoonStar, Move3d, RotateCcw, Scale, Sprout, Undo2, Volume2, VolumeX, X }, attrs: { 'stroke-width': 1.6 } })
+const refreshIcons = () => createIcons({ icons: { Map: MapIcon, Lock, Play, Footprints, Ship, Sun, House, ArrowRight, Check, ChevronDown, CircleHelp, Clock3, Fingerprint, Grid3x3, Lightbulb, MoonStar, Move3d, RotateCcw, Scale, Sprout, Undo2, Volume2, VolumeX, X }, attrs: { 'stroke-width': 1.6 } })
 refreshIcons()
 
 const access = $('.board-access')
@@ -363,14 +395,17 @@ document.querySelectorAll('[data-value]').forEach((button) => button.addEventLis
 }))
 
 $('#undo').addEventListener('click', () => { if (game.undo()) { hintCell = null; render() } })
-$('#sound').addEventListener('click', () => {
+// Every screen has its own sound button; they all flip the same switch.
+document.querySelectorAll('.sound-toggle').forEach((toggle) => toggle.addEventListener('click', () => {
   soundEnabled = !soundEnabled
-  $('#sound').setAttribute('aria-pressed', String(soundEnabled))
-  $('#sound').setAttribute('aria-label', soundEnabled ? 'Disable placement sounds' : 'Enable placement sounds')
-  $('#sound').innerHTML = icon(soundEnabled ? 'volume-2' : 'volume-x')
+  document.querySelectorAll('.sound-toggle').forEach((button) => {
+    button.setAttribute('aria-pressed', String(soundEnabled))
+    button.setAttribute('aria-label', soundEnabled ? 'Disable placement sounds' : 'Enable placement sounds')
+    button.innerHTML = icon(soundEnabled ? 'volume-2' : 'volume-x')
+  })
   refreshIcons()
   if (soundEnabled) playTone(0)
-})
+}))
 // On phones the garden leans very slightly with the device. Where the browser shares motion
 // freely it starts on; iOS asks once, on the player's first tap, and the button turns it on or off.
 const tilt = new DeviceTilt({ reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches })
@@ -458,24 +493,14 @@ $('#reset').addEventListener('click', () => {
   $('#confirm-reset').addEventListener('click', () => { scene?.resetPresentation(); game.reset(); hintCell = null; render(); modal.close() })
 })
 
-$('#help').addEventListener('click', () => {
+function openHelp() {
   openModal(`<p class="eyebrow">The art of balance</p><h2>A little land.<br>A little water.</h2><div class="rule"><span class="rule-icon">${icon('scale')}</span><div><h3>Equal measure</h3><p>Every row and column contains five water tiles and five land tiles.</p></div></div><div class="rule"><span class="rule-icon">${icon('grid-3x3')}</span><div><h3>Keep the rhythm</h3><p>Three water tiles or three land tiles may never appear consecutively, horizontally or vertically.</p></div></div><div class="rule"><span class="rule-icon">${icon('fingerprint')}</span><div><h3>Every line is its own</h3><p>No two completed rows or columns can have the same terrain pattern.</p></div></div><div class="rule"><span class="rule-icon">${icon('house')}</span><div><h3>Village signs</h3><p>In later gardens, a wooden sign counts the land tiles of its island. Each new tile you join to it raises a little hut, and the village comes to life when the island is closed in at its number.</p></div></div><div class="rule"><span class="rule-icon">${icon('sun')}</span><div><h3>Lighthouses</h3><p>A lighthouse counts the water tiles its light reaches straight up, down, left and right before land or the edge stops it. Glowing dots show what it already sees, and it lights up when every beam ends at its number.</p></div></div><div class="rule"><span class="rule-icon">${icon('ship')}</span><div><h3>Ferries</h3><p>Docks with matching roofs must be joined by water, moving up, down, left and right, so their little ferry can sail from one to the other.</p></div></div><div class="rule"><span class="rule-icon">${icon('footprints')}</span><div><h3>Pilgrims</h3><p>Shrines with matching lanterns must stand on the same island, joined by land up, down, left and right, so their little pilgrim can walk from one to the other.</p></div></div><p class="given-note"><b></b> Stone-rimmed land with a little landmark, and deeper pools of water, mark the terrain already in place.</p>`)
-})
+}
+$('#help').addEventListener('click', openHelp)
+$('#title-help').addEventListener('click', openHelp)
 
-$('#levels').addEventListener('click', () => {
-  // Gardens are grouped by chapter, each with its own heading.
-  const button = (index) => `<button class="level-button ${game.level === index ? 'current' : ''} ${game.completed.includes(index) ? 'completed' : ''}" data-level="${index}" aria-label="Garden ${index + 1}: ${GARDEN_NAMES[index]}${game.completed.includes(index) ? ', completed' : ''}"><span>${String(index + 1).padStart(2, '0')}</span>${game.completed.includes(index) ? icon('check') : ''}</button>`
-  const chapters = CHAPTERS.map((chapter) => `<h3 class="level-chapter">${chapter.name}</h3><div class="level-grid">${Array.from({ length: chapter.count }, (_, i) => button(chapter.start + i)).join('')}</div>`).join('')
-  openModal(`<p class="eyebrow">${GARDEN_NAMES.length} little worlds</p><h2>Your gardens.</h2><p class="modal-description">${game.completed.length} of ${GARDEN_NAMES.length} in perfect balance</p>${chapters}`)
-  document.querySelectorAll('[data-level]').forEach((button) => button.addEventListener('click', () => {
-    game.load(Number(button.dataset.level))
-    hintCell = null
-    scene?.clearSelection()
-    render()
-    modal.close()
-    if (game.complete) startFinale('revisit')
-  }))
-})
+$('#levels').addEventListener('click', () => showScreen('map'))
+$('#to-map').addEventListener('click', () => showScreen('map'))
 
 // The finale: the interface steps aside while the scene celebrates, then a small card
 // offers the next garden without covering the finished one.
@@ -493,7 +518,7 @@ function startFinale(mode, origin = null) {
   $('#finale-name').textContent = GARDEN_NAMES[game.level]
   $('#finale-time').textContent = $('#time').textContent
   $('#finale-count').textContent = game.completed.length
-  $('#finale-next-label').textContent = game.level === GARDEN_NAMES.length - 1 ? 'Return to first light' : 'Grow the next garden'
+  $('#finale-next-label').textContent = 'Onward'
   finale.timer = setTimeout(showCard, scene.finale.plan.card * 1000)
 }
 function showCard() {
@@ -517,18 +542,14 @@ function endFinale() {
   scene?.finale.stop()
 }
 $('#finale-stay').addEventListener('click', () => { endFinale(); scene?.clearSelection() })
-$('#finale-next').addEventListener('click', () => {
-  endFinale()
-  game.load((game.level + 1) % GARDEN_NAMES.length)
-  hintCell = null
-  render()
-  if (game.complete) startFinale('revisit')
-})
+// Onward leads back to the map, where the marker hops along to the garden that just opened.
+$('#finale-next').addEventListener('click', () => showScreen('map', { offer: true }))
 // A tap during the celebration brings the card forward without cutting the show short.
 $('#world').addEventListener('pointerdown', () => { if (finale) showCard() })
 
 document.addEventListener('keydown', (event) => {
-  if (modal.open || event.target instanceof HTMLInputElement) return
+  if (screen === 'map' && event.key === 'Escape' && mapCard.classList.contains('visible')) { closeCard(); return }
+  if (screen !== 'play' || modal.open || event.target instanceof HTMLInputElement) return
   if (finale) {
     if (event.key === 'Escape') endFinale()
     else if (!finale.card && !['Shift', 'Control', 'Alt', 'Meta'].includes(event.key)) showCard()
@@ -543,10 +564,130 @@ document.addEventListener('keydown', (event) => {
 })
 
 setInterval(() => {
-  if (!game.complete && !document.hidden && !modal.open) { game.seconds++; game.save(); render() }
+  if (screen === 'play' && !game.complete && !document.hidden && !modal.open) { game.seconds++; game.save(); render() }
 }, 1000)
+// The game has three screens: the title, the map of every garden, and the garden itself. Each
+// step forward is a history entry, so a phone's back button walks back through them.
+let screen
+let mapWidth = 0
+let shownFrontier = game.frontier
+const mapScreen = $('#map-screen')
+const mapScroll = $('#map-scroll')
+const mapCanvas = $('#map-canvas')
+const mapCard = $('#map-card')
+let cardLevel = null
+
+function showScreen(name, { push = true, offer = false } = {}) {
+  if (name === screen) return
+  if (screen === 'play') { endFinale(); scene?.showHover(null) }
+  screen = name
+  appRoot.dataset.screen = name
+  $('#title-screen').inert = name !== 'title'
+  mapScreen.inert = name !== 'map'
+  // The map covers the whole garden, so the scene rests while it's open.
+  if (scene) scene.paused = name === 'map'
+  if (name === 'title') {
+    const done = game.completed.length
+    $('#title-progress').textContent = done ? `${done} of ${GARDEN_NAMES.length} gardens in balance` : `${GARDEN_NAMES.length} little gardens to grow`
+  }
+  if (name === 'map') openMap({ offer })
+  else closeCard()
+  if (name === 'play') {
+    hintCell = null
+    render()
+    if (game.complete) startFinale('revisit')
+  }
+  if (push) history.pushState({ screen: name }, '', name === 'title' ? location.pathname + location.search : `#${name}`)
+}
+addEventListener('popstate', (event) => showScreen(event.state?.screen ?? 'title', { push: false }))
+$('#title-play').addEventListener('click', () => showScreen('map'))
+// The masthead's name leads back to the title rather than reloading the page.
+document.querySelector('.brand').addEventListener('click', (event) => { event.preventDefault(); showScreen('title') })
+$('#map-home').addEventListener('click', () => showScreen('title'))
+
+// Lays out the whole map and scrolls to the newest open garden. When a garden has opened since the
+// map was last seen, the marker hops along to it and, after a win, its card comes up.
+function openMap({ offer = false } = {}) {
+  const width = Math.min(mapScroll.clientWidth || innerWidth, 560)
+  mapWidth = width
+  const frontier = game.frontier
+  const layout = mapLayout(CHAPTERS, width)
+  mapCanvas.style.width = `${width}px`
+  mapCanvas.style.height = `${layout.height}px`
+  mapCanvas.innerHTML = MAP_ART + mapMarkup(layout, CHAPTERS, { completed: game.completed, isUnlocked: (level) => game.isUnlocked(level), frontier, names: GARDEN_NAMES })
+  refreshIcons()
+  $('#map-count').textContent = game.completed.length
+  const marker = mapCanvas.querySelector('.map-marker')
+  const from = layout.nodes[Math.min(shownFrontier, frontier)]
+  const to = layout.nodes[frontier]
+  mapScroll.scrollTop = from.y - mapScroll.clientHeight * 0.55
+  if (frontier !== shownFrontier && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    marker.style.left = `${from.x}px`
+    marker.style.top = `${from.y}px`
+    mapCanvas.querySelector(`.map-node[data-level="${frontier}"]`)?.classList.add('opening')
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      marker.classList.add('hopping')
+      marker.style.left = `${to.x}px`
+      marker.style.top = `${to.y}px`
+      mapScroll.scrollTo({ top: to.y - mapScroll.clientHeight * 0.55, behavior: 'smooth' })
+    }))
+  }
+  shownFrontier = frontier
+  if (offer) setTimeout(() => { if (screen === 'map') openCard(frontier) }, 900)
+}
+mapCanvas.addEventListener('click', (event) => {
+  const node = event.target.closest('.map-node')
+  if (!node) return
+  const level = Number(node.dataset.level)
+  if (!game.isUnlocked(level)) {
+    node.classList.remove('nudge')
+    void node.offsetWidth
+    node.classList.add('nudge')
+    return
+  }
+  openCard(level)
+})
+addEventListener('resize', () => { if (screen === 'map' && Math.min(mapScroll.clientWidth, 560) !== mapWidth) openMap() })
+
+const clock = (seconds) => `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`
+// A small card about the garden, with the way in.
+function openCard(level) {
+  cardLevel = level
+  const saved = game.grids[level]
+  const filled = saved?.grid?.flat().filter((value) => value !== null).length ?? 0
+  const givens = GARDENS[level].puzzle.flat().filter((value) => value !== null).length
+  const done = game.completed.includes(level)
+  $('#map-card-chapter').textContent = chapterOf(level).name
+  $('#map-card-title').textContent = `Garden ${level + 1}`
+  $('#map-card-name').textContent = GARDEN_NAMES[level]
+  $('#map-card-status').textContent = done ? `In balance · grown in ${clock(saved?.seconds ?? 0)}` : filled > givens ? `Growing · ${filled} of 100 tiles` : 'A new garden'
+  $('#map-card-play-label').textContent = done ? 'Visit' : filled > givens ? 'Continue' : 'Play'
+  mapCard.inert = false
+  mapCard.classList.add('visible')
+  mapCanvas.querySelectorAll('.map-node.chosen').forEach((node) => node.classList.remove('chosen'))
+  mapCanvas.querySelector(`.map-node[data-level="${level}"]`)?.classList.add('chosen')
+}
+function closeCard() {
+  cardLevel = null
+  mapCard.classList.remove('visible')
+  mapCard.inert = true
+  mapCanvas.querySelectorAll('.map-node.chosen').forEach((node) => node.classList.remove('chosen'))
+}
+$('#map-card-close').addEventListener('click', closeCard)
+$('#map-card-play').addEventListener('click', () => {
+  if (cardLevel === null) return
+  if (cardLevel !== game.level) {
+    game.load(cardLevel)
+    scene?.clearSelection()
+  }
+  showScreen('play')
+})
+
+// Every visit opens on the title; ?play goes straight into the current garden, for testing.
+const firstScreen = new URLSearchParams(location.search).has('play') ? 'play' : 'title'
+history.replaceState({ screen: firstScreen }, '', location.pathname + location.search)
 render()
-if (game.complete) startFinale('revisit')
+showScreen(firstScreen, { push: false })
 
 // Read-only development diagnostics keep visual and canvas tests grounded in the rendered scene.
 if (import.meta.env.DEV) {
@@ -588,6 +729,8 @@ if (import.meta.env.DEV) {
         })),
       }
     },
+    get screen() { return screen },
+    show(name) { showScreen(name) },
     gust() { scene?.breeze.start(scene.time) },
     cloud(progress = 0, options) { return scene?.clouds.spawn(scene.time, progress, options) },
     // Holds every running flourish at a given age, so a screenshot can catch it mid-sweep.
