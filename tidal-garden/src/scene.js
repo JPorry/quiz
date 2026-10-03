@@ -139,6 +139,10 @@ export class GardenScene {
     this.finale = new Finale(this)
     this.flourish = new LineFlourish(this)
     this.appliedView = ''
+    // How far the phone is leaning the board, set from the device's tilt.
+    this.lean = { side: 0, front: 0 }
+    this.leanTurn = new THREE.Quaternion()
+    this.leanAngles = new THREE.Euler()
     this.bindEvents()
     this.resizeObserver = new ResizeObserver(() => this.resize())
     this.resizeObserver.observe(container)
@@ -654,12 +658,22 @@ export class GardenScene {
     const { width, height } = this.size ?? {}
     if (!width || !height) return
     const { blend, yaw } = this.finale.view
+    const lean = this.lean
     const tilt = THREE.MathUtils.lerp(TILT, FINALE_VIEW.tilt, blend)
     const play = this.framing(this.safeArea?.() ?? { top: 0, bottom: height, left: 0, right: width }, TILT, false)
     const show = blend > 0 ? this.framing(this.finaleArea?.() ?? { top: 0, bottom: height, left: 0, right: width }, FINALE_VIEW.tilt, true) : play
     const unit = THREE.MathUtils.lerp(play.unit, show.unit, blend)
     const x = THREE.MathUtils.lerp(play.x, show.x, blend), y = THREE.MathUtils.lerp(play.y, show.y, blend)
-    this.camera.position.copy(this.cameraOffset(tilt, yaw))
+    // Leaning the board with the phone is the same as moving the camera the opposite way around it:
+    // the top edge rising tips the board's north side up, and the right edge dipping lowers its east side.
+    const position = this.cameraOffset(tilt, yaw)
+    this.camera.up.set(0, 1, 0)
+    if (lean.side || lean.front) {
+      this.leanTurn.setFromEuler(this.leanAngles.set(lean.front, 0, -lean.side)).invert()
+      position.applyQuaternion(this.leanTurn)
+      this.camera.up.applyQuaternion(this.leanTurn)
+    }
+    this.camera.position.copy(position)
     this.camera.lookAt(0, 0, 0)
     this.camera.left = -width * unit / 2
     this.camera.right = width * unit / 2
@@ -673,7 +687,9 @@ export class GardenScene {
     this.boundaryMaterial.opacity = 0.32 * (1 - blend)
     this.cloudMaterial.uniforms.uFade.value = 1 - blend
     for (const cell of this.cells) cell.pin.scale.setScalar(Math.max(0.001, 1 - blend))
-    if (blend === 0) this.positionAccess()
+    // Keyboard focus rings only need moving when the finale view settles, not for every small lean.
+    if (blend === 0 && this.accessBlend !== 0) this.positionAccess()
+    this.accessBlend = blend
   }
 
   resize() {
@@ -712,7 +728,8 @@ export class GardenScene {
     this.sockets.animate(this.time, this.reducedMotion)
     this.finale.update(this.time, delta)
     const view = this.finale.view
-    const viewKey = `${view.blend}:${view.yaw}`
+    if (this.tilt && !this.reducedMotion) this.lean = this.tilt.update(delta)
+    const viewKey = `${view.blend}:${view.yaw}:${this.lean.side}:${this.lean.front}`
     if (viewKey !== this.appliedView) { this.appliedView = viewKey; this.applyView() }
     // The sun drifts toward its new place over several seconds, so each tile nudges the light gently:
     // it starts from rest rather than lurching the moment a tile lands.

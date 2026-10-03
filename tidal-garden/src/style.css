@@ -306,3 +306,4 @@ dialog { color: #27433a; }
   .finale-card h2 { font-size: 28px; }
   .finale-actions .primary-button, .finale-actions .secondary-button { padding: 10px 12px; }
 }
+.header-tools [hidden] { display: none; }

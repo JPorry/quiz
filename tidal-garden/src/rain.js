@@ -46,11 +46,6 @@ export class Rain {
     this.strength = 0
   }
 
-  // A little cat's-paw ripple on open water, for gusts that skim across it.
-  ruffle(x, z, time) {
-    this.marks.push({ x, z, y: WATER_Y + 0.008, land: false, born: time })
-  }
-
   surface(x, z) {
     const value = this.garden.grid?.[Math.floor(z + 5)]?.[Math.floor(x + 5)]
     return value === 1 ? { y: LAND_TOP, land: true } : value === null ? { y: SOCKET_TOP, land: true } : { y: WATER_Y, land: false }

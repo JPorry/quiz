@@ -1,6 +1,7 @@
-import { createIcons, ArrowRight, Check, ChevronDown, CircleHelp, Clock3, Fingerprint, Grid3x3, Lightbulb, MoonStar, RotateCcw, Scale, Sprout, Undo2, Volume2, VolumeX, X } from 'lucide'
+import { createIcons, ArrowRight, Check, ChevronDown, CircleHelp, Clock3, Fingerprint, Grid3x3, Lightbulb, MoonStar, Move3d, RotateCcw, Scale, Sprout, Undo2, Volume2, VolumeX, X } from 'lucide'
 import { GardenGame, GARDEN_NAMES, findViolations, findHint } from './game.js'
 import { GardenScene } from './scene.js'
+import { DeviceTilt } from './tilt.js'
 import './style.css'
 
 const game = new GardenGame()
@@ -27,6 +28,7 @@ app.innerHTML = `
     <header class="masthead">
       <a class="brand" href="./" aria-label="Tidal Garden home"><span class="brand-icon">${icon('sprout')}</span><span>Tidal Garden</span></a>
       <div class="header-tools">
+        <button class="icon-button" id="tilt" aria-label="Tilt the garden with your phone" aria-pressed="false" title="Tilt with your phone" hidden>${icon('move-3d')}</button>
         <button class="icon-button" id="sound" aria-label="Enable placement sounds" aria-pressed="false" title="Placement sounds">${icon('volume-x')}</button>
         <button class="icon-button" id="help" aria-label="Garden rules" title="Garden rules">${icon('circle-help')}</button>
       </div>
@@ -80,7 +82,7 @@ app.innerHTML = `
 `
 
 const $ = (selector) => document.querySelector(selector)
-const refreshIcons = () => createIcons({ icons: { ArrowRight, Check, ChevronDown, CircleHelp, Clock3, Fingerprint, Grid3x3, Lightbulb, MoonStar, RotateCcw, Scale, Sprout, Undo2, Volume2, VolumeX, X }, attrs: { 'stroke-width': 1.6 } })
+const refreshIcons = () => createIcons({ icons: { ArrowRight, Check, ChevronDown, CircleHelp, Clock3, Fingerprint, Grid3x3, Lightbulb, MoonStar, Move3d, RotateCcw, Scale, Sprout, Undo2, Volume2, VolumeX, X }, attrs: { 'stroke-width': 1.6 } })
 refreshIcons()
 
 const access = $('.board-access')
@@ -281,6 +283,36 @@ $('#sound').addEventListener('click', () => {
   refreshIcons()
   if (soundEnabled) playTone(0)
 })
+// On phones the garden leans very slightly with the device. Where the browser shares motion
+// freely it starts on; iOS asks once, on the player's first tap, and the button turns it on or off.
+const tilt = new DeviceTilt({ reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches })
+function showTilt() {
+  $('#tilt').setAttribute('aria-pressed', String(tilt.enabled))
+  $('#tilt').setAttribute('aria-label', tilt.enabled ? 'Stop tilting the garden with your phone' : 'Tilt the garden with your phone')
+}
+if (tilt.supported && scene && !tilt.reducedMotion) {
+  scene.tilt = tilt
+  $('#tilt').hidden = false
+  tilt.restore()
+  showTilt()
+  if (tilt.shouldAsk) {
+    const ask = async (event) => {
+      if (event.target.closest?.('#tilt')) return
+      removeEventListener('touchend', ask, true)
+      removeEventListener('click', ask, true)
+      await tilt.enable()
+      showTilt()
+    }
+    addEventListener('touchend', ask, true)
+    addEventListener('click', ask, true)
+  }
+}
+$('#tilt').addEventListener('click', async () => {
+  if (tilt.enabled) tilt.disable()
+  else await tilt.enable()
+  showTilt()
+})
+
 // Says which tile to fill and the reasoning behind it, so the hint teaches the technique.
 function hintText({ row, col, value, technique, axis }) {
   const kind = value === 0 ? 'water' : 'land', other = value === 0 ? 'land' : 'water'
@@ -426,6 +458,7 @@ if (import.meta.env.DEV) {
         complete: game.complete, history: game.history.length,
         camera: scene?.camera.position.toArray(), daylight: scene?.daylight,
         clouds: scene?.clouds.clouds.length,
+        lean: scene?.lean,
         flourishes: scene?.flourish.count,
         rain: scene && { strength: scene.rain.strength, drops: scene.rain.drops.length, marks: scene.rain.marks.length },
         finale: scene && { active: scene.finale.active, mode: scene.finale.mode, ...scene.finale.view, card: !!finale?.card, flock: scene.finale.flock.filter((bird) => bird.root.visible).length, fireflies: scene.finale.fireflies.length, lanterns: scene.finale.lanterns.filter((lantern) => lantern.root.visible).length },
@@ -456,6 +489,13 @@ if (import.meta.env.DEV) {
     cloud(progress = 0, options) { return scene?.clouds.spawn(scene.time, progress, options) },
     // Holds every running flourish at a given age, so a screenshot can catch it mid-sweep.
     holdFlourish(age) { scene?.flourish.active.forEach((flourish) => { flourish.hold = age }) },
+    // Where a tile's centre appears on screen with the live camera, leaning included.
+    screenPoint(row, col) {
+      const cell = scene.cells[row * 10 + col]
+      const p = cell.group.position.clone().setY(scene.cellHeight(cell)).project(scene.camera)
+      const rect = scene.renderer.domElement.getBoundingClientRect()
+      return { x: rect.left + (p.x + 1) / 2 * rect.width, y: rect.top + (1 - p.y) / 2 * rect.height }
+    },
     cellPosition(row, col) {
       const rect = access.children[row * 10 + col].getBoundingClientRect()
       return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }
