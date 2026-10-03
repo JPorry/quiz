@@ -472,7 +472,7 @@ export class GardenScene {
       this.markTerrain(cell.col - 4.5, cell.row - 4.5, value === 0 ? 0 : 180)
     }
     if (changed.length) {
-      this.rimTexture.image.data.set(createRimField(grid, LAND.sand))
+      this.rimTexture.image.data.set(createRimField(grid, LAND.sand, clues))
       this.rimTexture.needsUpdate = true
       this.renderer.shadowMap.needsUpdate = true
     }
@@ -500,7 +500,15 @@ export class GardenScene {
     cell.marker = null
     cell.fixed = fixed
     const stone = fixed === 1
-    cell.body.material = stone ? [this.landmarks.materials.stoneLight, this.landmarks.materials.stone] : [this.materials.sand, this.materials.cliff]
+    // Starting land is grey stone through and through: cliffs, rim, a weathered top, and hardy tufts.
+    const m = this.landmarks.materials
+    cell.body.material = stone ? [m.stoneLight, m.stone] : [this.materials.sand, this.materials.cliff]
+    cell.terrace.material = stone ? [m.rockTop, m.stoneDark] : [this.materials.grass, this.materials.grassSide]
+    const tufts = { [this.materials.bladeLight.uuid]: m.tuftLight, [this.materials.blade.uuid]: m.tuft, [this.materials.bladeDark.uuid]: m.tuftDark }
+    for (const blade of cell.grass.children) {
+      blade.userData.base ??= blade.material
+      blade.material = stone ? tufts[blade.userData.base.uuid] ?? blade.userData.base : blade.userData.base
+    }
     if (fixed === null) return
     // Each garden arranges its landmarks differently, but the same garden always looks the same.
     const index = cell.row * 10 + cell.col
