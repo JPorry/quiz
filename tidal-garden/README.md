@@ -140,6 +140,36 @@ carves starting tiles away while a player could still solve it by always taking
 the easiest move, keeps carving until the ferries are needed, and keeps the
 chapter climbing in difficulty.
 
+## The Pilgrims and the Crossings
+
+A fifth chapter of ten adds pilgrims. Little shrines stand on starting land
+tiles in pairs: a wooden hall under a colored roof on a stone step, a tiny red
+gate in front, and a paper lantern glowing in the pair's color (rose, mint,
+amber, or violet). Shrines with matching lanterns must end up on the same
+island, joined by land up, down, left, and right, so their pilgrim can walk from
+one to the other. When land first joins a pair, the shrines give a happy hop,
+the trees step aside for a stepping-stone path along the shortest way, glowing
+lanterns pop up beside it one after another, and a tiny pilgrim in a straw hat
+tied with a ribbon in the pair's color, with a matching bundle on their back and
+a walking staff, steps out with the ring of a temple bell when sound is on. Like
+the ferries, the pilgrim is in no hurry: they rest before a shrine for ten
+seconds or so, bowing now and then, stroll along the path at about a fifth of a
+tile a second with a little waddle, rest and bow at the other shrine, and walk
+back. Where two paths share a tile it carries one set of stones and lanterns.
+If water later cuts the way, the pilgrim slips back to the shrine they left;
+undone, the lanterns shrink away and the trees return. Shrines that can no
+longer be joined are marked like any other mistake. A garden that opens with a
+path already joined finds its pilgrim resting at one of its shrines.
+
+The solver and hints know one pilgrim move, the ferries' move turned around: a
+tile that every remaining way between two matching shrines has to cross must be
+land. A sixth chapter of ten, the Crossings, mixes docks and shrines in the same
+gardens, so water has to join some pairs while land joins others.
+`scripts/generate-pilgrims.mjs --output` builds both chapters into
+`src/pilgrimPuzzles.js` and `src/crossingPuzzles.js`: it gathers a pool of
+gardens for every level whose clues all carry weight, then picks one per level
+so that each is harder than the last while flowing as well as possible.
+
 ## Art
 
 The garden is a little diorama: a tray of sea above a layer of sand, seen

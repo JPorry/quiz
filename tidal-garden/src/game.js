@@ -7,6 +7,9 @@ import { LIGHTHOUSE_PUZZLES } from './lighthousePuzzles.js'
 import { lighthouseViolations, lighthousesHold } from './lighthouses.js'
 import { FERRY_PUZZLES } from './ferryPuzzles.js'
 import { ferryViolations, ferriesHold } from './ferries.js'
+import { PILGRIM_PUZZLES } from './pilgrimPuzzles.js'
+import { CROSSING_PUZZLES } from './crossingPuzzles.js'
+import { pilgrimViolations, pilgrimsHold } from './pilgrims.js'
 
 // v2: the gardens were regenerated, so progress saved for the old ones no longer applies.
 const STORAGE_KEY = 'tidal-garden.v2'
@@ -25,6 +28,12 @@ export const GARDEN_NAMES = [
   'First crossing', 'Morning ferry', 'Island hopping', 'Two harbors',
   'Slow waters', 'The long way round', 'Ferry bells', 'Narrow straits',
   'All aboard', 'Homeward bound',
+  'First steps', 'Lantern walk', 'Mossy steps', 'Two shrines',
+  'Quiet devotion', 'The winding path', 'Temple bells', 'Pine needles',
+  'Long road', 'Journey\'s end',
+  'Over land and sea', 'Bells and horns', 'Market crossing', 'Tea house',
+  'Harbor shrine', 'Paper lanterns', 'Ferry and footpath', 'The old ways',
+  'Many paths', 'All together',
 ]
 // The gardens come in chapters; later chapters add something new to read in the garden.
 export const CHAPTERS = Object.freeze([
@@ -35,15 +44,19 @@ export const CHAPTERS = Object.freeze([
     intro: 'Each lighthouse counts the water its light reaches before land. Light every one.' },
   { name: 'The Ferries', start: PUZZLES.length + VILLAGE_PUZZLES.length + LIGHTHOUSE_PUZZLES.length, count: FERRY_PUZZLES.length,
     intro: 'Docks with matching roofs must be joined by water, so their ferry can sail between them.' },
+  { name: 'The Pilgrims', start: PUZZLES.length + VILLAGE_PUZZLES.length + LIGHTHOUSE_PUZZLES.length + FERRY_PUZZLES.length, count: PILGRIM_PUZZLES.length,
+    intro: 'Shrines with matching lanterns must stand on the same island, so their pilgrim can walk between them.' },
+  { name: 'The Crossings', start: PUZZLES.length + VILLAGE_PUZZLES.length + LIGHTHOUSE_PUZZLES.length + FERRY_PUZZLES.length + PILGRIM_PUZZLES.length, count: CROSSING_PUZZLES.length,
+    intro: 'Ferries need water between their docks, and pilgrims need land between their shrines.' },
 ])
-// Every garden carries its clues: census signs, lighthouses and ferry docks, any of which may be empty.
-const withClues = (garden) => ({ signs: [], lights: [], ferries: [], ...garden })
-export const GARDENS = Object.freeze([...PUZZLES, ...VILLAGE_PUZZLES, ...LIGHTHOUSE_PUZZLES, ...FERRY_PUZZLES].map(withClues))
+// Every garden carries its clues: census signs, lighthouses, ferry docks and shrines, any of which may be empty.
+const withClues = (garden) => ({ signs: [], lights: [], ferries: [], pilgrims: [], ...garden })
+export const GARDENS = Object.freeze([...PUZZLES, ...VILLAGE_PUZZLES, ...LIGHTHOUSE_PUZZLES, ...FERRY_PUZZLES, ...PILGRIM_PUZZLES, ...CROSSING_PUZZLES].map(withClues))
 export const chapterOf = (level) => CHAPTERS.findLast((chapter) => level >= chapter.start) ?? CHAPTERS[0]
 export const copyGrid = (grid) => grid.map((row) => [...row])
 
-export function findViolations(grid, { signs = [], lights = [], ferries = [] } = {}) {
-  const invalid = new Set([...censusViolations(grid, signs), ...lighthouseViolations(grid, lights), ...ferryViolations(grid, ferries)])
+export function findViolations(grid, { signs = [], lights = [], ferries = [], pilgrims = [] } = {}) {
+  const invalid = new Set([...censusViolations(grid, signs), ...lighthouseViolations(grid, lights), ...ferryViolations(grid, ferries), ...pilgrimViolations(grid, pilgrims)])
   const size = grid.length
   const lines = [
     ...grid.map((values, row) => ({ values, cells: values.map((_, col) => [row, col]) })),
@@ -78,8 +91,8 @@ export function findViolations(grid, { signs = [], lights = [], ferries = [] } =
 }
 
 // The easiest move available right now, matching the garden's solution, and why it works.
-export function findHint(grid, solution, { signs = [], lights = [], ferries = [] } = {}) {
-  const next = easiestDeductions(grid, undefined, { signs, lights, ferries })
+export function findHint(grid, solution, { signs = [], lights = [], ferries = [], pilgrims = [] } = {}) {
+  const next = easiestDeductions(grid, undefined, { signs, lights, ferries, pilgrims })
   if (!next) return null
   const move = next.deductions.find(({ row, col, value }) => !solution || solution[row][col] === value)
   if (!move) return null
@@ -121,8 +134,8 @@ export class GardenGame {
   }
 
   // Finished means a balanced garden whose every village and lighthouse matches its number, and
-  // whose every pair of docks is joined by water.
-  get complete() { return isValidBinarySolution(this.grid) && censusHolds(this.grid, this.puzzle.signs) && lighthousesHold(this.grid, this.puzzle.lights) && ferriesHold(this.grid, this.puzzle.ferries) }
+  // whose every pair of docks is joined by water and every pair of shrines by land.
+  get complete() { return isValidBinarySolution(this.grid) && censusHolds(this.grid, this.puzzle.signs) && lighthousesHold(this.grid, this.puzzle.lights) && ferriesHold(this.grid, this.puzzle.ferries) && pilgrimsHold(this.grid, this.puzzle.pilgrims) }
   get filled() { return this.grid.flat().filter((v) => v !== null).length }
   get placed() { return this.filled - this.puzzle.puzzle.flat().filter((v) => v !== null).length }
   get remaining() { return 100 - this.filled }

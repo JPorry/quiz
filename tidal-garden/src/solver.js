@@ -2,14 +2,16 @@ import { getValidBinaryLines } from './binaryLogic.js'
 import { villages } from './census.js'
 import { lighthouses } from './lighthouses.js'
 import { channels } from './ferries.js'
+import { footpaths } from './pilgrims.js'
 
 // The deductions a player can make, easiest first. None of them needs the rule that rows or
 // columns must differ: every garden is built to be solvable without it. The village moves only
 // apply to gardens whose islands carry census signs.
-export const TECHNIQUES = Object.freeze(['seal', 'apart', 'grow', 'block', 'shine', 'channel', 'pair', 'gap', 'count', 'line'])
+export const TECHNIQUES = Object.freeze(['seal', 'apart', 'grow', 'block', 'shine', 'channel', 'trail', 'pair', 'gap', 'count', 'line'])
 export const VILLAGE_TECHNIQUES = Object.freeze(['seal', 'apart', 'grow'])
 export const LIGHT_TECHNIQUES = Object.freeze(['block', 'shine'])
 export const FERRY_TECHNIQUES = Object.freeze(['channel'])
+export const PILGRIM_TECHNIQUES = Object.freeze(['trail'])
 
 function lines(grid) {
   const size = grid.length
@@ -173,7 +175,14 @@ function channel(grid, { ferries = [] }) {
   return [...found.values()]
 }
 
-const FINDERS = { seal, apart, grow, block, shine, channel, pair: (grid) => adjacency(grid, 'pair'), gap: (grid) => adjacency(grid, 'gap'), count: counting, line: lineLogic }
+// A tile that every remaining walk between two matching shrines has to cross must be land.
+function trail(grid, { pilgrims = [] }) {
+  const found = new Map()
+  for (const [r, c] of footpaths(grid, pilgrims)) collect(found, grid, r, c, 1, 'trail', { axis: 'pilgrim', index: 0 })
+  return [...found.values()]
+}
+
+const FINDERS = { seal, apart, grow, block, shine, channel, trail, pair: (grid) => adjacency(grid, 'pair'), gap: (grid) => adjacency(grid, 'gap'), count: counting, line: lineLogic }
 
 // The easiest kind of deduction available right now, with every placement it allows.
 export function easiestDeductions(grid, allowed = TECHNIQUES, context = {}) {
@@ -195,10 +204,10 @@ export function availableMoves(grid, allowed = TECHNIQUES, context = {}) {
 // Plays the garden the way a person would: always reaching for the easiest move available.
 // Reports whether it finished, and how the solve flowed; with `flow`, each step also counts
 // how many tiles the player could have filled in at that moment.
-export function solveLikeAPlayer(puzzle, allowed = TECHNIQUES, { flow = false, signs = [], lights = [], ferries = [] } = {}) {
+export function solveLikeAPlayer(puzzle, allowed = TECHNIQUES, { flow = false, signs = [], lights = [], ferries = [], pilgrims = [] } = {}) {
   const grid = puzzle.map((row) => [...row])
   const steps = []
-  const context = { signs, lights, ferries }
+  const context = { signs, lights, ferries, pilgrims }
   for (;;) {
     const next = easiestDeductions(grid, allowed, context)
     if (!next) break
