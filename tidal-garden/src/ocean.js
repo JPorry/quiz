@@ -62,14 +62,38 @@ function coastBoxes(grid, inset, radius) {
   }))
 }
 
+// The garden's starting water as soft, rounded pools: a rounded core per tile, joined to
+// neighboring starting water by bridges, so connected tiles merge into one organic shape.
+function deepBoxes(clues, inset = 0.08, radius = 0.34) {
+  const half = clues.length / 2
+  const deep = (row, col) => clues[row]?.[col] === 0
+  return clues.map((cells, row) => cells.map((_, col) => {
+    if (!deep(row, col)) return []
+    const cx = col + 0.5 - half, cz = row + 0.5 - half, core = 0.5 - inset
+    const boxes = [{ cx, cz, hx: core, hz: core, radius }]
+    if (deep(row, col + 1)) boxes.push({ cx: cx + 0.5, cz, hx: 0.5, hz: core, radius: 0 })
+    if (deep(row + 1, col)) boxes.push({ cx, cz: cz + 0.5, hx: core, hz: 0.5, radius: 0 })
+    if (deep(row, col + 1) && deep(row + 1, col) && deep(row + 1, col + 1)) boxes.push({ cx: cx + 0.5, cz: cz + 0.5, hx: 0.5, hz: 0.5, radius: 0 })
+    return boxes
+  }))
+}
+
+// How deep the starting water is at a point: full in the middle of its pools, easing to
+// nothing just past their rounded edges, so it blends into the water around it.
+export function deepAt(distance) {
+  const t = Math.min(1, Math.max(0, (0.1 - distance) / 0.3))
+  return t * t * (3 - 2 * t)
+}
+
 // Red: distance from each point of water to the nearest land shore, in tiles.
 // Green: whether the point lies in an enclosed lake. Blue: an empty socket, where no water is poured yet.
-// Alpha: the garden's starting water, which runs deep and dark.
+// Alpha: how deep the garden's starting water runs there, softly fading at its edges.
 export function createRimField(grid, { inset = 0.06, radius = 0.24 } = {}, clues = null) {
   const half = grid.length / 2
   const { extent, resolution, min, max } = RIM
   const lakes = findLakes(grid)
   const boxes = coastBoxes(grid, inset, radius)
+  const pools = clues ? deepBoxes(clues) : null
   const data = new Uint8Array(resolution * resolution * 4)
   for (let row = 0; row < resolution; row++) for (let col = 0; col < resolution; col++) {
     const x = (col + 0.5) / resolution * extent - extent / 2
@@ -83,7 +107,15 @@ export function createRimField(grid, { inset = 0.06, radius = 0.24 } = {}, clues
     data[index] = Math.round((Math.min(max, Math.max(min, best)) - min) / (max - min) * 255)
     data[index + 1] = lakes[r0]?.[c0] ? 255 : 0
     data[index + 2] = grid[r0]?.[c0] === null ? 255 : 0
-    data[index + 3] = clues?.[r0]?.[c0] === 0 ? 255 : 0
+    let depth = 0
+    if (pools) {
+      let near = 1
+      for (let r = r0 - 1; r <= r0 + 1; r++) for (let c = c0 - 1; c <= c0 + 1; c++) {
+        for (const box of pools[r]?.[c] ?? []) near = Math.min(near, boxDistance(x, z, box))
+      }
+      depth = deepAt(near)
+    }
+    data[index + 3] = Math.round(depth * 255)
   }
   return data
 }
@@ -123,7 +155,8 @@ export const waterFragmentColor = `
   vec3 water = mix(${srgb(WATER_COLORS.deep)}, ${srgb(WATER_COLORS.lake)}, lake * 0.55);
   water = mix(${srgb(WATER_COLORS.shallow)}, water, smoothstep(0.12, 0.24, shore + wobble));
   // The garden's starting water is old and deep: the whole tile runs a dark blue.
-  float ancient = smoothstep(0.25, 0.75, rimField.a);
+  // A slow wobble keeps the edge of the deep water organic rather than drawn.
+  float ancient = clamp(rimField.a + (waterNoise(vXZ * 2.3 + uTime * 0.05) - 0.5) * 0.18 * rimField.a * (1.0 - rimField.a) * 4.0, 0.0, 1.0);
   vec3 depths = mix(${srgb(WATER_COLORS.ancientShallow)}, ${srgb(WATER_COLORS.ancient)}, smoothstep(0.12, 0.3, shore + wobble));
   water = mix(water, depths, ancient);
 

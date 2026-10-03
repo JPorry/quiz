@@ -63,3 +63,24 @@ test('empty sockets carve the water away and give it a shore to lap against', ()
   assert.equal(socket(0.5, -0.5), 0)
   assert.ok(distance(0.1, -0.5) < 0.15, 'Water right beside a socket is at its shore')
 })
+
+test('starting water is deepest in the middle and fades softly into the water around it', async () => {
+  const { deepAt } = await import('../src/ocean.js')
+  const size = 10
+  const grid = Array.from({ length: size }, () => Array(size).fill(0))
+  const clues = Array.from({ length: size }, () => Array(size).fill(null))
+  clues[4][4] = 0; clues[4][5] = 0
+  const field = createRimField(grid, { inset: 0.06, radius: 0.24 }, clues)
+  const depth = (x, z) => {
+    const col = Math.floor((x / RIM.extent + 0.5) * RIM.resolution), row = Math.floor((z / RIM.extent + 0.5) * RIM.resolution)
+    return field[(row * RIM.resolution + col) * 4 + 3] / 255
+  }
+  assert.ok(depth(-0.5, -0.5) > 0.95, 'deep in the middle of a starting tile')
+  assert.ok(depth(0, -0.5) > 0.95, 'neighboring starting tiles merge with no seam')
+  assert.ok(depth(-1.5, -0.5) < 0.05, "ordinary water beyond")
+  const edge = depth(-0.88, -0.5)
+  assert.ok(edge > 0.05 && edge < 0.95, `a soft edge rather than a hard one (${edge})`)
+  assert.ok(depth(-0.92, -0.08) < depth(-0.5, -0.5), 'rounded corners')
+  assert.equal(deepAt(-1), 1)
+  assert.equal(deepAt(1), 0)
+})
