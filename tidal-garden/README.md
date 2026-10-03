@@ -66,11 +66,13 @@ sounds are synthesized locally. Keyboard terrain selection uses `0`/`W`,
 
 After the first twenty gardens, a second chapter of ten adds census signs. A
 wooden sign on a starting land tile shows how many land tiles its island holds.
-Each land tile you join to a signed island raises a little hut with a colored
-gabled roof, and the tile's trees step aside to make room. When water closes the
+Each land tile you join to a signed island raises a little round straw hut,
+earthen walls under a layered thatched cone, and the tile's trees step aside to
+make room. When water closes the
 island in at exactly its number, the sign spins down into the ground, the last
-hut pops up where it stood, the huts hop one after another, their windows light
-up, and smoke curls from every chimney; a soft chime plays when sound is on. An
+hut pops up where it stood, the huts hop one after another, their doorways glow
+with firelight, and smoke curls from every thatched crown; a soft chime plays
+when sound is on. An
 island that outgrows its sign, or is closed in too small, is marked like any
 other mistake, and a garden is only finished when every village matches its
 sign. Villages keep their flowers but host no wild residents.
