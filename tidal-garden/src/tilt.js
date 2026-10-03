@@ -2,12 +2,12 @@
 
 const STORAGE_KEY = 'tidal-garden.tilt'
 // How far the phone must turn, in degrees, for the board to reach its full lean.
-const RANGE = 22
-// The most the board leans either way, in radians (about 3.5 degrees).
-export const MAX_LEAN = 3.5 * Math.PI / 180
+const RANGE = 18
+// The most the board leans either way, in radians (8 degrees).
+export const MAX_LEAN = 8 * Math.PI / 180
 // How quickly the board follows the phone, and how slowly "level" settles to the way it is held.
 const FOLLOW = 0.18
-const SETTLE = 3.5
+const SETTLE = 5
 
 const clamp = (value, low, high) => Math.min(high, Math.max(low, value))
 
