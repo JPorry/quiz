@@ -8,7 +8,7 @@ const clamp = THREE.MathUtils.clamp
 
 // When a row or column clicks into place, a gust of wind rushes out along it from the tile
 // that finished it: plants and grass bow and shake as it passes, the tiles give a little
-// bounce, leaves and petals tumble along with it, and the water ruffles.
+// bounce, and leaves and petals tumble along with it.
 export class LineFlourish {
   constructor(garden, { random = Math.random } = {}) {
     this.garden = garden
@@ -31,7 +31,7 @@ export class LineFlourish {
     for (const { axis, index } of lines) {
       const row = axis === 'row'
       const from = row ? origin.col : origin.row
-      const gust = { axis, index, from, started: time, ruffled: new Set() }
+      const gust = { axis, index, from, started: time }
       if (this.active.length >= 4) this.active.shift()
       this.active.push(gust)
       // A softer bounce than a placement, following the gust down the line.
@@ -86,20 +86,7 @@ export class LineFlourish {
   }
 
   update(time) {
-    const garden = this.garden
     this.active = this.active.filter((gust) => (gust.hold ?? time - gust.started) < DURATION)
-    for (const gust of this.active) {
-      // The front ruffles each stretch of water it crosses.
-      const age = gust.hold ?? time - gust.started
-      for (let step = 0; step < 10; step++) {
-        if (gust.ruffled.has(step) || age < Math.abs(step - gust.from) / SPEED) continue
-        gust.ruffled.add(step)
-        const row = gust.axis === 'row'
-        const cell = garden.cells[row ? gust.index * 10 + step : step * 10 + gust.index]
-        if (cell.value !== 0) continue
-        for (let i = 0; i < 3; i++) garden.rain?.ruffle(cell.col - 4.5 + (this.random() - 0.5) * 0.7, cell.row - 4.5 + (this.random() - 0.5) * 0.7, time)
-      }
-    }
     for (const leaf of this.leaves) {
       const gust = leaf.gust
       if (!gust || !this.active.includes(gust)) { leaf.gust = null; leaf.mesh.visible = false; continue }

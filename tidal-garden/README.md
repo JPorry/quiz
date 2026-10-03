@@ -97,9 +97,18 @@ on the grass. Reduced motion keeps the sky clear.
 When a placement completes a row or column that follows every rule, a gust of
 wind rushes out along it from that tile: plants and grass bow and shake as it
 passes, with a little spilling onto the rows either side, the tiles give a soft
-bounce, leaves and petals tumble along with it, and the water ruffles. With
+bounce, and leaves and petals tumble along with it. With
 sound on, a soft whoosh plays. Finishing a row and a column at once sends gusts
 along both.
+
+On phones the garden leans very slightly with the device, as if the diorama were
+sitting in it: dipping the right edge lowers the board's east side and raising
+the top edge lifts its north side, by at most about three and a half degrees.
+Only movement counts: "level" slowly settles to however the phone is held, so
+any comfortable reading angle is neutral. Android browsers share motion freely,
+so tilting starts on; iOS asks once, on the player's first tap. The tilt button
+in the header turns it on or off, and the choice is remembered. Reduced motion
+leaves the board still.
 
 The water is flat pigment. One cached distance field to the same rounded
 coastline drives a pale shallow rim, a lapping foam lip, calmer lakes, and a
