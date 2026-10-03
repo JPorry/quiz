@@ -15,6 +15,7 @@ import { Landmarks } from './landmarks.js'
 import { Villages } from './villages.js'
 import { Beacons } from './beacons.js'
 import { Harbors } from './harbors.js'
+import { Shrines } from './shrines.js'
 import { CloudShadows } from './clouds.js'
 import { LineFlourish } from './flourish.js'
 import { Rain } from './rain.js'
@@ -67,7 +68,7 @@ function slab(shape, bottom, top) {
 }
 
 export class GardenScene {
-  constructor(container, { onCell, safeArea, finaleArea, onFlourish, onVillage, onLighthouse, onFerry }) {
+  constructor(container, { onCell, safeArea, finaleArea, onFlourish, onVillage, onLighthouse, onFerry, onPilgrim }) {
     this.container = container
     this.onCell = onCell
     this.onFlourish = onFlourish
@@ -148,6 +149,8 @@ export class GardenScene {
     this.beacons.onLit = () => onLighthouse?.()
     this.harbors = new Harbors(this)
     this.harbors.onJoined = () => onFerry?.()
+    this.shrines = new Shrines(this)
+    this.shrines.onJoined = () => onPilgrim?.()
     this.flourish = new LineFlourish(this)
     this.appliedView = ''
     // How far the phone is leaning the board, set from the device's tilt.
@@ -451,13 +454,13 @@ export class GardenScene {
     return value === 1 ? LAND.grass.top + 0.02 : value === null ? SOCKET_TOP + 0.01 : WATER_Y + 0.01
   }
 
-  update(grid, clues, invalid, complete, { signs = [], lights = [], ferries = [] } = {}) {
+  update(grid, clues, invalid, complete, { signs = [], lights = [], ferries = [], pilgrims = [] } = {}) {
     const hadGrid = !!this.grid && this.clues === clues
     if (!hadGrid) { this.clearSelection(); this.completions.clear() }
     const changed = this.cells.filter((cell) => grid[cell.row][cell.col] !== cell.value)
     const before = this.grid
     // A new garden puts up its census signs before anything else is laid out around them.
-    if (!hadGrid) { this.villages.set(signs); this.beacons.set(lights); this.harbors.set(ferries) }
+    if (!hadGrid) { this.villages.set(signs); this.beacons.set(lights); this.harbors.set(ferries); this.shrines.set(pilgrims) }
     this.grid = grid.map((row) => [...row])
     if (!hadGrid) this.clueSeed = clues.flat().reduce((sum, value, index) => sum + (value === null ? 0 : (value + 1) * (index % 7 + 1)), 0) % 997
     this.clues = clues
@@ -491,6 +494,7 @@ export class GardenScene {
     this.villages.update(grid, this.time, hadGrid && !this.reducedMotion)
     this.beacons.update(grid, this.time, hadGrid && !this.reducedMotion)
     this.harbors.update(grid, this.time, hadGrid && !this.reducedMotion)
+    this.shrines.update(grid, this.time, hadGrid && !this.reducedMotion)
     this.sockets.update(grid, this.time, { intro: !hadGrid, animate: !this.reducedMotion })
     const filled = grid.flat().filter((value) => value !== null).length
     this.daylightTarget = complete ? 1 : filled / 100
@@ -529,7 +533,7 @@ export class GardenScene {
     const index = cell.row * 10 + cell.col
     const seed = seeded(index * 7.3 + this.clueSeed), salt = seeded(index * 3.1 + this.clueSeed + 17)
     // Starting water is marked by its deeper pool alone, and a signed tile carries its sign instead.
-    if (stone && !this.villages.signModels.has(index) && !this.beacons.isTower(index) && !this.harbors.isDock(index)) cell.marker = this.landmarks.land(cell, seed, salt)
+    if (stone && !this.villages.signModels.has(index) && !this.beacons.isTower(index) && !this.harbors.isDock(index) && !this.shrines.isShrine(index)) cell.marker = this.landmarks.land(cell, seed, salt)
   }
 
   react(origin) {
@@ -822,6 +826,7 @@ export class GardenScene {
     this.villages.animate(this.time, this.reducedMotion)
     this.beacons.animate(this.time, this.reducedMotion)
     this.harbors.animate(this.time, this.reducedMotion)
+    this.shrines.animate(this.time, this.reducedMotion)
     this.crossTiles.forEach((plane, index) => {
       if (plane.visible) plane.position.y = this.cellHeight(this.cells[index]) + (this.cells[index].value === 1 ? this.cells[index].land.position.y : 0) + 0.02
     })

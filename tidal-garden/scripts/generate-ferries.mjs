@@ -55,13 +55,14 @@ export const ferryMoves = (stats) => stats.channel
 
 // Docks stand on land tiles by the water, well apart from each other, and each pair is joined by a
 // good long crossing.
-export function chooseFerries(solution, count, rng) {
+export function chooseFerries(solution, count, rng, taken = []) {
   const shore = []
   for (let row = 0; row < SIZE; row++) for (let col = 0; col < SIZE; col++) {
     if (solution[row][col] !== 1) continue
     if ([[-1, 0], [1, 0], [0, -1], [0, 1]].some(([dr, dc]) => solution[row + dr]?.[col + dc] === 0)) shore.push([row, col])
   }
-  const docks = []
+  // Other clues already set out in the garden (shared, so they keep their distance too).
+  const docks = taken
   const apart = ([r, c]) => docks.every(([dr, dc]) => Math.max(Math.abs(dr - r), Math.abs(dc - c)) >= 2)
   const ferries = []
   for (const from of shuffle(shore, rng)) {
