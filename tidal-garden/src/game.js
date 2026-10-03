@@ -1,6 +1,8 @@
 import { isValidBinarySolution } from './binaryLogic.js'
 import { easiestDeductions } from './solver.js'
 import { PUZZLES } from './puzzles.js'
+import { SHORE_PUZZLES } from './shorePuzzles.js'
+import { hintViolations, hintsHold } from './hints.js'
 
 // v2: the gardens were regenerated, so progress saved for the old ones no longer applies.
 const STORAGE_KEY = 'tidal-garden.v2'
@@ -10,11 +12,21 @@ export const GARDEN_NAMES = [
   'A little wild', 'Gentle tides', 'Silver ripples', 'Salt & sunlight',
   'Green sanctuary', 'Drifting clouds', 'Low tide', 'Sea glass',
   'Secret garden', 'Distant shores', 'Moon pool', 'A world in balance',
+  'First footbridge', 'Sandbar', 'Driftwood', 'Low causeway',
+  'Tidepools', 'Shell beach', 'Reed shallows', 'Lantern pier',
+  'Saltmarsh', 'Two shores',
 ]
+// The gardens come in chapters; later chapters add new kinds of hint.
+export const CHAPTERS = Object.freeze([
+  { name: 'The Shallows', start: 0, count: PUZZLES.length },
+  { name: 'Bridges & Shorelines', start: PUZZLES.length, count: SHORE_PUZZLES.length },
+])
+export const GARDENS = Object.freeze([...PUZZLES.map((garden) => ({ ...garden, hints: [] })), ...SHORE_PUZZLES])
+export const chapterOf = (level) => CHAPTERS.findLast((chapter) => level >= chapter.start) ?? CHAPTERS[0]
 export const copyGrid = (grid) => grid.map((row) => [...row])
 
-export function findViolations(grid) {
-  const invalid = new Set()
+export function findViolations(grid, hints = []) {
+  const invalid = hintViolations(grid, hints)
   const size = grid.length
   const lines = [
     ...grid.map((values, row) => ({ values, cells: values.map((_, col) => [row, col]) })),
@@ -49,8 +61,8 @@ export function findViolations(grid) {
 }
 
 // The easiest move available right now, matching the garden's solution, and why it works.
-export function findHint(grid, solution) {
-  const next = easiestDeductions(grid)
+export function findHint(grid, solution, hints = []) {
+  const next = easiestDeductions(grid, undefined, hints)
   if (!next) return null
   const move = next.deductions.find(({ row, col, value }) => !solution || solution[row][col] === value)
   if (!move) return null
@@ -69,9 +81,9 @@ export class GardenGame {
     try {
       const saved = JSON.parse(storage?.getItem(STORAGE_KEY) ?? 'null')
       if (saved && saved.version === 1) {
-        this.completed = Array.isArray(saved.completed) ? saved.completed.filter((v) => Number.isInteger(v) && v >= 0 && v < PUZZLES.length) : []
+        this.completed = Array.isArray(saved.completed) ? saved.completed.filter((v) => Number.isInteger(v) && v >= 0 && v < GARDENS.length) : []
         this.grids = saved.grids && typeof saved.grids === 'object' ? saved.grids : {}
-        this.level = Number.isInteger(saved.level) && saved.level >= 0 && saved.level < PUZZLES.length ? saved.level : 0
+        this.level = Number.isInteger(saved.level) && saved.level >= 0 && saved.level < GARDENS.length ? saved.level : 0
       }
     } catch { /* Storage can be unavailable in private browsing. */ }
     this.load(this.level)
@@ -79,7 +91,7 @@ export class GardenGame {
 
   load(level) {
     this.level = level
-    this.puzzle = PUZZLES[level]
+    this.puzzle = GARDENS[level]
     const saved = this.grids[level]
     const isValidSavedGrid = (grid) => Array.isArray(grid) && grid.length === 10 && grid.every((row, r) => Array.isArray(row) && row.length === 10 && row.every((v, c) => [null, 0, 1].includes(v) && (this.puzzle.puzzle[r][c] === null || this.puzzle.puzzle[r][c] === v)))
     const validGrid = isValidSavedGrid(saved?.grid)
@@ -91,7 +103,8 @@ export class GardenGame {
     this.save()
   }
 
-  get complete() { return isValidBinarySolution(this.grid) }
+  // Finished means a balanced garden that also keeps every footbridge and shoreline.
+  get complete() { return isValidBinarySolution(this.grid) && hintsHold(this.grid, this.puzzle.hints) }
   get filled() { return this.grid.flat().filter((v) => v !== null).length }
   get placed() { return this.filled - this.puzzle.puzzle.flat().filter((v) => v !== null).length }
   get remaining() { return 100 - this.filled }

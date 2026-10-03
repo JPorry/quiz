@@ -12,6 +12,7 @@ import { Breeze } from './breeze.js'
 import { Finale, FINALE_VIEW } from './finale.js'
 import { glide } from './glide.js'
 import { Landmarks } from './landmarks.js'
+import { EdgeHints } from './edgeHints.js'
 import { CloudShadows } from './clouds.js'
 import { LineFlourish } from './flourish.js'
 import { Rain } from './rain.js'
@@ -139,6 +140,7 @@ export class GardenScene {
     this.completions = new RegionCompletions(this)
     this.finale = new Finale(this)
     this.landmarks = new Landmarks(this)
+    this.edgeHints = new EdgeHints(this)
     this.flourish = new LineFlourish(this)
     this.appliedView = ''
     // How far the phone is leaning the board, set from the device's tilt.
@@ -442,7 +444,7 @@ export class GardenScene {
     return value === 1 ? LAND.grass.top + 0.02 : value === null ? SOCKET_TOP + 0.01 : WATER_Y + 0.01
   }
 
-  update(grid, clues, invalid, complete) {
+  update(grid, clues, invalid, complete, hints = []) {
     const hadGrid = !!this.grid && this.clues === clues
     if (!hadGrid) { this.clearSelection(); this.completions.clear() }
     const changed = this.cells.filter((cell) => grid[cell.row][cell.col] !== cell.value)
@@ -477,6 +479,7 @@ export class GardenScene {
       this.renderer.shadowMap.needsUpdate = true
     }
     this.waterLife.grid = this.grid
+    if (!hadGrid) this.edgeHints.set(hints)
     this.sockets.update(grid, this.time, { intro: !hadGrid, animate: !this.reducedMotion })
     const filled = grid.flat().filter((value) => value !== null).length
     this.daylightTarget = complete ? 1 : filled / 100
@@ -698,6 +701,9 @@ export class GardenScene {
     // The puzzle's markings step aside while the garden is admired.
     this.boundaryMaterial.opacity = 0.32 * (1 - blend)
     this.cloudMaterial.uniforms.uFade.value = 1 - blend
+    // Hints step aside with the other puzzle markings while the finished garden is admired.
+    this.edgeHints.group.scale.setScalar(Math.max(0.001, 1 - blend))
+    this.edgeHints.group.visible = blend < 0.999
     // Keyboard focus rings only need moving when the finale view settles, not for every small lean.
     if (blend === 0 && this.accessBlend !== 0) this.positionAccess()
     this.accessBlend = blend
@@ -798,6 +804,7 @@ export class GardenScene {
     if (this.particleMesh.instanceColor) this.particleMesh.instanceColor.needsUpdate = true
     this.completions.animate(this.time)
     this.flourish.update(this.time)
+    this.edgeHints.animate()
     this.crossTiles.forEach((plane, index) => {
       if (plane.visible) plane.position.y = this.cellHeight(this.cells[index]) + (this.cells[index].value === 1 ? this.cells[index].land.position.y : 0) + 0.02
     })
