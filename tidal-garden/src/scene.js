@@ -494,7 +494,14 @@ export class GardenScene {
     this.sockets.update(grid, this.time, { intro: !hadGrid, animate: !this.reducedMotion })
     const filled = grid.flat().filter((value) => value !== null).length
     this.daylightTarget = complete ? 1 : filled / 100
-    if (!hadGrid) { this.daylight = this.daylightTarget; this.daylightVelocity = 0 }
+    // A garden that opens part-way through starts with the sun already where its progress puts it;
+    // otherwise the sun would wait at morning and jump across the sky with the first tile.
+    if (!hadGrid) {
+      this.daylight = this.daylightTarget
+      this.daylightVelocity = 0
+      this.placeSun(this.daylight)
+      this.renderer.shadowMap.needsUpdate = true
+    }
     if (hadGrid && changed.length > 0 && changed.length <= 4) changed.forEach((cell) => this.react(cell))
     // A single placement that completes a balanced row or column sends a gust along it.
     if (hadGrid && changed.length === 1 && changed[0].value !== null) {
