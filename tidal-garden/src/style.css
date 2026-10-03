@@ -307,3 +307,5 @@ dialog { color: #27433a; }
   .finale-actions .primary-button, .finale-actions .secondary-button { padding: 10px 12px; }
 }
 .header-tools [hidden] { display: none; }
+.level-chapter { margin: 22px 0 10px; font: 600 11px 'DM Sans', sans-serif; letter-spacing: .06em; text-transform: uppercase; color: #6d8a74; }
+.level-chapter:first-of-type { margin-top: 4px; }
