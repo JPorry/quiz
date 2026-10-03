@@ -10,7 +10,6 @@ const TOWER_SCALE = 1.75
 const SHAFT = 0.336
 const TALL = 1.5
 const clamp = THREE.MathUtils.clamp
-const pop = (t) => { const x = clamp(t, 0, 1); return 1 + 2.4 * (x - 1) ** 3 + 1.4 * (x - 1) ** 2 }
 
 // Paints a number on a soft rounded cream badge in the game's rounded type.
 function badgeTexture(text, color) {
@@ -47,7 +46,7 @@ function badgeTexture(text, color) {
 
 // Lighthouses standing on the garden's starting land. While a lighthouse is still dark, soft dots
 // mark the water its light already reaches; once every beam ends at its number, the lamp lights,
-// a gentle beam sweeps the sea, and a little sailboat sails along the longest lit stretch.
+// and now and then a gentle beam sweeps the sea.
 export class Beacons {
   constructor(garden) {
     this.garden = garden
@@ -55,7 +54,7 @@ export class Beacons {
     const m = (color) => new THREE.MeshLambertMaterial({ color })
     this.materials = {
       white: m(0xfdf8ee), red: m(0xe0675a), dark: m(0x5a6a72), glassOff: m(0xb9d3d8), post: m(0xa8754c), rim: m(0xe3eef0),
-      glassOn: new THREE.MeshBasicMaterial({ color: 0xffe7a3 }), sail: m(0xfffaf0), hull: m(0xb5714a),
+      glassOn: new THREE.MeshBasicMaterial({ color: 0xffe7a3 }),
     }
     this.dots = new THREE.InstancedMesh(new THREE.CircleGeometry(0.09, 18).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xfff6c8, transparent: true, opacity: 0.9, depthWrite: false }), DOTS)
     this.dots.count = 0
@@ -142,23 +141,6 @@ export class Beacons {
     return { group, body, shaft, top, lamp, sparkles, sweep, badge }
   }
 
-
-  buildBoat() {
-    const garden = this.garden
-    const group = new THREE.Group()
-    const hull = garden.mesh(new THREE.SphereGeometry(0.06, 12, 8), this.materials.hull, group, 0, 0.0, 0)
-    hull.scale.set(0.7, 0.4, 1.4)
-    garden.mesh(new THREE.CylinderGeometry(0.005, 0.005, 0.15, 6), this.materials.hull, group, 0, 0.09, 0.0)
-    const sail = new THREE.Shape()
-    sail.moveTo(0, 0); sail.lineTo(0, 0.13); sail.lineTo(0.08, 0.01); sail.closePath()
-    const mesh = garden.mesh(new THREE.ShapeGeometry(sail), this.materials.sail, group, 0.003, 0.025, 0)
-    mesh.rotation.y = Math.PI / 2
-    mesh.material.side = THREE.DoubleSide
-    group.visible = false
-    garden.scene.add(group)
-    return group
-  }
-
   set(lights = []) {
     for (const tower of this.towers.values()) {
       tower.group.parent?.remove(tower.group)
@@ -167,7 +149,6 @@ export class Beacons {
         if (child.geometry !== this.wedge && child.geometry !== this.sparkGeometry) child.geometry?.dispose()
         if (child.material?.map) child.material.map.dispose()
       })
-      tower.boat.parent?.remove(tower.boat)
       tower.cell.plants.visible = true
     }
     this.towers.clear()
@@ -180,7 +161,7 @@ export class Beacons {
       built.group.scale.setScalar(TOWER_SCALE)
       cell.land.add(built.group)
       cell.plants.visible = false
-      this.towers.set(row * 10 + col, { ...built, cell, light, lit: null, boat: this.buildBoat(), route: null })
+      this.towers.set(row * 10 + col, { ...built, cell, light, lit: null })
     }
   }
 
@@ -197,9 +178,6 @@ export class Beacons {
         tower.lit = { at: animate ? time : -100 }
         if (animate) this.onLit?.()
       } else if (!state.complete) tower.lit = null
-      // A boat sails the longest lit stretch of water, out and back.
-      const longest = state.beams.reduce((best, b) => (b.lit.length > (best?.lit.length ?? 1) ? b : best), null)
-      tower.route = state.complete && longest ? longest.lit.map(([r, c]) => new THREE.Vector3(c - 4.5, WATER_Y + 0.02, r - 4.5)) : null
       tower.state = state
       if (!state.complete) for (const b of state.beams) for (const [r, c] of b.lit) this.lit.push([r, c, state.light.cell])
     }
@@ -229,7 +207,6 @@ export class Beacons {
       this.grow(tower, age, dt)
       this.lamp(tower, age, reducedMotion)
       this.sweepNowAndThen(tower, time, age, reducedMotion)
-      this.sail(tower, time, age, reducedMotion)
     }
     // Dots breathe gently, so they read as light rather than markings.
     this.dots.material.opacity = reducedMotion ? 0.8 : 0.7 + Math.sin(time * 2.4) * 0.15
@@ -299,23 +276,6 @@ export class Beacons {
     tower.sweep.rotation.y = sweeping.from + u * Math.PI * 1.6
     tower.sweep.material.uniforms.uStrength.value = 0.2 * Math.sin(u * Math.PI)
   }
-
-  // The sailboat sets out once the lamp is lit, drifting out along the lit water and back again.
-  sail(tower, time, age, reducedMotion) {
-    const route = tower.route
-    tower.boat.visible = age > 1.4 && !!route && route.length > 1
-    if (!tower.boat.visible) return
-    const span = route.length - 1
-    const phase = (age - 1.4) * 0.35 / Math.max(1, span) * Math.PI * 2 - Math.PI / 2
-    const t = reducedMotion ? 0.5 : (Math.sin(phase) + 1) / 2
-    const at = t * span, i = Math.min(span - 1, Math.floor(at)), f = at - i
-    tower.boat.position.lerpVectors(route[i], route[i + 1], f)
-    tower.boat.position.y = WATER_Y + 0.02 + Math.sin(time * 2.2) * 0.008
-    const heading = Math.atan2(route[i + 1].x - route[i].x, route[i + 1].z - route[i].z)
-    tower.boat.rotation.set(Math.sin(time * 1.7) * 0.06, heading + (Math.cos(phase) >= 0 ? 0 : Math.PI), Math.sin(time * 1.3) * 0.08)
-    tower.boat.scale.setScalar(2.2 * Math.min(1, pop((age - 1.4) / 0.5)))
-  }
-
 
   get litCount() { return [...this.towers.values()].filter((tower) => tower.lit).length }
   get dotCount() { return this.dots.count }
