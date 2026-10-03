@@ -500,15 +500,9 @@ export class GardenScene {
     cell.marker = null
     cell.fixed = fixed
     const stone = fixed === 1
-    // Starting land is grey stone through and through: cliffs, rim, a weathered top, and hardy tufts.
+    // Starting land rises on grey stone: blue-grey cliffs and a pale stone rim around its green top.
     const m = this.landmarks.materials
     cell.body.material = stone ? [m.stoneLight, m.stone] : [this.materials.sand, this.materials.cliff]
-    cell.terrace.material = stone ? [m.rockTop, m.stoneDark] : [this.materials.grass, this.materials.grassSide]
-    const tufts = { [this.materials.bladeLight.uuid]: m.tuftLight, [this.materials.blade.uuid]: m.tuft, [this.materials.bladeDark.uuid]: m.tuftDark }
-    for (const blade of cell.grass.children) {
-      blade.userData.base ??= blade.material
-      blade.material = stone ? tufts[blade.userData.base.uuid] ?? blade.userData.base : blade.userData.base
-    }
     if (fixed === null) return
     // Each garden arranges its landmarks differently, but the same garden always looks the same.
     const index = cell.row * 10 + cell.col

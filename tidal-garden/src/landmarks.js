@@ -3,7 +3,7 @@ import * as THREE from 'three'
 // The garden's starting tiles are its old foundations: land rises on mossy stone instead of
 // sand and carries a small weathered landmark, and water keeps a cluster of mossy rocks.
 // Grey stone appears nowhere else, so it always means "this was here first".
-export const STONE = { stone: 0x9aa6ad, stoneLight: 0xb9c3c6, stoneDark: 0x7b8a92, rockTop: 0xa4ad9f, moss: 0x7fa868, mossDark: 0x5f8f55, tuft: 0x8c9c7e, tuftLight: 0xaab69c, tuftDark: 0x6f8167, glow: 0xffe2a6 }
+export const STONE = { stone: 0x9aa6ad, stoneLight: 0xb9c3c6, stoneDark: 0x7b8a92, moss: 0x7fa868, mossDark: 0x5f8f55, glow: 0xffe2a6 }
 
 const LAND_KINDS = [['standing', 0.35], ['cairn', 0.3], ['lantern', 0.25], ['arch', 0.1]]
 
@@ -52,21 +52,8 @@ export class Landmarks {
     this.piece(new THREE.SphereGeometry(0.012 * s, 8, 6), 'stoneDark', parent, 0, 0.226 * s, 0)
   }
 
-  // A small landmark in one corner of a starting land tile, with loose rocks and moss scattered
-  // over the rest of its stony top.
+  // A small landmark in one corner of a starting land tile.
   land(cell, seed, salt) {
-    const outcrop = new THREE.Group()
-    outcrop.position.y = 0.44
-    const corner = landmarkCorner(salt, 0.24)
-    for (let i = 0; i < 4; i++) {
-      const angle = seed * 9 + i * 1.7, distance = 0.17 + ((seed * 7 + i * 0.37) % 1) * 0.12
-      const x = Math.cos(angle) * distance, z = Math.sin(angle) * distance
-      if (Math.hypot(x - corner.x, z - corner.z) < 0.16) continue
-      if (i % 2) this.rock(outcrop, x, 0.012, z, 0.032 + (i % 3) * 0.008, 0.5, angle)
-      else this.piece(new THREE.SphereGeometry(0.045, 10, 6), 'moss', outcrop, x, 0.004, z, [1.2, 0.22, 0.9])
-    }
-    this.garden.mergeDetails(outcrop)
-    cell.land.add(outcrop)
     const group = new THREE.Group()
     const { x, z } = landmarkCorner(salt, 0.24)
     group.position.set(x, 0, z)
@@ -95,9 +82,10 @@ export class Landmarks {
       this.piece(new THREE.BoxGeometry(0.15, 0.016, 0.02), 'stone', group, 0, 0.135, 0)
       this.piece(new THREE.SphereGeometry(0.03, 10, 6), 'moss', group, 0.06, 0.186, 0, [1.4, 0.4, 0.9])
     }
+    group.position.y = 0.44
     this.garden.mergeDetails(group)
-    outcrop.add(group)
-    return outcrop
+    cell.land.add(group)
+    return group
   }
 
   // A cluster of mossy rocks breaking the surface in one corner of a starting water tile,
