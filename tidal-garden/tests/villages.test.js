@@ -10,9 +10,9 @@ const empty = () => Array.from({ length: 10 }, () => Array(10).fill(null))
 
 test('the village chapter follows the first twenty gardens, every garden with a name', () => {
   assert.equal(VILLAGE_PUZZLES.length, 10)
-  assert.equal(GARDENS.length, 40)
+  assert.equal(GARDENS.length, 50)
   assert.equal(GARDEN_NAMES.length, GARDENS.length)
-  assert.deepEqual(CHAPTERS.map((chapter) => [chapter.start, chapter.count]), [[0, 20], [20, 10], [30, 10]])
+  assert.deepEqual(CHAPTERS.map((chapter) => [chapter.start, chapter.count]), [[0, 20], [20, 10], [30, 10], [40, 10]])
   assert.equal(chapterOf(20).name, 'The Villages')
 })
 

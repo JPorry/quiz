@@ -1,4 +1,4 @@
-import { createIcons, Sun, House, ArrowRight, Check, ChevronDown, CircleHelp, Clock3, Fingerprint, Grid3x3, Lightbulb, MoonStar, Move3d, RotateCcw, Scale, Sprout, Undo2, Volume2, VolumeX, X } from 'lucide'
+import { createIcons, Ship, Sun, House, ArrowRight, Check, ChevronDown, CircleHelp, Clock3, Fingerprint, Grid3x3, Lightbulb, MoonStar, Move3d, RotateCcw, Scale, Sprout, Undo2, Volume2, VolumeX, X } from 'lucide'
 import { GardenGame, GARDEN_NAMES, CHAPTERS, chapterOf, findViolations, findHint } from './game.js'
 import { GardenScene } from './scene.js'
 import { DeviceTilt } from './tilt.js'
@@ -82,7 +82,7 @@ app.innerHTML = `
 `
 
 const $ = (selector) => document.querySelector(selector)
-const refreshIcons = () => createIcons({ icons: { Sun, House, ArrowRight, Check, ChevronDown, CircleHelp, Clock3, Fingerprint, Grid3x3, Lightbulb, MoonStar, Move3d, RotateCcw, Scale, Sprout, Undo2, Volume2, VolumeX, X }, attrs: { 'stroke-width': 1.6 } })
+const refreshIcons = () => createIcons({ icons: { Ship, Sun, House, ArrowRight, Check, ChevronDown, CircleHelp, Clock3, Fingerprint, Grid3x3, Lightbulb, MoonStar, Move3d, RotateCcw, Scale, Sprout, Undo2, Volume2, VolumeX, X }, attrs: { 'stroke-width': 1.6 } })
 refreshIcons()
 
 const access = $('.board-access')
@@ -136,7 +136,7 @@ function finaleSafeArea() {
 }
 
 try {
-  scene = new GardenScene($('#world'), { onCell: placeCell, safeArea: boardSafeArea, finaleArea: finaleSafeArea, onFlourish: playFlourish, onVillage: playVillage, onLighthouse: playLighthouse })
+  scene = new GardenScene($('#world'), { onCell: placeCell, safeArea: boardSafeArea, finaleArea: finaleSafeArea, onFlourish: playFlourish, onVillage: playVillage, onLighthouse: playLighthouse, onFerry: playFerry })
 } catch (error) {
   $('#world').innerHTML = `<div class="render-error"><p>Your garden needs WebGL to bloom.</p><small>Please open it in a browser with hardware acceleration enabled.</small></div>`
   console.error(error)
@@ -186,6 +186,30 @@ function playFlourish(lines) {
   source.connect(filter).connect(gain).connect(soundContext.destination)
   source.start(now)
   source.stop(now + length)
+}
+
+// A soft, cheerful toot-toot when a ferry's crossing first opens.
+function playFerry() {
+  if (!soundEnabled || game.complete) return
+  soundContext ??= new AudioContext()
+  soundContext.resume()
+  const now = soundContext.currentTime
+  ;[[0.05, 0.22], [0.38, 0.42]].forEach(([delay, length]) => {
+    for (const frequency of [293.66, 369.99]) {
+      const oscillator = soundContext.createOscillator()
+      const gain = soundContext.createGain()
+      oscillator.type = 'triangle'
+      oscillator.frequency.setValueAtTime(frequency * 0.97, now + delay)
+      oscillator.frequency.linearRampToValueAtTime(frequency, now + delay + 0.06)
+      gain.gain.setValueAtTime(0, now + delay)
+      gain.gain.linearRampToValueAtTime(0.035, now + delay + 0.04)
+      gain.gain.setValueAtTime(0.035, now + delay + length - 0.06)
+      gain.gain.exponentialRampToValueAtTime(0.001, now + delay + length + 0.12)
+      oscillator.connect(gain).connect(soundContext.destination)
+      oscillator.start(now + delay)
+      oscillator.stop(now + delay + length + 0.15)
+    }
+  })
 }
 
 // A bright little chime, like a bell buoy, when a lighthouse lights.
@@ -371,6 +395,7 @@ function hintText({ row, col, value, technique, axis }) {
     apart: `land here would join islands into a village bigger than its sign`,
     block: `the lighthouse beside it already sees its number, so land must stop the beam here`,
     shine: `a lighthouse can only reach its number if its light passes here`,
+    channel: `every way left between two matching docks passes here, so their ferry needs this water`,
   }[technique]
   return `Row ${row + 1}, column ${col + 1} is ${kind}: ${why}`
 }
@@ -413,7 +438,7 @@ $('#reset').addEventListener('click', () => {
 })
 
 $('#help').addEventListener('click', () => {
-  openModal(`<p class="eyebrow">The art of balance</p><h2>A little land.<br>A little water.</h2><div class="rule"><span class="rule-icon">${icon('scale')}</span><div><h3>Equal measure</h3><p>Every row and column contains five water tiles and five land tiles.</p></div></div><div class="rule"><span class="rule-icon">${icon('grid-3x3')}</span><div><h3>Keep the rhythm</h3><p>Three water tiles or three land tiles may never appear consecutively, horizontally or vertically.</p></div></div><div class="rule"><span class="rule-icon">${icon('fingerprint')}</span><div><h3>Every line is its own</h3><p>No two completed rows or columns can have the same terrain pattern.</p></div></div><div class="rule"><span class="rule-icon">${icon('house')}</span><div><h3>Village signs</h3><p>In later gardens, a wooden sign counts the land tiles of its island. Each new tile you join to it raises a little hut, and the village comes to life when the island is closed in at its number.</p></div></div><div class="rule"><span class="rule-icon">${icon('sun')}</span><div><h3>Lighthouses</h3><p>A lighthouse counts the water tiles its light reaches straight up, down, left and right before land or the edge stops it. Glowing dots show what it already sees, and it lights up when every beam ends at its number.</p></div></div><p class="given-note"><b></b> Stone-rimmed land with a little landmark, and deeper pools of water, mark the terrain already in place.</p>`)
+  openModal(`<p class="eyebrow">The art of balance</p><h2>A little land.<br>A little water.</h2><div class="rule"><span class="rule-icon">${icon('scale')}</span><div><h3>Equal measure</h3><p>Every row and column contains five water tiles and five land tiles.</p></div></div><div class="rule"><span class="rule-icon">${icon('grid-3x3')}</span><div><h3>Keep the rhythm</h3><p>Three water tiles or three land tiles may never appear consecutively, horizontally or vertically.</p></div></div><div class="rule"><span class="rule-icon">${icon('fingerprint')}</span><div><h3>Every line is its own</h3><p>No two completed rows or columns can have the same terrain pattern.</p></div></div><div class="rule"><span class="rule-icon">${icon('house')}</span><div><h3>Village signs</h3><p>In later gardens, a wooden sign counts the land tiles of its island. Each new tile you join to it raises a little hut, and the village comes to life when the island is closed in at its number.</p></div></div><div class="rule"><span class="rule-icon">${icon('sun')}</span><div><h3>Lighthouses</h3><p>A lighthouse counts the water tiles its light reaches straight up, down, left and right before land or the edge stops it. Glowing dots show what it already sees, and it lights up when every beam ends at its number.</p></div></div><div class="rule"><span class="rule-icon">${icon('ship')}</span><div><h3>Ferries</h3><p>Docks with matching roofs must be joined by water, moving up, down, left and right, so their little ferry can sail from one to the other.</p></div></div><p class="given-note"><b></b> Stone-rimmed land with a little landmark, and deeper pools of water, mark the terrain already in place.</p>`)
 })
 
 $('#levels').addEventListener('click', () => {
@@ -511,6 +536,7 @@ if (import.meta.env.DEV) {
         complete: game.complete, history: game.history.length,
         camera: scene?.camera.position.toArray(), daylight: scene?.daylight,
         clouds: scene?.clouds.clouds.length,
+        ferries: scene && { docks: scene.harbors.dockCount, joined: scene.harbors.joinedCount, sailing: scene.harbors.sailingCount },
         lighthouses: scene && { towers: scene.beacons.towers.size, lit: scene.beacons.litCount, dots: scene.beacons.dotCount },
         villages: scene && { huts: scene.villages.hutCount, alive: scene.villages.aliveCount, signs: scene.villages.signModels.size },
         lean: scene?.lean,
@@ -545,6 +571,8 @@ if (import.meta.env.DEV) {
     // Holds every running flourish at a given age, so a screenshot can catch it mid-sweep.
     // Holds every lit lighthouse at a moment of its lighting-up, for screenshots; null releases it.
     holdLighthouse(age) { if (scene) scene.beacons.hold = age },
+    // Sends every moored ferry off on its next crossing right away.
+    departFerries() { scene?.harbors.depart() },
     holdFlourish(age) { scene?.flourish.active.forEach((flourish) => { flourish.hold = age }) },
     // Where a tile's centre appears on screen with the live camera, leaning included.
     screenPoint(row, col) {

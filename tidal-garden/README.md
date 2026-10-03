@@ -113,6 +113,32 @@ lighthouses on land tiles that see two to nine water tiles, carves starting
 tiles away while a player could still solve it by always taking the easiest
 move, and keeps the chapter climbing in difficulty.
 
+## The Ferries
+
+A fourth chapter of ten adds ferries. Little wooden docks stand on starting
+land tiles in pairs, each with a ticket hut under a colored roof, a lifebuoy,
+and a fluttering pennant. Docks with matching roofs must end up joined by water,
+moving up, down, left, and right, so their ferry can sail from beside one to
+beside the other. When the water first joins a pair, the huts give a happy hop,
+a jetty's planks pop out from each dock toward the water, and a chubby little
+ferry, a white hull with a colored band, round windows, and a puffing funnel,
+bobs up beside the first jetty with a soft toot-toot when sound is on. From then
+on it is in no hurry: it rests at its jetty for ten seconds or so, ambles across
+along the shortest water at about a quarter of a tile a second, leaving a soft
+foamy wake, turns slowly around at the other jetty and rests there, then comes
+back again. If land later cuts its course, it slips under and resurfaces at the
+dock it left; undone, it sinks away and the jetties fold up. A pair of docks
+that can no longer be joined is marked like any other mistake, and a garden is
+only finished when every pair is joined.
+
+The solver and hints know one ferry move: a tile that every remaining way
+between two matching docks has to cross must be water.
+`scripts/generate-ferries.mjs` builds the chapter into `src/ferryPuzzles.js`:
+it sets out two to four pairs of docks on shore tiles joined by long crossings,
+carves starting tiles away while a player could still solve it by always taking
+the easiest move, keeps carving until the ferries are needed, and keeps the
+chapter climbing in difficulty.
+
 ## Art
 
 The garden is a little diorama: a tray of sea above a layer of sand, seen
