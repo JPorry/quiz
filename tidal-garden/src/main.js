@@ -1,4 +1,4 @@
-import { createIcons, House, ArrowRight, Check, ChevronDown, CircleHelp, Clock3, Fingerprint, Grid3x3, Lightbulb, MoonStar, Move3d, RotateCcw, Scale, Sprout, Undo2, Volume2, VolumeX, X } from 'lucide'
+import { createIcons, Sun, House, ArrowRight, Check, ChevronDown, CircleHelp, Clock3, Fingerprint, Grid3x3, Lightbulb, MoonStar, Move3d, RotateCcw, Scale, Sprout, Undo2, Volume2, VolumeX, X } from 'lucide'
 import { GardenGame, GARDEN_NAMES, CHAPTERS, chapterOf, findViolations, findHint } from './game.js'
 import { GardenScene } from './scene.js'
 import { DeviceTilt } from './tilt.js'
@@ -82,7 +82,7 @@ app.innerHTML = `
 `
 
 const $ = (selector) => document.querySelector(selector)
-const refreshIcons = () => createIcons({ icons: { House, ArrowRight, Check, ChevronDown, CircleHelp, Clock3, Fingerprint, Grid3x3, Lightbulb, MoonStar, Move3d, RotateCcw, Scale, Sprout, Undo2, Volume2, VolumeX, X }, attrs: { 'stroke-width': 1.6 } })
+const refreshIcons = () => createIcons({ icons: { Sun, House, ArrowRight, Check, ChevronDown, CircleHelp, Clock3, Fingerprint, Grid3x3, Lightbulb, MoonStar, Move3d, RotateCcw, Scale, Sprout, Undo2, Volume2, VolumeX, X }, attrs: { 'stroke-width': 1.6 } })
 refreshIcons()
 
 const access = $('.board-access')
@@ -136,7 +136,7 @@ function finaleSafeArea() {
 }
 
 try {
-  scene = new GardenScene($('#world'), { onCell: placeCell, safeArea: boardSafeArea, finaleArea: finaleSafeArea, onFlourish: playFlourish, onVillage: playVillage })
+  scene = new GardenScene($('#world'), { onCell: placeCell, safeArea: boardSafeArea, finaleArea: finaleSafeArea, onFlourish: playFlourish, onVillage: playVillage, onLighthouse: playLighthouse })
 } catch (error) {
   $('#world').innerHTML = `<div class="render-error"><p>Your garden needs WebGL to bloom.</p><small>Please open it in a browser with hardware acceleration enabled.</small></div>`
   console.error(error)
@@ -186,6 +186,26 @@ function playFlourish(lines) {
   source.connect(filter).connect(gain).connect(soundContext.destination)
   source.start(now)
   source.stop(now + length)
+}
+
+// A bright little chime, like a bell buoy, when a lighthouse lights.
+function playLighthouse() {
+  if (!soundEnabled || game.complete) return
+  soundContext ??= new AudioContext()
+  soundContext.resume()
+  const now = soundContext.currentTime
+  ;[[783.99, 0.05], [1174.66, 0.2], [1567.98, 0.35]].forEach(([frequency, delay]) => {
+    const oscillator = soundContext.createOscillator()
+    const gain = soundContext.createGain()
+    oscillator.type = 'sine'
+    oscillator.frequency.setValueAtTime(frequency, now + delay)
+    gain.gain.setValueAtTime(0, now + delay)
+    gain.gain.linearRampToValueAtTime(0.03, now + delay + 0.02)
+    gain.gain.exponentialRampToValueAtTime(0.001, now + delay + 1.1)
+    oscillator.connect(gain).connect(soundContext.destination)
+    oscillator.start(now + delay)
+    oscillator.stop(now + delay + 1.2)
+  })
 }
 
 // A warm little two-note welcome when a village comes to life.
@@ -252,8 +272,8 @@ function burst(button) {
 const pieceFor = (value) => document.querySelector(`.piece[data-value="${value === null ? 'erase' : value}"]`)
 
 function render() {
-  const invalid = findViolations(game.grid, game.puzzle.signs)
-  scene?.update(game.grid, game.puzzle.puzzle, invalid, game.complete, game.puzzle.signs)
+  const invalid = findViolations(game.grid, game.puzzle)
+  scene?.update(game.grid, game.puzzle.puzzle, invalid, game.complete, game.puzzle)
   $('#caption-chapter').textContent = chapterOf(game.level).name.toUpperCase()
   $('#chapter-number').textContent = String(game.level + 1).padStart(2, '0')
   $('#garden-name').textContent = GARDEN_NAMES[game.level]
@@ -275,9 +295,9 @@ function render() {
   if (finale && !game.complete) endFinale()
   // The raised piece already shows the selection, so the status line only speaks up when it matters.
   // The first garden of a chapter explains what is new until the first tile goes down.
-  const introducing = !game.history.length && CHAPTERS.some((chapter) => chapter.start === game.level && chapter.start > 0)
+  const introducing = !game.history.length && CHAPTERS.find((chapter) => chapter.start === game.level && chapter.intro)
   const status = game.complete ? 'A world in balance' : invalid.size ? 'A little out of balance' : hintCell ? hintText(hintCell)
-    : introducing ? 'Each sign counts the land tiles of its island. Grow every village to its number.' : ''
+    : introducing ? introducing.intro : ''
   $('#placement-status p').textContent = status
   $('#placement-status').classList.toggle('invalid', invalid.size > 0)
   document.querySelectorAll('[data-value]').forEach((button) => {
@@ -349,17 +369,19 @@ function hintText({ row, col, value, technique, axis }) {
     seal: `the village beside it already has as many tiles as its sign`,
     grow: `it's the only way the village beside it can still grow`,
     apart: `land here would join islands into a village bigger than its sign`,
+    block: `the lighthouse beside it already sees its number, so land must stop the beam here`,
+    shine: `a lighthouse can only reach its number if its light passes here`,
   }[technique]
   return `Row ${row + 1}, column ${col + 1} is ${kind}: ${why}`
 }
 
 $('#hint').addEventListener('click', () => {
   if (game.complete) { startFinale('revisit'); return }
-  if (findViolations(game.grid, game.puzzle.signs).size) {
+  if (findViolations(game.grid, game.puzzle).size) {
     $('#placement-status p').textContent = 'Check the coral-marked tiles first'
     return
   }
-  hintCell = findHint(game.grid, game.puzzle.solution, game.puzzle.signs)
+  hintCell = findHint(game.grid, game.puzzle.solution, game.puzzle)
   if (!hintCell) {
     $('#placement-status p').textContent = 'One of your tiles is out of place'
     return
@@ -391,7 +413,7 @@ $('#reset').addEventListener('click', () => {
 })
 
 $('#help').addEventListener('click', () => {
-  openModal(`<p class="eyebrow">The art of balance</p><h2>A little land.<br>A little water.</h2><div class="rule"><span class="rule-icon">${icon('scale')}</span><div><h3>Equal measure</h3><p>Every row and column contains five water tiles and five land tiles.</p></div></div><div class="rule"><span class="rule-icon">${icon('grid-3x3')}</span><div><h3>Keep the rhythm</h3><p>Three water tiles or three land tiles may never appear consecutively, horizontally or vertically.</p></div></div><div class="rule"><span class="rule-icon">${icon('fingerprint')}</span><div><h3>Every line is its own</h3><p>No two completed rows or columns can have the same terrain pattern.</p></div></div><div class="rule"><span class="rule-icon">${icon('house')}</span><div><h3>Village signs</h3><p>In later gardens, a wooden sign counts the land tiles of its island. Each new tile you join to it raises a little hut, and the village comes to life when the island is closed in at its number.</p></div></div><p class="given-note"><b></b> Stone-rimmed land with a little landmark, and deeper pools of water, mark the terrain already in place.</p>`)
+  openModal(`<p class="eyebrow">The art of balance</p><h2>A little land.<br>A little water.</h2><div class="rule"><span class="rule-icon">${icon('scale')}</span><div><h3>Equal measure</h3><p>Every row and column contains five water tiles and five land tiles.</p></div></div><div class="rule"><span class="rule-icon">${icon('grid-3x3')}</span><div><h3>Keep the rhythm</h3><p>Three water tiles or three land tiles may never appear consecutively, horizontally or vertically.</p></div></div><div class="rule"><span class="rule-icon">${icon('fingerprint')}</span><div><h3>Every line is its own</h3><p>No two completed rows or columns can have the same terrain pattern.</p></div></div><div class="rule"><span class="rule-icon">${icon('house')}</span><div><h3>Village signs</h3><p>In later gardens, a wooden sign counts the land tiles of its island. Each new tile you join to it raises a little hut, and the village comes to life when the island is closed in at its number.</p></div></div><div class="rule"><span class="rule-icon">${icon('sun')}</span><div><h3>Lighthouses</h3><p>A lighthouse counts the water tiles its light reaches straight up, down, left and right before land or the edge stops it. Glowing dots show what it already sees, and it lights up when every beam ends at its number.</p></div></div><p class="given-note"><b></b> Stone-rimmed land with a little landmark, and deeper pools of water, mark the terrain already in place.</p>`)
 })
 
 $('#levels').addEventListener('click', () => {
@@ -489,6 +511,7 @@ if (import.meta.env.DEV) {
         complete: game.complete, history: game.history.length,
         camera: scene?.camera.position.toArray(), daylight: scene?.daylight,
         clouds: scene?.clouds.clouds.length,
+        lighthouses: scene && { towers: scene.beacons.towers.size, lit: scene.beacons.litCount, dots: scene.beacons.dotCount },
         villages: scene && { huts: scene.villages.hutCount, alive: scene.villages.aliveCount, signs: scene.villages.signModels.size },
         lean: scene?.lean,
         flourishes: scene?.flourish.count,

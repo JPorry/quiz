@@ -1,11 +1,13 @@
 import { getValidBinaryLines } from './binaryLogic.js'
 import { villages } from './census.js'
+import { lighthouses } from './lighthouses.js'
 
 // The deductions a player can make, easiest first. None of them needs the rule that rows or
 // columns must differ: every garden is built to be solvable without it. The village moves only
 // apply to gardens whose islands carry census signs.
-export const TECHNIQUES = Object.freeze(['seal', 'apart', 'grow', 'pair', 'gap', 'count', 'line'])
+export const TECHNIQUES = Object.freeze(['seal', 'apart', 'grow', 'block', 'shine', 'pair', 'gap', 'count', 'line'])
 export const VILLAGE_TECHNIQUES = Object.freeze(['seal', 'apart', 'grow'])
+export const LIGHT_TECHNIQUES = Object.freeze(['block', 'shine'])
 
 function lines(grid) {
   const size = grid.length
@@ -137,7 +139,32 @@ function apart(grid, { signs = [] }) {
   return [...found.values()]
 }
 
-const FINDERS = { seal, apart, grow, pair: (grid) => adjacency(grid, 'pair'), gap: (grid) => adjacency(grid, 'gap'), count: counting, line: lineLogic }
+// A lighthouse that already sees its number has land at the end of every beam still open.
+function block(grid, { lights = [] }) {
+  const found = new Map()
+  for (const state of lighthouses(grid, lights)) {
+    if (state.seen !== state.light.sees) continue
+    for (const { open } of state.beams) if (open) collect(found, grid, open[0], open[1], 1, 'block', { axis: 'light', index: 0 })
+  }
+  return [...found.values()]
+}
+
+// If the other beams can't make up a lighthouse's number, this beam must carry the rest:
+// the tiles it has to cross to get there are water.
+function shine(grid, { lights = [] }) {
+  const found = new Map()
+  for (const state of lighthouses(grid, lights)) {
+    for (const b of state.beams) {
+      const needed = state.light.sees - (state.most - b.reach)
+      if (needed <= b.lit.length) continue
+      const [row, col] = state.light.cell, [dr, dc] = b.direction
+      for (let step = b.lit.length + 1; step <= Math.min(needed, b.reach); step++) collect(found, grid, row + dr * step, col + dc * step, 0, 'shine', { axis: 'light', index: 0 })
+    }
+  }
+  return [...found.values()]
+}
+
+const FINDERS = { seal, apart, grow, block, shine, pair: (grid) => adjacency(grid, 'pair'), gap: (grid) => adjacency(grid, 'gap'), count: counting, line: lineLogic }
 
 // The easiest kind of deduction available right now, with every placement it allows.
 export function easiestDeductions(grid, allowed = TECHNIQUES, context = {}) {
@@ -159,10 +186,10 @@ export function availableMoves(grid, allowed = TECHNIQUES, context = {}) {
 // Plays the garden the way a person would: always reaching for the easiest move available.
 // Reports whether it finished, and how the solve flowed; with `flow`, each step also counts
 // how many tiles the player could have filled in at that moment.
-export function solveLikeAPlayer(puzzle, allowed = TECHNIQUES, { flow = false, signs = [] } = {}) {
+export function solveLikeAPlayer(puzzle, allowed = TECHNIQUES, { flow = false, signs = [], lights = [] } = {}) {
   const grid = puzzle.map((row) => [...row])
   const steps = []
-  const context = { signs }
+  const context = { signs, lights }
   for (;;) {
     const next = easiestDeductions(grid, allowed, context)
     if (!next) break

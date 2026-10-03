@@ -88,6 +88,28 @@ always taking the easiest move, and keeps the chapter climbing in difficulty.
 The level picker groups gardens by chapter, the caption names the chapter, and
 the chapter's first garden explains the signs.
 
+## The Lighthouses
+
+A third chapter of ten adds lighthouses. A little red-and-white lighthouse on a
+starting land tile carries a numbered badge: the count of water tiles its light
+reaches looking straight up, down, left, and right before land or the board's
+edge stops it. While it is dark, soft breathing dots mark the water it already
+sees, so its count can be read off the garden. When every beam ends at exactly
+its number, the tower gives a hop, the lamp lights, a gentle beam sweeps the
+sea, and a little sailboat sails out and back along the longest lit stretch,
+with a bright chime when sound is on. A lighthouse that already sees too much,
+or can no longer see enough, is marked like any other mistake, and a garden is
+only finished when every lighthouse is lit.
+
+The solver and hints know two lighthouse moves: a lighthouse that already sees
+its number has land at the end of every open beam, and when the other beams
+cannot make up its number, the light must carry further along this one, so the
+tiles it has to cross are water. `scripts/generate-lighthouses.mjs` builds the
+chapter into `src/lighthousePuzzles.js` the same way as the villages: it raises
+lighthouses on land tiles that see two to nine water tiles, carves starting
+tiles away while a player could still solve it by always taking the easiest
+move, and keeps the chapter climbing in difficulty.
+
 ## Art
 
 The garden is a little diorama: a tray of sea above a layer of sand, seen
