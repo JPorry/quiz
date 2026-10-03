@@ -16,7 +16,7 @@ import { islandAt, censusHolds } from '../src/census.js'
 import { lighthouses, lighthousesHold } from '../src/lighthouses.js'
 import { passage, ferriesHold } from '../src/ferries.js'
 import { trail, pilgrimsHold } from '../src/pilgrims.js'
-import { parseArgs, rampLevels, gather, climb, encodeGrid } from './chapter.mjs'
+import { parseArgs, rampLevels, gather, climb, climbStart, encodeGrid } from './chapter.mjs'
 
 const args = parseArgs()
 const SEED = Number(args.seed ?? 20261011)
@@ -165,7 +165,7 @@ function generate(levels, rng) {
     if (!pool.length) throw new Error(`No garden met the targets for archipelago garden ${index + 1}`)
     return pool
   })
-  const gardens = climb(pools, ({ stats }) => archipelagoDifficulty(stats), ({ stats }) => flowScore(stats))
+  const gardens = climb(pools, ({ stats }) => archipelagoDifficulty(stats), ({ stats }) => flowScore(stats), climbStart(levels))
   gardens.forEach((garden, index) => {
     const s = garden.stats
     console.log(`Archipelago ${String(index + 1).padStart(2)}: ${s.givens} tiles, ${garden.signs.length} signs, ${garden.lights.length} lights, ${garden.ferries.length} docks, ${garden.pilgrims.length} shrines, ${s.rounds} rounds (signs ${s.signs}, lights ${s.lights}, ferries ${s.ferries}, pilgrims ${s.pilgrims}, pair ${s.pair}, gap ${s.gap}, count ${s.count}, line ${s.line}), ${s.bottlenecks} bottlenecks, flow ${s.flow.toFixed(2)}, difficulty ${archipelagoDifficulty(s).toFixed(1)}`)

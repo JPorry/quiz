@@ -43,9 +43,29 @@ export function gather(make, accept, { size = 16, attempts = size * 40 } = {}) {
   return pool
 }
 
-// Picks one garden from each level's pool so that each is harder than the one before, with the
-// best total flow among all such runs.
-export function climb(pools, difficulty, score) {
+// Picks one garden per level so that each is harder than the one before. Levels before `climbFrom`
+// are chosen level by level for the best total flow among all climbing runs. From `climbFrom` on,
+// every level allows the same moves, so their pools are merged, sorted by difficulty (keeping the
+// best-flowing garden at each difficulty), and the levels take evenly spaced steps up through it.
+export function climb(pools, difficulty, score, climbFrom = pools.length) {
+  const early = pools.slice(0, climbFrom)
+  const chosen = early.length ? climbLevels(early, difficulty, score) : []
+  const rest = pools.length - climbFrom
+  if (!rest) return chosen
+  const floor = chosen.length ? difficulty(chosen.at(-1)) : -Infinity
+  const byDifficulty = new Map()
+  for (const garden of pools.slice(climbFrom).flat()) {
+    const key = difficulty(garden)
+    if (key <= floor) continue
+    if (!byDifficulty.has(key) || score(garden) > score(byDifficulty.get(key))) byDifficulty.set(key, garden)
+  }
+  const ladder = [...byDifficulty.entries()].sort((a, b) => a[0] - b[0]).map(([, garden]) => garden)
+  if (ladder.length < rest) throw new Error(`Only ${ladder.length} distinct difficulties for the ${rest} levels of the climb; try more candidates`)
+  for (let i = 0; i < rest; i++) chosen.push(ladder[Math.round(i * (ladder.length - 1) / Math.max(1, rest - 1))])
+  return chosen
+}
+
+function climbLevels(pools, difficulty, score) {
   const best = pools.map((pool) => pool.map(() => ({ total: -Infinity, from: -1 })))
   pools[0].forEach((garden, j) => { best[0][j] = { total: score(garden), from: -1 } })
   for (let i = 1; i < pools.length; i++) {
@@ -67,5 +87,8 @@ export function climb(pools, difficulty, score) {
   for (let i = pools.length - 1; i >= 0; i--) { chosen.unshift(pools[i][j]); j = best[i][j].from }
   return chosen
 }
+
+// Where a chapter's long climb starts: the first level that allows whole-line reasoning.
+export const climbStart = (levels) => levels.findIndex((level) => level.allowed.includes('line'))
 
 export const encodeGrid = (grid) => `[\n${grid.map((row) => `      [${row.map((value) => value ?? 'null').join(', ')}],`).join('\n')}\n    ]`

@@ -10,7 +10,7 @@ import { writeFileSync } from 'node:fs'
 import { random, shuffle, randomSolution } from './generate-gardens.mjs'
 import { solveLikeAPlayer } from '../src/solver.js'
 import { lighthouses, lighthousesHold } from '../src/lighthouses.js'
-import { parseArgs, rampLevels, gather, climb, encodeGrid } from './chapter.mjs'
+import { parseArgs, rampLevels, gather, climb, climbStart, encodeGrid } from './chapter.mjs'
 
 const args = parseArgs()
 const SEED = Number(args.seed ?? 20261005)
@@ -85,7 +85,7 @@ function generate() {
     if (!pool.length) throw new Error(`No garden met the targets for lighthouse garden ${index + 1}`)
     return pool
   })
-  const gardens = climb(pools, ({ stats }) => lightDifficulty(stats), ({ stats }) => flowScore(stats))
+  const gardens = climb(pools, ({ stats }) => lightDifficulty(stats), ({ stats }) => flowScore(stats), climbStart(LIGHT_LEVELS))
   gardens.forEach(({ stats: s }, index) => {
     console.log(`Lighthouses ${String(index + 1).padStart(2)}: ${s.givens} tiles, ${s.lights} lights, ${s.rounds} rounds (block ${s.block}, shine ${s.shine}, pair ${s.pair}, gap ${s.gap}, count ${s.count}, line ${s.line}), ${s.bottlenecks} bottlenecks, flow ${s.flow.toFixed(2)}, difficulty ${lightDifficulty(s).toFixed(1)}`)
   })

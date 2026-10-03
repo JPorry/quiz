@@ -8,7 +8,7 @@
 import { writeFileSync } from 'node:fs'
 import { getValidBinaryLines, canAppendBinaryRow, isValidBinarySolution, countBinarySolutions } from '../src/binaryLogic.js'
 import { solveLikeAPlayer } from '../src/solver.js'
-import { parseArgs, rampLevels, gather, climb, encodeGrid } from './chapter.mjs'
+import { parseArgs, rampLevels, gather, climb, climbStart, encodeGrid } from './chapter.mjs'
 
 const args = parseArgs()
 const SEED = Number(args.seed ?? 20261002)
@@ -111,7 +111,7 @@ function generate() {
     if (!pool.length) throw new Error(`No garden met the targets for level ${index + 1}`)
     return pool
   })
-  const gardens = climb(pools, ({ stats }) => difficulty(stats), ({ stats }) => flowScore(stats))
+  const gardens = climb(pools, ({ stats }) => difficulty(stats), ({ stats }) => flowScore(stats), climbStart(LEVELS))
   gardens.forEach((garden, index) => {
     report(index, garden)
     if (countBinarySolutions(garden.puzzle) !== 1) throw new Error(`Level ${index + 1} is not unique`)

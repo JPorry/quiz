@@ -13,7 +13,7 @@ import { chooseFerries } from './generate-ferries.mjs'
 import { solveLikeAPlayer } from '../src/solver.js'
 import { trail, pilgrimsHold } from '../src/pilgrims.js'
 import { ferriesHold } from '../src/ferries.js'
-import { parseArgs, rampLevels, gather, climb, encodeGrid } from './chapter.mjs'
+import { parseArgs, rampLevels, gather, climb, climbStart, encodeGrid } from './chapter.mjs'
 
 const args = parseArgs()
 const SEED = Number(args.seed ?? 20261009)
@@ -112,7 +112,7 @@ function generate(levels, label, rng) {
     if (!pool.length) throw new Error(`No garden met the targets for ${label} garden ${index + 1}`)
     return pool
   })
-  const gardens = climb(pools, ({ stats }) => pilgrimDifficulty(stats), ({ stats }) => flowScore(stats))
+  const gardens = climb(pools, ({ stats }) => pilgrimDifficulty(stats), ({ stats }) => flowScore(stats), climbStart(levels))
   gardens.forEach((garden, index) => {
     const s = garden.stats
     console.log(`${label} ${String(index + 1).padStart(2)}: ${s.givens} tiles, ${garden.pilgrims.length} shrines, ${garden.ferries.length} docks, ${s.rounds} rounds (trail ${s.trail}, channel ${s.channel}, pair ${s.pair}, gap ${s.gap}, count ${s.count}, line ${s.line}), ${s.bottlenecks} bottlenecks, flow ${s.flow.toFixed(2)}, difficulty ${pilgrimDifficulty(s).toFixed(1)}`)

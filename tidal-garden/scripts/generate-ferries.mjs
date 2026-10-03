@@ -10,7 +10,7 @@ import { writeFileSync } from 'node:fs'
 import { random, shuffle, randomSolution } from './generate-gardens.mjs'
 import { solveLikeAPlayer } from '../src/solver.js'
 import { passage, ferriesHold } from '../src/ferries.js'
-import { parseArgs, rampLevels, gather, climb, encodeGrid } from './chapter.mjs'
+import { parseArgs, rampLevels, gather, climb, climbStart, encodeGrid } from './chapter.mjs'
 
 const args = parseArgs()
 const SEED = Number(args.seed ?? 20261007)
@@ -101,7 +101,7 @@ function generate() {
     if (!pool.length) throw new Error(`No garden met the targets for ferry garden ${index + 1}`)
     return pool
   })
-  const gardens = climb(pools, ({ stats }) => ferryDifficulty(stats), ({ stats }) => flowScore(stats))
+  const gardens = climb(pools, ({ stats }) => ferryDifficulty(stats), ({ stats }) => flowScore(stats), climbStart(FERRY_LEVELS))
   gardens.forEach(({ stats: s }, index) => {
     console.log(`Ferries ${String(index + 1).padStart(2)}: ${s.givens} tiles, ${s.pairs} pairs, ${s.rounds} rounds (channel ${s.channel}, pair ${s.pair}, gap ${s.gap}, count ${s.count}, line ${s.line}), ${s.bottlenecks} bottlenecks, flow ${s.flow.toFixed(2)}, difficulty ${ferryDifficulty(s).toFixed(1)}`)
   })

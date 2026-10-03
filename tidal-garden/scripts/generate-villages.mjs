@@ -9,7 +9,7 @@ import { writeFileSync } from 'node:fs'
 import { random, shuffle, randomSolution } from './generate-gardens.mjs'
 import { solveLikeAPlayer } from '../src/solver.js'
 import { islandAt, censusHolds } from '../src/census.js'
-import { parseArgs, rampLevels, gather, climb, encodeGrid } from './chapter.mjs'
+import { parseArgs, rampLevels, gather, climb, climbStart, encodeGrid } from './chapter.mjs'
 
 const args = parseArgs()
 const SEED = Number(args.seed ?? 20261004)
@@ -83,7 +83,7 @@ function generate() {
     if (!pool.length) throw new Error(`No garden met the targets for village garden ${index + 1}`)
     return pool
   })
-  const gardens = climb(pools, ({ stats }) => villageDifficulty(stats), ({ stats }) => flowScore(stats))
+  const gardens = climb(pools, ({ stats }) => villageDifficulty(stats), ({ stats }) => flowScore(stats), climbStart(VILLAGE_LEVELS))
   gardens.forEach(({ stats: s }, index) => {
     console.log(`Villages ${String(index + 1).padStart(2)}: ${s.givens} tiles, ${s.signs} signs, ${s.rounds} rounds (seal ${s.seal}, apart ${s.apart}, grow ${s.grow}, pair ${s.pair}, gap ${s.gap}, count ${s.count}, line ${s.line}), ${s.bottlenecks} bottlenecks, flow ${s.flow.toFixed(2)}, difficulty ${villageDifficulty(s).toFixed(1)}`)
   })
