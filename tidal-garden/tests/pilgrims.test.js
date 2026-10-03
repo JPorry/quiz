@@ -10,18 +10,18 @@ import { PILGRIM_LEVELS, CROSSING_LEVELS, measurePilgrims, pilgrimDifficulty } f
 
 const empty = () => Array.from({ length: 10 }, () => Array(10).fill(null))
 const CHAPTER_GARDENS = [
-  { name: 'The Pilgrims', start: 50, gardens: PILGRIM_PUZZLES, levels: PILGRIM_LEVELS },
-  { name: 'The Crossings', start: 60, gardens: CROSSING_PUZZLES, levels: CROSSING_LEVELS },
+  { name: 'The Pilgrims', start: 120, gardens: PILGRIM_PUZZLES, levels: PILGRIM_LEVELS },
+  { name: 'The Crossings', start: 150, gardens: CROSSING_PUZZLES, levels: CROSSING_LEVELS },
 ]
 
 test('the pilgrim chapter follows the ferries, then the crossings mix both, every garden with a name', () => {
-  assert.equal(PILGRIM_PUZZLES.length, 10)
-  assert.equal(CROSSING_PUZZLES.length, 10)
-  assert.equal(GARDENS.length, 80)
+  assert.equal(PILGRIM_PUZZLES.length, 30)
+  assert.equal(CROSSING_PUZZLES.length, 30)
+  assert.equal(GARDENS.length, 210)
   assert.equal(GARDEN_NAMES.length, GARDENS.length)
-  assert.equal(chapterOf(40).name, 'The Ferries')
-  assert.equal(chapterOf(50).name, 'The Pilgrims')
-  assert.equal(chapterOf(60).name, 'The Crossings')
+  assert.equal(chapterOf(90).name, 'The Ferries')
+  assert.equal(chapterOf(120).name, 'The Pilgrims')
+  assert.equal(chapterOf(150).name, 'The Crossings')
   assert.ok(CHAPTERS[5].intro && CHAPTERS[6].intro)
   assert.ok(PILGRIM_PUZZLES.every((garden) => !garden.ferries?.length), 'the pilgrim chapter has no docks')
   assert.ok(CROSSING_PUZZLES.every((garden) => garden.ferries.length && garden.pilgrims.length), 'every crossing garden has both')
@@ -89,7 +89,7 @@ test('shrines (and docks) carry real weight, and each chapter grows harder', () 
 
 test('a garden only counts as finished when every pair of shrines shares an island', () => {
   const game = new GardenGame(null)
-  game.load(50)
+  game.load(120)
   game.grid = copyGrid(game.puzzle.solution)
   assert.equal(game.complete, true)
   game.puzzle = { ...game.puzzle, pilgrims: [{ color: 'rose', shrines: [[-5, -5], [-5, -5]] }] }

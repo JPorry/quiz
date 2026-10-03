@@ -1,4 +1,4 @@
-// Builds the twenty gardens as a gentle difficulty ramp.
+// Builds the thirty gardens of the Shallows as a gentle difficulty ramp.
 //
 // Every garden is solvable by always taking the easiest available move, without ever needing
 // the rule that rows and columns must differ. Early gardens only need pairs and gaps; later
@@ -8,40 +8,18 @@
 import { writeFileSync } from 'node:fs'
 import { getValidBinaryLines, canAppendBinaryRow, isValidBinarySolution, countBinarySolutions } from '../src/binaryLogic.js'
 import { solveLikeAPlayer } from '../src/solver.js'
+import { parseArgs, rampLevels, gather, climb, encodeGrid } from './chapter.mjs'
 
-const args = Object.fromEntries(process.argv.slice(2).map((arg) => arg.replace(/^--/, '').split('=')))
+const args = parseArgs()
 const SEED = Number(args.seed ?? 20261002)
 const CANDIDATES = Number(args.candidates ?? 24)
 const SIZE = 10
 
-const BASIC = ['pair', 'gap']
-const COUNTING = ['pair', 'gap', 'count']
-const ALL = ['pair', 'gap', 'count', 'line']
-
-// What each garden may ask of the player: the techniques it can rely on, how many tiles it
-// starts with at least, and how many rounds need whole-line reasoning.
-export const LEVELS = [
-  { allowed: BASIC, givens: 56, line: [0, 0] },
-  { allowed: BASIC, givens: 50, line: [0, 0] },
-  { allowed: BASIC, givens: 46, line: [0, 0] },
-  { allowed: COUNTING, givens: 44, line: [0, 0] },
-  { allowed: COUNTING, givens: 41, line: [0, 0] },
-  { allowed: COUNTING, givens: 38, line: [0, 0] },
-  { allowed: COUNTING, givens: 36, line: [0, 0] },
-  { allowed: ALL, givens: 38, line: [1, 1] },
-  { allowed: ALL, givens: 36, line: [1, 2] },
-  { allowed: ALL, givens: 34, line: [2, 3] },
-  { allowed: ALL, givens: 33, line: [3, 4] },
-  { allowed: ALL, givens: 32, line: [3, 5] },
-  { allowed: ALL, givens: 31, line: [4, 6] },
-  { allowed: ALL, givens: 30, line: [5, 7] },
-  { allowed: ALL, givens: 0, line: [6, 8] },
-  { allowed: ALL, givens: 0, line: [7, 9] },
-  { allowed: ALL, givens: 0, line: [7, 10] },
-  { allowed: ALL, givens: 0, line: [8, 99] },
-  { allowed: ALL, givens: 0, line: [9, 99] },
-  { allowed: ALL, givens: 0, line: [10, 99] },
-]
+// What each garden may ask of the player: the techniques it can rely on and how many tiles it
+// starts with at least. Gardens that allow whole-line reasoning must actually need it.
+export const LEVELS = rampLevels({ gentle: 8, middle: 7, givens: [[58, 46], [46, 36], [38, 0]] })
+// Across the long climb, each garden needs a little more whole-line reasoning, up to eight rounds.
+const leastLines = (level) => (level.allowed.includes('line') ? 1 + Math.round(level.stretch * 7) : 0)
 
 export function random(seed) {
   let state = seed >>> 0
@@ -126,44 +104,22 @@ function report(index, { stats }) {
 
 function generate() {
   const rng = random(SEED)
-  const gardens = []
-  const finale = LEVELS.filter((level) => level.givens === 0)
-  // Gentle and middle gardens are picked one by one, each a little harder than the last.
-  LEVELS.slice(0, LEVELS.length - finale.length).forEach((level, index) => {
-    let best = null
-    for (let attempt = 0; attempt < CANDIDATES * 40 && (!best || attempt < CANDIDATES); attempt++) {
-      const next = candidate(level, rng)
-      const { stats } = next
-      if (!stats.solved || stats.line < level.line[0] || stats.line > level.line[1]) continue
-      if (gardens.length && difficulty(stats) <= difficulty(gardens.at(-1).stats)) continue
-      if (!best || flowScore(stats) > flowScore(best.stats)) best = next
-    }
-    if (!best) throw new Error(`No garden met the targets for level ${index + 1}`)
-    gardens.push(best)
-    report(index, best)
+  const pools = LEVELS.map((level, index) => {
+    const lines = level.allowed.includes('line')
+    const pool = gather(() => candidate(level, rng), ({ stats }) =>
+      stats.solved && (lines ? stats.line >= leastLines(level) : stats.line === 0) && stats.bottlenecks <= Math.max(1, stats.rounds * 0.2) && stats.flow >= 2.5, { size: CANDIDATES })
+    if (!pool.length) throw new Error(`No garden met the targets for level ${index + 1}`)
+    return pool
   })
-  // The finale draws from a pool of the sparsest gardens, climbing evenly through its harder half.
-  const floor = difficulty(gardens.at(-1).stats)
-  const pool = Array.from({ length: CANDIDATES * 12 }, () => candidate(finale[0], rng))
-    .filter(({ stats }) => stats.solved && stats.line >= finale[0].line[0] && difficulty(stats) > floor)
-    .sort((a, b) => difficulty(a.stats) - difficulty(b.stats))
-  if (pool.length < finale.length * 3) throw new Error('Not enough sparse gardens for the finale')
-  const half = pool.slice(Math.floor(pool.length / 2))
-  finale.forEach((_, i) => {
-    const center = Math.round((i + 1) / finale.length * (half.length - 1))
-    const window = half.slice(Math.max(0, center - 2), center + 1).filter((garden) => difficulty(garden.stats) > difficulty(gardens.at(-1).stats))
-    const best = (window.length ? window : half.filter((garden) => difficulty(garden.stats) > difficulty(gardens.at(-1).stats)))
-      .reduce((a, b) => (flowScore(b.stats) > flowScore(a.stats) ? b : a))
-    gardens.push(best)
-    report(gardens.length - 1, best)
-  })
-  gardens.forEach(({ puzzle }, index) => {
-    if (countBinarySolutions(puzzle) !== 1) throw new Error(`Level ${index + 1} is not unique`)
+  const gardens = climb(pools, ({ stats }) => difficulty(stats), ({ stats }) => flowScore(stats))
+  gardens.forEach((garden, index) => {
+    report(index, garden)
+    if (countBinarySolutions(garden.puzzle) !== 1) throw new Error(`Level ${index + 1} is not unique`)
   })
   return gardens
 }
 
-const encode = (grid) => `[\n${grid.map((row) => `      [${row.map((value) => value ?? 'null').join(', ')}],`).join('\n')}\n    ]`
+const encode = encodeGrid
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const gardens = generate()

@@ -1,4 +1,4 @@
-// Builds the "Ferries" chapter: ten gardens with pairs of matching docks on starting land tiles.
+// Builds the "Ferries" chapter: thirty gardens with pairs of matching docks on starting land tiles.
 //
 // Each pair of docks must end up joined by water, so its ferry can sail between them. Each garden
 // starts from a finished one, sets out a few pairs of docks along long, winding stretches of water,
@@ -10,8 +10,9 @@ import { writeFileSync } from 'node:fs'
 import { random, shuffle, randomSolution } from './generate-gardens.mjs'
 import { solveLikeAPlayer } from '../src/solver.js'
 import { passage, ferriesHold } from '../src/ferries.js'
+import { parseArgs, rampLevels, gather, climb, encodeGrid } from './chapter.mjs'
 
-const args = Object.fromEntries(process.argv.slice(2).map((arg) => arg.replace(/^--/, '').split('=')))
+const args = parseArgs()
 const SEED = Number(args.seed ?? 20261007)
 const CANDIDATES = Number(args.candidates ?? 16)
 const SIZE = 10
@@ -19,23 +20,8 @@ const SIZE = 10
 export const FERRY_COLORS = Object.freeze(['coral', 'sun', 'sky', 'lilac'])
 
 const FERRY = ['channel']
-const BASIC = [...FERRY, 'pair', 'gap']
-const COUNTING = [...BASIC, 'count']
-const ALL = [...COUNTING, 'line']
-
 // Each garden's techniques, the fewest starting tiles it may keep, and how many pairs of docks it sets out.
-export const FERRY_LEVELS = [
-  { allowed: BASIC, givens: 30, pairs: 2 },
-  { allowed: BASIC, givens: 26, pairs: 2 },
-  { allowed: BASIC, givens: 22, pairs: 3 },
-  { allowed: COUNTING, givens: 20, pairs: 3 },
-  { allowed: COUNTING, givens: 16, pairs: 3 },
-  { allowed: ALL, givens: 14, pairs: 3 },
-  { allowed: ALL, givens: 10, pairs: 3 },
-  { allowed: ALL, givens: 6, pairs: 4 },
-  { allowed: ALL, givens: 3, pairs: 4 },
-  { allowed: ALL, givens: 0, pairs: 4 },
-]
+export const FERRY_LEVELS = rampLevels({ moves: FERRY, clues: { pairs: [2, 4] } })
 
 export function measureFerries(puzzle, ferries) {
   const { solved, steps } = solveLikeAPlayer(puzzle, undefined, { flow: true, ferries })
@@ -107,28 +93,22 @@ const flowScore = (stats) => stats.flow - stats.bottlenecks * 0.35 + ferryMoves(
 
 function generate() {
   const rng = random(SEED)
-  const gardens = []
-  FERRY_LEVELS.forEach((level, index) => {
-    let best = null
-    for (let attempt = 0; attempt < CANDIDATES * 30 && (!best || attempt < CANDIDATES); attempt++) {
-      const next = candidate(level, rng)
-      const { stats } = next
-      // The ferries must carry real weight in every garden of this chapter.
-      if (!stats.solved || ferryMoves(stats) < 3 || stats.pairs < level.pairs) continue
-      if (solveLikeAPlayer(next.puzzle, level.allowed).solved) continue
-      if (gardens.length && ferryDifficulty(stats) <= ferryDifficulty(gardens.at(-1).stats)) continue
-      if (!best || flowScore(stats) > flowScore(best.stats)) best = next
-    }
-    if (!best) throw new Error(`No garden met the targets for ferry garden ${index + 1}`)
-    if (!ferriesHold(best.solution, best.ferries)) throw new Error(`Ferry garden ${index + 1} strands its own ferries`)
-    gardens.push(best)
-    const s = best.stats
-    console.log(`Ferries ${String(index + 1).padStart(2)}: ${s.givens} tiles, ${s.pairs} pairs, ${s.rounds} rounds (channel ${s.channel}, pair ${s.pair}, gap ${s.gap}, count ${s.count}, line ${s.line}), ${s.bottlenecks} bottlenecks, flow ${s.flow.toFixed(2)}`)
+  const pools = FERRY_LEVELS.map((level, index) => {
+    const pool = gather(() => candidate(level, rng), ({ puzzle, solution, ferries, stats }) =>
+      // The ferries must carry real weight, and the garden can't be finished without them.
+      stats.solved && ferryMoves(stats) >= 3 && stats.pairs >= level.pairs && ferriesHold(solution, ferries)
+      && !solveLikeAPlayer(puzzle, level.allowed).solved && stats.bottlenecks <= Math.max(1, stats.rounds * 0.2), { size: CANDIDATES })
+    if (!pool.length) throw new Error(`No garden met the targets for ferry garden ${index + 1}`)
+    return pool
+  })
+  const gardens = climb(pools, ({ stats }) => ferryDifficulty(stats), ({ stats }) => flowScore(stats))
+  gardens.forEach(({ stats: s }, index) => {
+    console.log(`Ferries ${String(index + 1).padStart(2)}: ${s.givens} tiles, ${s.pairs} pairs, ${s.rounds} rounds (channel ${s.channel}, pair ${s.pair}, gap ${s.gap}, count ${s.count}, line ${s.line}), ${s.bottlenecks} bottlenecks, flow ${s.flow.toFixed(2)}, difficulty ${ferryDifficulty(s).toFixed(1)}`)
   })
   return gardens
 }
 
-const encode = (grid) => `[\n${grid.map((row) => `      [${row.map((value) => value ?? 'null').join(', ')}],`).join('\n')}\n    ]`
+const encode = encodeGrid
 const encodeFerries = (ferries) => `[\n${ferries.map(({ color, docks }) => `      { color: '${color}', docks: [${docks.map((cell) => `[${cell.join(', ')}]`).join(', ')}] },`).join('\n')}\n    ]`
 
 if (import.meta.url === `file://${process.argv[1]}`) {
