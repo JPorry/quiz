@@ -536,7 +536,7 @@ if (import.meta.env.DEV) {
         complete: game.complete, history: game.history.length,
         camera: scene?.camera.position.toArray(), daylight: scene?.daylight, sun: scene?.sun.position.toArray().map((v) => +v.toFixed(2)),
         clouds: scene?.clouds.clouds.length,
-        ferries: scene && { docks: scene.harbors.dockCount, joined: scene.harbors.joinedCount, sailing: scene.harbors.sailingCount },
+        ferries: scene && { docks: scene.harbors.dockCount, joined: scene.harbors.joinedCount, sailing: scene.harbors.sailingCount, at: scene.harbors.routes.map((route) => route.ferry.group.visible && [+route.ferry.group.position.x.toFixed(2), +route.ferry.group.position.z.toFixed(2)]) },
         lighthouses: scene && { towers: scene.beacons.towers.size, lit: scene.beacons.litCount, dots: scene.beacons.dotCount },
         villages: scene && { huts: scene.villages.hutCount, alive: scene.villages.aliveCount, signs: scene.villages.signModels.size },
         lean: scene?.lean,
