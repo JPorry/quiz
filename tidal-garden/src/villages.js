@@ -4,7 +4,8 @@ import { villages } from './census.js'
 const LAND_TOP = 0.44
 const SMOKE = 240
 const PUFFS = 4
-const ROOFS = [0xd9734e, 0x6f9bd1, 0x7fb069, 0xe0b85c, 0xc77d9b]
+// Straw in a few sun-bleached tones, so neighboring huts are thatched a little differently.
+const ROOFS = [0xe2c070, 0xd8b45e, 0xe9cd88, 0xd2ab57]
 const clamp = THREE.MathUtils.clamp
 const hash = (n) => THREE.MathUtils.euclideanModulo(Math.sin(n * 91.7 + 13.1) * 43758.5453, 1)
 // Springs past full size and settles, like a hut popping up out of the grass.
@@ -15,7 +16,7 @@ const pop = (t) => {
 
 // Census signs and the villages that grow around them. Each land tile joined to a signed island
 // raises a little hut; when the island is closed in at its number, the sign is taken down, the
-// last hut goes up where it stood, and the village comes to life with lit windows and chimney smoke.
+// last hut goes up where it stood, and the village comes to life with glowing doorways and smoke.
 export class Villages {
   constructor(garden) {
     this.garden = garden
@@ -25,7 +26,7 @@ export class Villages {
     this.alive = new Map()
     const m = (color) => new THREE.MeshLambertMaterial({ color })
     this.materials = {
-      wall: m(0xf6ead2), door: m(0x7a4f33), windowOff: m(0x6e8791), post: m(0x8a5a3c), board: m(0xd9a86a), chimney: m(0xb5654a),
+      wall: m(0xc9a173), thatch: m(0xb48c45), windowOff: m(0x4a3322), post: m(0x8a5a3c), board: m(0xd9a86a),
       windowOn: new THREE.MeshBasicMaterial({ color: 0xffd98a }),
       roofs: ROOFS.map(m),
     }
@@ -71,24 +72,28 @@ export class Villages {
     return group
   }
 
-  // A tiny cottage: cream walls under a colored gabled roof, a chimney, a door, and windows.
-  // From above, the roof's two slopes catch the light differently, so it reads as a house.
+  // A little round straw hut: earthen walls under a layered thatched cone, with a doorway that
+  // glows with firelight once the village is alive, and smoke rising from the roof's crown.
   buildHut(seed) {
     const group = new THREE.Group()
     const garden = this.garden
     const m = this.materials
-    garden.mesh(new THREE.BoxGeometry(0.17, 0.12, 0.15), m.wall, group, 0, 0.06, 0)
-    const roof = garden.mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.21, 3, 1, false, Math.PI / 2), m.roofs[Math.floor(seed * m.roofs.length)], group, 0, 0.155, 0)
-    roof.rotation.z = Math.PI / 2
-    roof.scale.set(0.75, 1, 1)
-    garden.mesh(new THREE.BoxGeometry(0.03, 0.08, 0.03), m.chimney, group, 0.05, 0.2, -0.035)
-    garden.mesh(new THREE.BoxGeometry(0.04, 0.07, 0.01), m.door, group, -0.03, 0.035, 0.076)
-    garden.mesh(new THREE.BoxGeometry(0.035, 0.03, 0.01), m.windowOff, group, 0.045, 0.07, 0.076)
-    garden.mesh(new THREE.BoxGeometry(0.01, 0.03, 0.035), m.windowOff, group, 0.086, 0.07, 0)
+    const straw = m.roofs[Math.floor(seed * m.roofs.length)]
+    garden.mesh(new THREE.CylinderGeometry(0.085, 0.095, 0.1, 14), m.wall, group, 0, 0.05, 0)
+    garden.mesh(new THREE.ConeGeometry(0.14, 0.13, 14), straw, group, 0, 0.165, 0)
+    garden.mesh(new THREE.ConeGeometry(0.095, 0.1, 14), straw, group, 0, 0.235, 0)
+    // A darker fringe where the thatch hangs over the walls, and a tied bundle at the crown.
+    const fringe = garden.mesh(new THREE.TorusGeometry(0.13, 0.013, 6, 18), m.thatch, group, 0, 0.105, 0)
+    fringe.rotation.x = Math.PI / 2
+    const band = garden.mesh(new THREE.TorusGeometry(0.088, 0.01, 6, 16), m.thatch, group, 0, 0.19, 0)
+    band.rotation.x = Math.PI / 2
+    garden.mesh(new THREE.CylinderGeometry(0.012, 0.02, 0.04, 8), m.thatch, group, 0, 0.29, 0)
+    garden.mesh(new THREE.BoxGeometry(0.045, 0.07, 0.012), m.windowOff, group, 0, 0.035, 0.09)
     garden.mergeDetails(group)
     const windows = group.children.find((child) => child.material === m.windowOff)
-    return { group, windows, chimney: new THREE.Vector3(0.05, 0.25, -0.035) }
+    return { group, windows, chimney: new THREE.Vector3(0, 0.31, 0) }
   }
+
 
   // Starting a new garden: put up its signs.
   set(signs = []) {
@@ -216,7 +221,7 @@ export class Villages {
     this.animateSmoke(time, reducedMotion)
   }
 
-  // Each living hut's chimney sends up soft puffs that swell, drift, and fade away.
+  // Each living hut sends soft puffs up from its thatched crown that swell, drift, and fade away.
   animateSmoke(time, reducedMotion) {
     let n = 0
     if (!reducedMotion) {
