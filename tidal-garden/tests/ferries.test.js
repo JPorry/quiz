@@ -10,7 +10,7 @@ const empty = () => Array.from({ length: 10 }, () => Array(10).fill(null))
 
 test('the ferry chapter follows the lighthouses, every garden with a name', () => {
   assert.equal(FERRY_PUZZLES.length, 10)
-  assert.equal(GARDENS.length, 70)
+  assert.equal(GARDENS.length, 80)
   assert.equal(GARDEN_NAMES.length, GARDENS.length)
   assert.equal(chapterOf(40).name, 'The Ferries')
   assert.ok(CHAPTERS[4].intro)
