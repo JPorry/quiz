@@ -43,7 +43,7 @@ export const LEVELS = [
   { allowed: ALL, givens: 0, line: [10, 99] },
 ]
 
-export function random(seed) {
+function random(seed) {
   let state = seed >>> 0
   return () => {
     state = state + 0x6d2b79f5 >>> 0
@@ -54,7 +54,7 @@ export function random(seed) {
   }
 }
 
-export function shuffle(items, rng) {
+function shuffle(items, rng) {
   const copy = [...items]
   for (let i = copy.length - 1; i > 0; i--) {
     const j = Math.floor(rng() * (i + 1));
@@ -63,7 +63,7 @@ export function shuffle(items, rng) {
   return copy
 }
 
-export function randomSolution(rng) {
+function randomSolution(rng) {
   const lines = getValidBinaryLines(SIZE)
   for (;;) {
     const rows = []

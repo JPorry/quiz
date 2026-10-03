@@ -1,10 +1,8 @@
 import { getValidBinaryLines } from './binaryLogic.js'
 
 // The deductions a player can make, easiest first. None of them needs the rule that rows or
-// columns must differ: every garden is built to be solvable without it. Footbridges and
-// shorelines only appear in gardens that carry edge hints.
-export const TECHNIQUES = Object.freeze(['bridge', 'shore', 'pair', 'gap', 'count', 'line'])
-export const HINTED = Object.freeze(['bridge', 'shore'])
+// columns must differ: every garden is built to be solvable without it.
+export const TECHNIQUES = Object.freeze(['pair', 'gap', 'count', 'line'])
 
 function lines(grid) {
   const size = grid.length
@@ -52,44 +50,14 @@ function counting(grid) {
   return [...found.values()]
 }
 
-// A footbridge's tiles are both land.
-function bridges(grid, hints) {
-  const found = new Map()
-  for (const hint of hints) {
-    if (hint.kind !== 'bridge') continue
-    const [a, b] = hint.cells
-    const line = { axis: a[0] === b[0] ? 'row' : 'column', index: a[0] === b[0] ? a[0] : a[1] }
-    for (const [r, c] of hint.cells) collect(found, grid, r, c, 1, 'bridge', line)
-  }
-  return [...found.values()]
-}
-
-// Across a shoreline, a known tile makes its neighbor the other kind.
-function shores(grid, hints) {
-  const found = new Map()
-  for (const hint of hints) {
-    if (hint.kind !== 'shore') continue
-    const [a, b] = hint.cells
-    const line = { axis: a[0] === b[0] ? 'row' : 'column', index: a[0] === b[0] ? a[0] : a[1] }
-    for (const [known, open] of [[a, b], [b, a]]) {
-      const value = grid[known[0]][known[1]]
-      if (value !== null) collect(found, grid, open[0], open[1], 1 - value, 'shore', line)
-    }
-  }
-  return [...found.values()]
-}
-
-// Every balanced, triple-free way to finish a line agrees on these tiles. Shorelines that lie
-// within the line rule out finishes where both their tiles match.
-function lineLogic(grid, hints = []) {
+// Every balanced, triple-free way to finish a line agrees on these tiles.
+function lineLogic(grid) {
   const found = new Map()
   const valid = getValidBinaryLines(grid.length)
   for (const line of lines(grid)) {
     const values = line.cells.map(([r, c]) => grid[r][c])
     if (!values.includes(null)) continue
-    const at = ([r, c]) => line.cells.findIndex(([lr, lc]) => lr === r && lc === c)
-    const inside = hints.filter((hint) => hint.kind === 'shore').map((hint) => hint.cells.map(at)).filter(([i, j]) => i >= 0 && j >= 0)
-    const fits = valid.filter((candidate) => values.every((v, i) => v === null || v === candidate[i]) && inside.every(([i, j]) => candidate[i] !== candidate[j]))
+    const fits = valid.filter((candidate) => values.every((v, i) => v === null || v === candidate[i]))
     if (!fits.length) continue
     values.forEach((v, i) => {
       if (v !== null) return
@@ -99,35 +67,35 @@ function lineLogic(grid, hints = []) {
   return [...found.values()]
 }
 
-const FINDERS = { bridge: bridges, shore: shores, pair: (grid) => adjacency(grid, 'pair'), gap: (grid) => adjacency(grid, 'gap'), count: counting, line: lineLogic }
+const FINDERS = { pair: (grid) => adjacency(grid, 'pair'), gap: (grid) => adjacency(grid, 'gap'), count: counting, line: lineLogic }
 
 // The easiest kind of deduction available right now, with every placement it allows.
-export function easiestDeductions(grid, allowed = TECHNIQUES, hints = []) {
+export function easiestDeductions(grid, allowed = TECHNIQUES) {
   for (const technique of TECHNIQUES) {
     if (!allowed.includes(technique)) continue
-    const deductions = FINDERS[technique](grid, hints)
+    const deductions = FINDERS[technique](grid)
     if (deductions.length) return { technique, deductions }
   }
   return null
 }
 
 // Every tile the player could fill in right now, by any allowed technique.
-export function availableMoves(grid, allowed = TECHNIQUES, hints = []) {
+export function availableMoves(grid, allowed = TECHNIQUES) {
   const cells = new Set()
-  for (const technique of allowed) for (const { row, col } of FINDERS[technique](grid, hints)) cells.add(row * grid.length + col)
+  for (const technique of allowed) for (const { row, col } of FINDERS[technique](grid)) cells.add(row * grid.length + col)
   return cells.size
 }
 
 // Plays the garden the way a person would: always reaching for the easiest move available.
 // Reports whether it finished, and how the solve flowed; with `flow`, each step also counts
 // how many tiles the player could have filled in at that moment.
-export function solveLikeAPlayer(puzzle, allowed = TECHNIQUES, { flow = false, hints = [] } = {}) {
+export function solveLikeAPlayer(puzzle, allowed = TECHNIQUES, { flow = false } = {}) {
   const grid = puzzle.map((row) => [...row])
   const steps = []
   for (;;) {
-    const next = easiestDeductions(grid, allowed, hints)
+    const next = easiestDeductions(grid, allowed)
     if (!next) break
-    const options = flow ? availableMoves(grid, allowed, hints) : next.deductions.length
+    const options = flow ? availableMoves(grid, allowed) : next.deductions.length
     for (const { row, col, value } of next.deductions) grid[row][col] = value
     steps.push({ technique: next.technique, options })
   }
