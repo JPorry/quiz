@@ -1,8 +1,8 @@
 import * as THREE from 'three'
 
-// The garden's starting tiles are its old foundations: land rises on mossy stone instead of
-// sand and carries a small weathered landmark, and water keeps a cluster of mossy rocks.
-// Grey stone appears nowhere else, so it always means "this was here first".
+// The garden's starting land is its old foundations: it rises on grey stone instead of sand
+// and carries a small weathered landmark. Grey stone appears nowhere else, so it always
+// means "this was here first".
 export const STONE = { stone: 0x9aa6ad, stoneLight: 0xb9c3c6, stoneDark: 0x7b8a92, moss: 0x7fa868, mossDark: 0x5f8f55, glow: 0xffe2a6 }
 
 const LAND_KINDS = [['standing', 0.35], ['cairn', 0.3], ['lantern', 0.25], ['arch', 0.1]]
@@ -85,31 +85,6 @@ export class Landmarks {
     group.position.y = 0.44
     this.garden.mergeDetails(group)
     cell.land.add(group)
-    return group
-  }
-
-  // A cluster of mossy rocks breaking the surface in one corner of a starting water tile,
-  // now and then with a little lantern standing on the largest.
-  water(cell, seed, salt) {
-    const group = new THREE.Group()
-    const { x, z } = landmarkCorner(salt, 0.22)
-    group.position.set(x, 0.06, z)
-    group.rotation.y = seed * Math.PI * 2
-    group.scale.setScalar(1.6)
-    // The largest rock is pale, so it stands out against the water.
-    this.piece(new THREE.DodecahedronGeometry(0.085, 0), 'stoneLight', group, 0, 0.01, 0, [1, 0.6, 0.85], 0.3)
-    this.piece(new THREE.SphereGeometry(0.06, 12, 6), 'moss', group, -0.01, 0.05, 0.005, [1, 0.32, 0.85])
-    this.rock(group, 0.1, 0, 0.05, 0.05, 0.55, 1.1)
-    if (seed > 0.4) this.rock(group, -0.05, -0.005, 0.1, 0.038, 0.5, 2.2)
-    if (seed > 0.72) {
-      const lantern = new THREE.Group()
-      lantern.position.set(-0.005, 0.045, 0)
-      this.lantern(lantern, 0.8)
-      group.add(lantern)
-      this.garden.mergeDetails(lantern)
-    }
-    this.garden.mergeDetails(group)
-    cell.group.add(group)
     return group
   }
 
