@@ -6,7 +6,7 @@ const LAND_TOP = 0.44
 const SMOKE = 240
 const PUFFS = 4
 // Signs are big on purpose: the number should read at a glance, even on a phone.
-const SIGN_SCALE = 1.7
+const SIGN_SCALE = 1.75
 // Straw in a few sun-bleached tones, so neighboring huts are thatched a little differently.
 const ROOFS = [0xe2c070, 0xd8b45e, 0xe9cd88, 0xd2ab57]
 const clamp = THREE.MathUtils.clamp
@@ -29,7 +29,7 @@ export class Villages {
     this.alive = new Map()
     const m = (color) => new THREE.MeshLambertMaterial({ color })
     this.materials = {
-      wall: m(0xc9a173), thatch: m(0xb48c45), windowOff: m(0x4a3322), post: m(0x8a5a3c), board: m(0xd9a86a),
+      wall: m(0xc9a173), thatch: m(0xb48c45), windowOff: m(0x4a3322), post: m(0xa8754c), signRim: m(0xf1e0bd),
       windowOn: new THREE.MeshBasicMaterial({ color: 0xffd98a }),
       roofs: ROOFS.map(m),
     }
@@ -44,50 +44,61 @@ export class Villages {
 
   cell(row, col) { return this.garden.cells[row * 10 + col] }
 
-  // A chunky wooden sign on a post, its rounded board tipped toward the camera so the island's
-  // number reads at a glance: dark painted numerals with a cream outline, and a nail in each corner.
+  // A little village sign in the garden's own style: a soft, rounded cream board with the
+  // island's number in the game's rounded type, a tiny thatched cap like the huts', a short
+  // wooden post, and a few flowers at its foot. The board tips toward the camera to read at a glance.
   buildSign(size) {
     const group = new THREE.Group()
     const garden = this.garden
-    garden.mesh(new THREE.CylinderGeometry(0.018, 0.024, 0.16, 8), this.materials.post, group, 0, 0.08, 0.02)
+    const m = this.materials
+    garden.mesh(new THREE.CylinderGeometry(0.02, 0.026, 0.13, 10), m.post, group, 0, 0.065, 0.02)
+    for (let i = 0; i < 3; i++) garden.addFlower(group, Math.cos(i * 2.2 + 0.6) * 0.09, 0, 0.06 + Math.sin(i * 2.2 + 0.6) * 0.05, i + size)
     const board = new THREE.Group()
-    board.position.set(0, 0.17, 0.02)
-    board.rotation.x = -1.25
+    board.position.set(0, 0.15, 0.02)
+    board.rotation.x = -1.2
     group.add(board)
-    garden.mesh(new RoundedBoxGeometry(0.42, 0.31, 0.045, 3, 0.05), this.materials.post, board, 0, 0, -0.004)
+    garden.mesh(new RoundedBoxGeometry(0.36, 0.28, 0.05, 4, 0.1), m.signRim, board, 0, 0, -0.006)
+    // A tiny straw cap along the top of the board, thatched like the huts.
+    const cap = garden.mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.42, 3, 1, false, Math.PI / 2), m.roofs[size % m.roofs.length], board, 0, 0.16, 0.01)
+    cap.rotation.z = Math.PI / 2
+    cap.scale.set(0.85, 1, 1.1)
+    const fringe = garden.mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.42, 6), m.thatch, board, 0, 0.13, 0.05)
+    fringe.rotation.z = Math.PI / 2
     const canvas = document.createElement('canvas')
-    canvas.width = 256; canvas.height = 184
-    const context = canvas.getContext('2d')
-    const grain = context.createLinearGradient(0, 0, 0, 184)
-    grain.addColorStop(0, '#efc98f')
-    grain.addColorStop(1, '#ddb173')
-    context.fillStyle = grain
-    context.beginPath()
-    context.roundRect(0, 0, 256, 184, 34)
-    context.fill()
-    context.strokeStyle = '#c9965a'
-    context.lineWidth = 4
-    for (const y of [62, 122]) { context.beginPath(); context.moveTo(18, y); context.lineTo(238, y + 3); context.stroke() }
-    context.fillStyle = '#8a5a3c'
-    for (const [x, y] of [[24, 24], [232, 24], [24, 160], [232, 160]]) { context.beginPath(); context.arc(x, y, 7, 0, Math.PI * 2); context.fill() }
-    context.font = 'bold 150px Georgia, serif'
-    context.textAlign = 'center'
-    context.textBaseline = 'middle'
-    context.lineJoin = 'round'
-    context.lineWidth = 16
-    context.strokeStyle = '#fff3dc'
-    context.strokeText(String(size), 128, 100)
-    context.fillStyle = '#3e2618'
-    context.fillText(String(size), 128, 100)
+    canvas.width = 256; canvas.height = 200
     const texture = new THREE.CanvasTexture(canvas)
     texture.colorSpace = THREE.SRGBColorSpace
     texture.anisotropy = 4
-    // A touch of its own light keeps the number legible in shade and at dusk.
-    const face = new THREE.Mesh(new THREE.PlaneGeometry(0.39, 0.28), new THREE.MeshLambertMaterial({ map: texture, transparent: true, emissive: 0xffffff, emissiveMap: texture, emissiveIntensity: 0.35 }))
-    face.position.z = 0.024
+    const paint = () => {
+      const context = canvas.getContext('2d')
+      context.clearRect(0, 0, 256, 200)
+      context.fillStyle = '#fff6e4'
+      context.beginPath()
+      context.roundRect(4, 4, 248, 192, 70)
+      context.fill()
+      context.strokeStyle = '#ead8b4'
+      context.lineWidth = 6
+      context.setLineDash([14, 12])
+      context.beginPath()
+      context.roundRect(20, 20, 216, 160, 56)
+      context.stroke()
+      context.setLineDash([])
+      context.font = `700 150px "DM Sans", "Avenir Next", "Helvetica Neue", sans-serif`
+      context.textAlign = 'center'
+      context.textBaseline = 'middle'
+      context.fillStyle = '#5b8a68'
+      context.fillText(String(size), 128, 108)
+      texture.needsUpdate = true
+    }
+    paint()
+    // The rounded type may still be loading; repaint once it arrives.
+    document.fonts?.load('700 150px "DM Sans"').then(paint, () => {})
+    const face = new THREE.Mesh(new THREE.PlaneGeometry(0.33, 0.26), new THREE.MeshLambertMaterial({ map: texture, transparent: true, emissive: 0xffffff, emissiveMap: texture, emissiveIntensity: 0.3 }))
+    face.position.z = 0.02
     board.add(face)
     return group
   }
+
 
 
   // A little round straw hut: earthen walls under a layered thatched cone, with a doorway that
