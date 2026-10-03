@@ -52,10 +52,9 @@ The starting tiles are the garden's old foundations. Starting land rises on
 blue-grey stone cliffs with a pale stone rim around its green top, where your
 own land has sand, and carries a small weathered landmark in one corner: a
 standing stone, a cairn, a stone lantern, or now and then a little arch.
-Starting water holds a deep, dark pool, rounded and darkest in the middle,
+Starting water holds a gently deeper pool, rounded and darkest in the middle,
 that fades softly into the turquoise around it; neighboring starting water
-merges into one organic deep patch, so the sea never turns into a patchwork. A
-cluster of mossy rocks breaks the surface, some with a tiny lantern on top.
+merges into one organic deep patch, so the sea never turns into a patchwork.
 Grey stone appears nowhere else, and each garden arranges its landmarks
 differently. Placement, erase, individual undo, reset
 confirmation, logical hints, garden selection, completion tracking, and

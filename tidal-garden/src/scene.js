@@ -503,11 +503,12 @@ export class GardenScene {
     // Starting land rises on grey stone: blue-grey cliffs and a pale stone rim around its green top.
     const m = this.landmarks.materials
     cell.body.material = stone ? [m.stoneLight, m.stone] : [this.materials.sand, this.materials.cliff]
-    if (fixed === null) return
+    if (fixed === null || !stone) return
     // Each garden arranges its landmarks differently, but the same garden always looks the same.
     const index = cell.row * 10 + cell.col
     const seed = seeded(index * 7.3 + this.clueSeed), salt = seeded(index * 3.1 + this.clueSeed + 17)
-    cell.marker = stone ? this.landmarks.land(cell, seed, salt) : this.landmarks.water(cell, seed, salt)
+    // Starting water is marked by its deeper pool alone.
+    if (stone) cell.marker = this.landmarks.land(cell, seed, salt)
   }
 
   react(origin) {

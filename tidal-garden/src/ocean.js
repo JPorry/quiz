@@ -122,7 +122,7 @@ export function createRimField(grid, { inset = 0.06, radius = 0.24 } = {}, clues
 
 const srgb = (hex) => `pow(vec3(${[16, 8, 0].map((shift) => ((hex >> shift & 255) / 255).toFixed(3)).join(', ')}), vec3(2.2))`
 
-export const WATER_COLORS = Object.freeze({ deep: 0x35b3c4, shallow: 0x62d0cf, lake: 0x5cc7b9, mark: 0xa6ecec, foam: 0xf7fcf9, flash: 0xc8fbf5, ancient: 0x1c5f86, ancientShallow: 0x2f7f9c })
+export const WATER_COLORS = Object.freeze({ deep: 0x35b3c4, shallow: 0x62d0cf, lake: 0x5cc7b9, mark: 0xa6ecec, foam: 0xf7fcf9, flash: 0xc8fbf5, ancient: 0x2b93b8, ancientShallow: 0x42aec2 })
 
 export const waterVertexHead = `varying vec2 vXZ;`
 export const waterVertexBody = `vXZ = (modelMatrix * vec4(transformed, 1.0)).xz;`
@@ -158,7 +158,7 @@ export const waterFragmentColor = `
   // A slow wobble keeps the edge of the deep water organic rather than drawn.
   float ancient = clamp(rimField.a + (waterNoise(vXZ * 2.3 + uTime * 0.05) - 0.5) * 0.18 * rimField.a * (1.0 - rimField.a) * 4.0, 0.0, 1.0);
   vec3 depths = mix(${srgb(WATER_COLORS.ancientShallow)}, ${srgb(WATER_COLORS.ancient)}, smoothstep(0.12, 0.3, shore + wobble));
-  water = mix(water, depths, ancient);
+  water = mix(water, depths, ancient * 0.85);
 
   // Little wave marks drift across open water and breathe in and out.
   vec2 wave = (vXZ - uWindShift) * vec2(2.1, 2.9) + vec2(uTime * 0.07, 0.0);
