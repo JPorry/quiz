@@ -48,15 +48,15 @@ moves are usually open, and checks each garden is harder than the last.
 Regenerate them with `npm run generate:gardens`. The hint uses the same solver,
 pointing at the easiest move and saying why it works.
 
-The starting tiles are the garden's old foundations, and the whole tile shows
-it. Starting land is grey stone through and through: blue-grey cliffs, a pale
-stone rim, a weathered grey-green top with muted tufts, loose rocks and moss,
-and a small landmark in one corner (a standing stone, a cairn, a stone lantern,
-or now and then a little arch). Starting water runs a deep, dark blue across
-the whole tile, with a cluster of mossy rocks breaking the surface, some with a
-tiny lantern on top. Your own land stays bright green on sand and your own
-water bright turquoise, so what was there first is clear at a glance. Grey stone
-appears nowhere else, and each garden arranges its landmarks differently. Placement, erase, individual undo, reset
+The starting tiles are the garden's old foundations. Starting land rises on
+blue-grey stone cliffs with a pale stone rim around its green top, where your
+own land has sand, and carries a small weathered landmark in one corner: a
+standing stone, a cairn, a stone lantern, or now and then a little arch.
+Starting water runs a deep, dark blue across the whole tile, with a cluster of
+mossy rocks breaking the surface, some with a tiny lantern on top. Your own
+water stays bright turquoise, so what was there first is clear at a glance.
+Grey stone appears nowhere else, and each garden arranges its landmarks
+differently. Placement, erase, individual undo, reset
 confirmation, logical hints, garden selection, completion tracking, and
 per-garden saved grids and undo history are implemented. Optional placement
 sounds are synthesized locally. Keyboard terrain selection uses `0`/`W`,
