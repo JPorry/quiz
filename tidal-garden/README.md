@@ -48,7 +48,14 @@ moves are usually open, and checks each garden is harder than the last.
 Regenerate them with `npm run generate:gardens`. The hint uses the same solver,
 pointing at the easiest move and saying why it works.
 
-Fixed clues carry a gold dot. Placement, erase, individual undo, reset
+The starting tiles are the garden's old foundations. Starting land rises on
+mossy blue-grey stone instead of sand and carries a small weathered landmark in
+one corner: a standing stone, a cairn, a stone lantern, or now and then a little
+arch. Starting water keeps a cluster of mossy rocks breaking the surface, some
+with a tiny lantern on top. Grey stone appears nowhere else in the garden, so it
+always means "this was here first", and the landmark keeps a starting island
+clear even when your own land surrounds it. Each garden arranges its landmarks
+differently. Placement, erase, individual undo, reset
 confirmation, logical hints, garden selection, completion tracking, and
 per-garden saved grids and undo history are implemented. Optional placement
 sounds are synthesized locally. Keyboard terrain selection uses `0`/`W`,

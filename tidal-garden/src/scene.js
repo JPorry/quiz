@@ -11,6 +11,7 @@ import { SocketBoard, SOCKET_TOP } from './sockets.js'
 import { Breeze } from './breeze.js'
 import { Finale, FINALE_VIEW } from './finale.js'
 import { glide } from './glide.js'
+import { Landmarks } from './landmarks.js'
 import { CloudShadows } from './clouds.js'
 import { LineFlourish } from './flourish.js'
 import { Rain } from './rain.js'
@@ -137,6 +138,7 @@ export class GardenScene {
     this.scene.add(this.hover)
     this.completions = new RegionCompletions(this)
     this.finale = new Finale(this)
+    this.landmarks = new Landmarks(this)
     this.flourish = new LineFlourish(this)
     this.appliedView = ''
     // How far the phone is leaning the board, set from the device's tilt.
@@ -231,7 +233,6 @@ export class GardenScene {
   buildCells() {
     const targetMaterial = new THREE.MeshBasicMaterial({ visible: false })
     const targetGeometry = new THREE.PlaneGeometry(1, 1)
-    const pinGeometry = new THREE.SphereGeometry(0.055, 12, 8)
     for (let row = 0; row < 10; row++) {
       for (let col = 0; col < 10; col++) {
         const index = row * 10 + col
@@ -249,13 +250,12 @@ export class GardenScene {
         const plants = this.addGarden(land, index)
         const grass = this.addGrass(land, index)
         group.add(land)
-        const pin = this.mesh(pinGeometry, this.materials.brass, group, 0.33, 0.5, -0.33)
         const error = this.mesh(new THREE.TorusGeometry(0.3, 0.025, 6, 32), material(0xff8a6b, { emissive: 0xc2452a, emissiveIntensity: 0.45, depthTest: false }), group, 0, 0.5, 0)
         error.rotation.x = Math.PI / 2
         error.renderOrder = 4
         error.castShadow = false
         error.visible = false
-        this.cells.push({ row, col, group, target, land, body, terrace, plants, grass, pin, error, value: undefined, mask: -1, started: -10, reactionAt: -10, direction: new THREE.Vector2() })
+        this.cells.push({ row, col, group, target, land, body, terrace, plants, grass, error, marker: null, fixed: undefined, value: undefined, mask: -1, started: -10, reactionAt: -10, direction: new THREE.Vector2() })
       }
     }
   }
@@ -321,16 +321,10 @@ export class GardenScene {
       this.mesh(new THREE.IcosahedronGeometry(0.12, 2), m.leafLight, group, 0.11, 0.07, -0.06)
       for (let i = 0; i < 5; i++) this.mesh(new THREE.IcosahedronGeometry(0.022, 1), seeded(index + i) < 0.5 ? m.berry : m.flower, group, -0.06 + Math.cos(i * 1.3) * 0.13, 0.13 + Math.sin(i * 2.1) * 0.05, 0.04 + Math.sin(i * 1.3) * 0.13)
       crown = 0.26
-    } else if (pick < 0.88) {
-      // A flower patch in mixed colors.
+    } else {
+      // A flower patch in mixed colors. (Grey stone is kept for the garden's starting tiles.)
       const count = 5 + Math.floor(seeded(index + 55) * 3)
       for (let i = 0; i < count; i++) this.addFlower(group, Math.cos(i * 2.4) * (0.1 + i * 0.03), 0, Math.sin(i * 2.4) * (0.1 + i * 0.03), index + i)
-    } else {
-      // A mossy rock among flowers.
-      const rock = this.mesh(new THREE.DodecahedronGeometry(0.13, 0), m.rock, group, -0.1, 0.05, -0.06)
-      rock.scale.set(1.3, 0.75, 1)
-      this.mesh(new THREE.IcosahedronGeometry(0.07, 1), m.lime, group, -0.12, 0.12, -0.08).scale.set(1.2, 0.45, 1)
-      for (let i = 0; i < 3; i++) this.addFlower(group, -0.16 + i * 0.16, 0, 0.2, index + i)
     }
     // Perches sit on top of the canopy; anything under 0.8 is open meadow for walkers.
     group.userData.perchHeight = LAND.grass.top + crown
@@ -454,6 +448,7 @@ export class GardenScene {
     const changed = this.cells.filter((cell) => grid[cell.row][cell.col] !== cell.value)
     const before = this.grid
     this.grid = grid.map((row) => [...row])
+    if (!hadGrid) this.clueSeed = clues.flat().reduce((sum, value, index) => sum + (value === null ? 0 : (value + 1) * (index % 7 + 1)), 0) % 997
     this.clues = clues
     this.complete = complete
     for (const cell of this.cells) {
@@ -468,8 +463,9 @@ export class GardenScene {
           cell.terrace.geometry = this.landGeometry('grass', mask)
         }
       }
-      cell.pin.visible = clues[cell.row][cell.col] !== null
-      cell.pin.position.y = this.cellHeight(cell) + 0.05
+      // Starting tiles are the garden's old foundations: mossy stone and a little landmark.
+      const fixed = clues[cell.row][cell.col]
+      if (fixed !== cell.fixed || !hadGrid) this.markFoundation(cell, fixed)
       cell.target.position.y = this.cellHeight(cell)
       cell.error.position.y = this.cellHeight(cell) + 0.03
       cell.error.visible = invalid.has(`${cell.row}:${cell.col}`)
@@ -497,6 +493,19 @@ export class GardenScene {
     this.completions.update(grid, hadGrid && changed.length > 0 && changed.length <= 4)
     this.updateAccessibility()
     this.showHover(this.hoverCell)
+  }
+
+  markFoundation(cell, fixed) {
+    if (cell.marker) this.landmarks.remove(cell.marker)
+    cell.marker = null
+    cell.fixed = fixed
+    const stone = fixed === 1
+    cell.body.material = stone ? [this.landmarks.materials.stoneLight, this.landmarks.materials.stone] : [this.materials.sand, this.materials.cliff]
+    if (fixed === null) return
+    // Each garden arranges its landmarks differently, but the same garden always looks the same.
+    const index = cell.row * 10 + cell.col
+    const seed = seeded(index * 7.3 + this.clueSeed), salt = seeded(index * 3.1 + this.clueSeed + 17)
+    cell.marker = stone ? this.landmarks.land(cell, seed, salt) : this.landmarks.water(cell, seed, salt)
   }
 
   react(origin) {
@@ -686,7 +695,6 @@ export class GardenScene {
     // The puzzle's markings step aside while the garden is admired.
     this.boundaryMaterial.opacity = 0.32 * (1 - blend)
     this.cloudMaterial.uniforms.uFade.value = 1 - blend
-    for (const cell of this.cells) cell.pin.scale.setScalar(Math.max(0.001, 1 - blend))
     // Keyboard focus rings only need moving when the finale view settles, not for every small lean.
     if (blend === 0 && this.accessBlend !== 0) this.positionAccess()
     this.accessBlend = blend
