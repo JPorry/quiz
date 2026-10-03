@@ -65,7 +65,8 @@ sounds are synthesized locally. Keyboard terrain selection uses `0`/`W`,
 ## The Villages
 
 After the first twenty gardens, a second chapter of ten adds census signs. A
-wooden sign on a starting land tile shows how many land tiles its island holds.
+little village sign on a starting land tile, a rounded cream board under a tiny
+thatched cap, shows how many land tiles its island holds.
 Each land tile you join to a signed island raises a little round straw hut,
 earthen walls under a layered thatched cone, and the tile's trees step aside to
 make room. When water closes the
