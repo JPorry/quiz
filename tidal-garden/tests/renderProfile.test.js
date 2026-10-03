@@ -27,6 +27,8 @@ test('render scheduling caps high-refresh screens and pauses hidden pages', () =
   }
   assert.equal(frameIsDue(1000, 0, 30, true), false)
   assert.equal(frameIsDue(1000, 0, 30, false), true)
+  // After the scene rests (while the map covers it), the next frame is always drawn.
+  for (const rested of [NaN, -Infinity, undefined]) assert.equal(frameIsDue(5000, rested, 30), true)
   assert.ok(scheduledFrameTime(48, 0, 30) < 48, 'Keep fractional frame time so the cap does not slow uneven animation ticks')
 })
 
