@@ -262,7 +262,8 @@ export class HabitatWildlife {
     const seed = habitatSeed(region, this.garden.clues)
     const group = new THREE.Group()
     parent.add(group)
-    if (region.cells.length === 1) return { kind: null, seed, group, actors: [], started, cells: region.cells }
+    // Single tiles and villages keep their flowers but host no wild residents.
+    if (region.cells.length === 1 || this.garden.villages?.isVillage(region.cells)) return { kind: null, seed, group, actors: [], started, cells: region.cells }
     const kind = chooseHabitat(region, this.garden.clues)
     const behavior = BEHAVIOR[kind]
     const swimmers = !!behavior.swims
