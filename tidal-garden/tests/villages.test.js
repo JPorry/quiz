@@ -10,9 +10,9 @@ const empty = () => Array.from({ length: 10 }, () => Array(10).fill(null))
 
 test('the village chapter follows the first twenty gardens, every garden with a name', () => {
   assert.equal(VILLAGE_PUZZLES.length, 10)
-  assert.equal(GARDENS.length, 30)
+  assert.equal(GARDENS.length, 40)
   assert.equal(GARDEN_NAMES.length, GARDENS.length)
-  assert.deepEqual(CHAPTERS.map((chapter) => [chapter.start, chapter.count]), [[0, 20], [20, 10]])
+  assert.deepEqual(CHAPTERS.map((chapter) => [chapter.start, chapter.count]), [[0, 20], [20, 10], [30, 10]])
   assert.equal(chapterOf(20).name, 'The Villages')
 })
 
@@ -87,7 +87,7 @@ test('hints explain the village moves and walk every garden to its answer', () =
   for (const garden of VILLAGE_PUZZLES) {
     const working = copyGrid(garden.puzzle)
     const techniques = new Set()
-    for (let move = findHint(working, garden.solution, garden.signs); move; move = findHint(working, garden.solution, garden.signs)) {
+    for (let move = findHint(working, garden.solution, garden); move; move = findHint(working, garden.solution, garden)) {
       working[move.row][move.col] = move.value
       techniques.add(move.technique)
     }
