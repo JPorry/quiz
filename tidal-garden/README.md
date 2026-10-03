@@ -62,6 +62,29 @@ per-garden saved grids and undo history are implemented. Optional placement
 sounds are synthesized locally. Keyboard terrain selection uses `0`/`W`,
 `1`/`L`, and `E`; the board supports focus and arrow navigation.
 
+## The Villages
+
+After the first twenty gardens, a second chapter of ten adds census signs. A
+wooden sign on a starting land tile shows how many land tiles its island holds.
+Each land tile you join to a signed island raises a little hut with a colored
+gabled roof, and the tile's trees step aside to make room. When water closes the
+island in at exactly its number, the sign spins down into the ground, the last
+hut pops up where it stood, the huts hop one after another, their windows light
+up, and smoke curls from every chimney; a soft chime plays when sound is on. An
+island that outgrows its sign, or is closed in too small, is marked like any
+other mistake, and a garden is only finished when every village matches its
+sign. Villages keep their flowers but host no wild residents.
+
+The solver and hints know three village moves: a village that already holds its
+number is sealed by water, a village short of its number with a single way out
+must grow through it, and a gap that would join islands into a village bigger
+than its sign must be water. `scripts/generate-villages.mjs` builds the chapter
+into `src/villagePuzzles.js`: it signs a handful of a finished garden's smaller
+islands, carves starting tiles away while a player could still solve it by
+always taking the easiest move, and keeps the chapter climbing in difficulty.
+The level picker groups gardens by chapter, the caption names the chapter, and
+the chapter's first garden explains the signs.
+
 ## Art
 
 The garden is a little diorama: a tray of sea above a layer of sand, seen

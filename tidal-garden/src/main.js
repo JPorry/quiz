@@ -1,5 +1,5 @@
-import { createIcons, ArrowRight, Check, ChevronDown, CircleHelp, Clock3, Fingerprint, Grid3x3, Lightbulb, MoonStar, Move3d, RotateCcw, Scale, Sprout, Undo2, Volume2, VolumeX, X } from 'lucide'
-import { GardenGame, GARDEN_NAMES, findViolations, findHint } from './game.js'
+import { createIcons, House, ArrowRight, Check, ChevronDown, CircleHelp, Clock3, Fingerprint, Grid3x3, Lightbulb, MoonStar, Move3d, RotateCcw, Scale, Sprout, Undo2, Volume2, VolumeX, X } from 'lucide'
+import { GardenGame, GARDEN_NAMES, CHAPTERS, chapterOf, findViolations, findHint } from './game.js'
 import { GardenScene } from './scene.js'
 import { DeviceTilt } from './tilt.js'
 import './style.css'
@@ -50,7 +50,7 @@ app.innerHTML = `
       </div>
       <div class="time-detail">${icon('clock-3')}<span id="time">00:00</span><span class="time-divider"></span><span id="remaining">66 to grow</span></div>
     </aside>
-    <div class="scene-caption"><span class="caption-mark"></span><span>THE SHALLOWS</span><span class="caption-line"></span><span>GARDEN <b id="caption-level">01</b></span></div>
+    <div class="scene-caption"><span class="caption-mark"></span><span id="caption-chapter">THE SHALLOWS</span><span class="caption-line"></span><span>GARDEN <b id="caption-level">01</b></span></div>
     <footer class="game-dock">
       <div class="placement-status" id="placement-status" aria-live="polite"><span></span><p></p></div>
       <div class="palette" role="group" aria-label="Place terrain">
@@ -69,7 +69,7 @@ app.innerHTML = `
     <section class="finale-card" id="finale-card" aria-labelledby="finale-title" inert>
       <p class="eyebrow"><span></span>Garden <b id="finale-number">01</b>&nbsp;·&nbsp;<em id="finale-name">First light</em></p>
       <h2 id="finale-title">A world in balance.</h2>
-      <p class="finale-meta"><span>${icon('clock-3')}Grown in <b id="finale-time">00:00</b></span><span class="time-divider"></span><span><b id="finale-count">1</b> of 20 gardens</span></p>
+      <p class="finale-meta"><span>${icon('clock-3')}Grown in <b id="finale-time">00:00</b></span><span class="time-divider"></span><span><b id="finale-count">1</b> of ${GARDEN_NAMES.length} gardens</span></p>
       <div class="finale-actions">
         <button class="secondary-button" id="finale-stay">Stay a little longer</button>
         <button class="primary-button" id="finale-next"><span id="finale-next-label">Grow the next garden</span> ${icon('arrow-right')}</button>
@@ -82,7 +82,7 @@ app.innerHTML = `
 `
 
 const $ = (selector) => document.querySelector(selector)
-const refreshIcons = () => createIcons({ icons: { ArrowRight, Check, ChevronDown, CircleHelp, Clock3, Fingerprint, Grid3x3, Lightbulb, MoonStar, Move3d, RotateCcw, Scale, Sprout, Undo2, Volume2, VolumeX, X }, attrs: { 'stroke-width': 1.6 } })
+const refreshIcons = () => createIcons({ icons: { House, ArrowRight, Check, ChevronDown, CircleHelp, Clock3, Fingerprint, Grid3x3, Lightbulb, MoonStar, Move3d, RotateCcw, Scale, Sprout, Undo2, Volume2, VolumeX, X }, attrs: { 'stroke-width': 1.6 } })
 refreshIcons()
 
 const access = $('.board-access')
@@ -136,7 +136,7 @@ function finaleSafeArea() {
 }
 
 try {
-  scene = new GardenScene($('#world'), { onCell: placeCell, safeArea: boardSafeArea, finaleArea: finaleSafeArea, onFlourish: playFlourish })
+  scene = new GardenScene($('#world'), { onCell: placeCell, safeArea: boardSafeArea, finaleArea: finaleSafeArea, onFlourish: playFlourish, onVillage: playVillage })
 } catch (error) {
   $('#world').innerHTML = `<div class="render-error"><p>Your garden needs WebGL to bloom.</p><small>Please open it in a browser with hardware acceleration enabled.</small></div>`
   console.error(error)
@@ -188,6 +188,26 @@ function playFlourish(lines) {
   source.stop(now + length)
 }
 
+// A warm little two-note welcome when a village comes to life.
+function playVillage() {
+  if (!soundEnabled || game.complete) return
+  soundContext ??= new AudioContext()
+  soundContext.resume()
+  const now = soundContext.currentTime
+  ;[[587.33, 0.1], [880, 0.26]].forEach(([frequency, delay]) => {
+    const oscillator = soundContext.createOscillator()
+    const gain = soundContext.createGain()
+    oscillator.type = 'triangle'
+    oscillator.frequency.setValueAtTime(frequency, now + delay)
+    gain.gain.setValueAtTime(0, now + delay)
+    gain.gain.linearRampToValueAtTime(0.035, now + delay + 0.02)
+    gain.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.9)
+    oscillator.connect(gain).connect(soundContext.destination)
+    oscillator.start(now + delay)
+    oscillator.stop(now + delay + 1)
+  })
+}
+
 // A rising arpeggio for a finished garden.
 function playChime() {
   if (!soundEnabled) return
@@ -232,8 +252,9 @@ function burst(button) {
 const pieceFor = (value) => document.querySelector(`.piece[data-value="${value === null ? 'erase' : value}"]`)
 
 function render() {
-  const invalid = findViolations(game.grid)
-  scene?.update(game.grid, game.puzzle.puzzle, invalid, game.complete)
+  const invalid = findViolations(game.grid, game.puzzle.signs)
+  scene?.update(game.grid, game.puzzle.puzzle, invalid, game.complete, game.puzzle.signs)
+  $('#caption-chapter').textContent = chapterOf(game.level).name.toUpperCase()
   $('#chapter-number').textContent = String(game.level + 1).padStart(2, '0')
   $('#garden-name').textContent = GARDEN_NAMES[game.level]
   $('#caption-level').textContent = String(game.level + 1).padStart(2, '0')
@@ -253,7 +274,10 @@ function render() {
   }
   if (finale && !game.complete) endFinale()
   // The raised piece already shows the selection, so the status line only speaks up when it matters.
-  const status = game.complete ? 'A world in balance' : invalid.size ? 'A little out of balance' : hintCell ? hintText(hintCell) : ''
+  // The first garden of a chapter explains what is new until the first tile goes down.
+  const introducing = !game.history.length && CHAPTERS.some((chapter) => chapter.start === game.level && chapter.start > 0)
+  const status = game.complete ? 'A world in balance' : invalid.size ? 'A little out of balance' : hintCell ? hintText(hintCell)
+    : introducing ? 'Each sign counts the land tiles of its island. Grow every village to its number.' : ''
   $('#placement-status p').textContent = status
   $('#placement-status').classList.toggle('invalid', invalid.size > 0)
   document.querySelectorAll('[data-value]').forEach((button) => {
@@ -322,17 +346,20 @@ function hintText({ row, col, value, technique, axis }) {
     gap: `it sits between two ${other} tiles`,
     count: `its ${axis} already has five ${other}`,
     line: `it's the only way to finish its ${axis}`,
+    seal: `the village beside it already has as many tiles as its sign`,
+    grow: `it's the only way the village beside it can still grow`,
+    apart: `land here would join islands into a village bigger than its sign`,
   }[technique]
   return `Row ${row + 1}, column ${col + 1} is ${kind}: ${why}`
 }
 
 $('#hint').addEventListener('click', () => {
   if (game.complete) { startFinale('revisit'); return }
-  if (findViolations(game.grid).size) {
+  if (findViolations(game.grid, game.puzzle.signs).size) {
     $('#placement-status p').textContent = 'Check the coral-marked tiles first'
     return
   }
-  hintCell = findHint(game.grid, game.puzzle.solution)
+  hintCell = findHint(game.grid, game.puzzle.solution, game.puzzle.signs)
   if (!hintCell) {
     $('#placement-status p').textContent = 'One of your tiles is out of place'
     return
@@ -364,11 +391,14 @@ $('#reset').addEventListener('click', () => {
 })
 
 $('#help').addEventListener('click', () => {
-  openModal(`<p class="eyebrow">The art of balance</p><h2>A little land.<br>A little water.</h2><div class="rule"><span class="rule-icon">${icon('scale')}</span><div><h3>Equal measure</h3><p>Every row and column contains five water tiles and five land tiles.</p></div></div><div class="rule"><span class="rule-icon">${icon('grid-3x3')}</span><div><h3>Keep the rhythm</h3><p>Three water tiles or three land tiles may never appear consecutively, horizontally or vertically.</p></div></div><div class="rule"><span class="rule-icon">${icon('fingerprint')}</span><div><h3>Every line is its own</h3><p>No two completed rows or columns can have the same terrain pattern.</p></div></div><p class="given-note"><b></b> Stone-rimmed land with a little landmark, and deeper pools of water, mark the terrain already in place.</p>`)
+  openModal(`<p class="eyebrow">The art of balance</p><h2>A little land.<br>A little water.</h2><div class="rule"><span class="rule-icon">${icon('scale')}</span><div><h3>Equal measure</h3><p>Every row and column contains five water tiles and five land tiles.</p></div></div><div class="rule"><span class="rule-icon">${icon('grid-3x3')}</span><div><h3>Keep the rhythm</h3><p>Three water tiles or three land tiles may never appear consecutively, horizontally or vertically.</p></div></div><div class="rule"><span class="rule-icon">${icon('fingerprint')}</span><div><h3>Every line is its own</h3><p>No two completed rows or columns can have the same terrain pattern.</p></div></div><div class="rule"><span class="rule-icon">${icon('house')}</span><div><h3>Village signs</h3><p>In later gardens, a wooden sign counts the land tiles of its island. Each new tile you join to it raises a little hut, and the village comes to life when the island is closed in at its number.</p></div></div><p class="given-note"><b></b> Stone-rimmed land with a little landmark, and deeper pools of water, mark the terrain already in place.</p>`)
 })
 
 $('#levels').addEventListener('click', () => {
-  openModal(`<p class="eyebrow">Twenty little worlds</p><h2>Your gardens.</h2><p class="modal-description">${game.completed.length} of 20 in perfect balance</p><div class="level-grid">${GARDEN_NAMES.map((name, index) => `<button class="level-button ${game.level === index ? 'current' : ''} ${game.completed.includes(index) ? 'completed' : ''}" data-level="${index}" aria-label="Garden ${index + 1}: ${name}${game.completed.includes(index) ? ', completed' : ''}"><span>${String(index + 1).padStart(2, '0')}</span>${game.completed.includes(index) ? icon('check') : ''}</button>`).join('')}</div>`)
+  // Gardens are grouped by chapter, each with its own heading.
+  const button = (index) => `<button class="level-button ${game.level === index ? 'current' : ''} ${game.completed.includes(index) ? 'completed' : ''}" data-level="${index}" aria-label="Garden ${index + 1}: ${GARDEN_NAMES[index]}${game.completed.includes(index) ? ', completed' : ''}"><span>${String(index + 1).padStart(2, '0')}</span>${game.completed.includes(index) ? icon('check') : ''}</button>`
+  const chapters = CHAPTERS.map((chapter) => `<h3 class="level-chapter">${chapter.name}</h3><div class="level-grid">${Array.from({ length: chapter.count }, (_, i) => button(chapter.start + i)).join('')}</div>`).join('')
+  openModal(`<p class="eyebrow">${GARDEN_NAMES.length} little worlds</p><h2>Your gardens.</h2><p class="modal-description">${game.completed.length} of ${GARDEN_NAMES.length} in perfect balance</p>${chapters}`)
   document.querySelectorAll('[data-level]').forEach((button) => button.addEventListener('click', () => {
     game.load(Number(button.dataset.level))
     hintCell = null
@@ -459,6 +489,7 @@ if (import.meta.env.DEV) {
         complete: game.complete, history: game.history.length,
         camera: scene?.camera.position.toArray(), daylight: scene?.daylight,
         clouds: scene?.clouds.clouds.length,
+        villages: scene && { huts: scene.villages.hutCount, alive: scene.villages.aliveCount, signs: scene.villages.signModels.size },
         lean: scene?.lean,
         flourishes: scene?.flourish.count,
         rain: scene && { strength: scene.rain.strength, drops: scene.rain.drops.length, marks: scene.rain.marks.length },

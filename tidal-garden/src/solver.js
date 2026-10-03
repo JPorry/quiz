@@ -1,8 +1,11 @@
 import { getValidBinaryLines } from './binaryLogic.js'
+import { villages } from './census.js'
 
 // The deductions a player can make, easiest first. None of them needs the rule that rows or
-// columns must differ: every garden is built to be solvable without it.
-export const TECHNIQUES = Object.freeze(['pair', 'gap', 'count', 'line'])
+// columns must differ: every garden is built to be solvable without it. The village moves only
+// apply to gardens whose islands carry census signs.
+export const TECHNIQUES = Object.freeze(['seal', 'apart', 'grow', 'pair', 'gap', 'count', 'line'])
+export const VILLAGE_TECHNIQUES = Object.freeze(['seal', 'apart', 'grow'])
 
 function lines(grid) {
   const size = grid.length
@@ -67,35 +70,103 @@ function lineLogic(grid) {
   return [...found.values()]
 }
 
-const FINDERS = { pair: (grid) => adjacency(grid, 'pair'), gap: (grid) => adjacency(grid, 'gap'), count: counting, line: lineLogic }
+// A village that already holds its number is closed in by water on every open side.
+function seal(grid, { signs = [] }) {
+  const found = new Map()
+  for (const village of villages(grid, signs)) {
+    if (village.over || village.cells.length !== village.sign.size) continue
+    for (const [r, c] of village.frontier) collect(found, grid, r, c, 0, 'seal', { axis: 'village', index: 0 })
+  }
+  return [...found.values()]
+}
+
+// A village still short of its number with only one way out has to grow through it.
+function grow(grid, { signs = [] }) {
+  const found = new Map()
+  for (const village of villages(grid, signs)) {
+    if (village.over || village.cells.length >= village.sign.size || village.frontier.length !== 1) continue
+    const [r, c] = village.frontier[0]
+    collect(found, grid, r, c, 1, 'grow', { axis: 'village', index: 0 })
+  }
+  return [...found.values()]
+}
+
+// A gap that would join a village to other land, and so push it past its number (or join two
+// villages with different numbers), must be water.
+function apart(grid, { signs = [] }) {
+  const found = new Map()
+  if (!signs.length) return []
+  const size = grid.length
+  const label = new Map()
+  const islands = []
+  for (let row = 0; row < size; row++) for (let col = 0; col < size; col++) {
+    if (grid[row][col] !== 1 || label.has(row * size + col)) continue
+    const id = islands.length
+    const island = { size: 0, numbers: new Set() }
+    const queue = [[row, col]]
+    label.set(row * size + col, id)
+    while (queue.length) {
+      const [r, c] = queue.shift()
+      island.size++
+      for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nr = r + dr, nc = c + dc
+        if (grid[nr]?.[nc] !== 1 || label.has(nr * size + nc)) continue
+        label.set(nr * size + nc, id)
+        queue.push([nr, nc])
+      }
+    }
+    islands.push(island)
+  }
+  for (const sign of signs) {
+    const id = label.get(sign.cell[0] * size + sign.cell[1])
+    if (id !== undefined) islands[id].numbers.add(sign.size)
+  }
+  for (let row = 0; row < size; row++) for (let col = 0; col < size; col++) {
+    if (grid[row][col] !== null) continue
+    const touching = new Set()
+    for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const r = row + dr, c = col + dc
+      if (r >= 0 && c >= 0 && r < size && c < size && label.has(r * size + c)) touching.add(label.get(r * size + c))
+    }
+    if (touching.size < 2) continue
+    const numbers = new Set([...touching].flatMap((id) => [...islands[id].numbers]))
+    if (!numbers.size) continue
+    const total = 1 + [...touching].reduce((sum, id) => sum + islands[id].size, 0)
+    if (numbers.size > 1 || total > [...numbers][0]) collect(found, grid, row, col, 0, 'apart', { axis: 'village', index: 0 })
+  }
+  return [...found.values()]
+}
+
+const FINDERS = { seal, apart, grow, pair: (grid) => adjacency(grid, 'pair'), gap: (grid) => adjacency(grid, 'gap'), count: counting, line: lineLogic }
 
 // The easiest kind of deduction available right now, with every placement it allows.
-export function easiestDeductions(grid, allowed = TECHNIQUES) {
+export function easiestDeductions(grid, allowed = TECHNIQUES, context = {}) {
   for (const technique of TECHNIQUES) {
     if (!allowed.includes(technique)) continue
-    const deductions = FINDERS[technique](grid)
+    const deductions = FINDERS[technique](grid, context)
     if (deductions.length) return { technique, deductions }
   }
   return null
 }
 
 // Every tile the player could fill in right now, by any allowed technique.
-export function availableMoves(grid, allowed = TECHNIQUES) {
+export function availableMoves(grid, allowed = TECHNIQUES, context = {}) {
   const cells = new Set()
-  for (const technique of allowed) for (const { row, col } of FINDERS[technique](grid)) cells.add(row * grid.length + col)
+  for (const technique of allowed) for (const { row, col } of FINDERS[technique](grid, context)) cells.add(row * grid.length + col)
   return cells.size
 }
 
 // Plays the garden the way a person would: always reaching for the easiest move available.
 // Reports whether it finished, and how the solve flowed; with `flow`, each step also counts
 // how many tiles the player could have filled in at that moment.
-export function solveLikeAPlayer(puzzle, allowed = TECHNIQUES, { flow = false } = {}) {
+export function solveLikeAPlayer(puzzle, allowed = TECHNIQUES, { flow = false, signs = [] } = {}) {
   const grid = puzzle.map((row) => [...row])
   const steps = []
+  const context = { signs }
   for (;;) {
-    const next = easiestDeductions(grid, allowed)
+    const next = easiestDeductions(grid, allowed, context)
     if (!next) break
-    const options = flow ? availableMoves(grid, allowed) : next.deductions.length
+    const options = flow ? availableMoves(grid, allowed, context) : next.deductions.length
     for (const { row, col, value } of next.deductions) grid[row][col] = value
     steps.push({ technique: next.technique, options })
   }

@@ -12,6 +12,7 @@ import { Breeze } from './breeze.js'
 import { Finale, FINALE_VIEW } from './finale.js'
 import { glide } from './glide.js'
 import { Landmarks } from './landmarks.js'
+import { Villages } from './villages.js'
 import { CloudShadows } from './clouds.js'
 import { LineFlourish } from './flourish.js'
 import { Rain } from './rain.js'
@@ -64,7 +65,7 @@ function slab(shape, bottom, top) {
 }
 
 export class GardenScene {
-  constructor(container, { onCell, safeArea, finaleArea, onFlourish }) {
+  constructor(container, { onCell, safeArea, finaleArea, onFlourish, onVillage }) {
     this.container = container
     this.onCell = onCell
     this.onFlourish = onFlourish
@@ -139,6 +140,8 @@ export class GardenScene {
     this.completions = new RegionCompletions(this)
     this.finale = new Finale(this)
     this.landmarks = new Landmarks(this)
+    this.villages = new Villages(this)
+    this.villages.onAlive = () => onVillage?.()
     this.flourish = new LineFlourish(this)
     this.appliedView = ''
     // How far the phone is leaning the board, set from the device's tilt.
@@ -442,11 +445,13 @@ export class GardenScene {
     return value === 1 ? LAND.grass.top + 0.02 : value === null ? SOCKET_TOP + 0.01 : WATER_Y + 0.01
   }
 
-  update(grid, clues, invalid, complete) {
+  update(grid, clues, invalid, complete, signs = []) {
     const hadGrid = !!this.grid && this.clues === clues
     if (!hadGrid) { this.clearSelection(); this.completions.clear() }
     const changed = this.cells.filter((cell) => grid[cell.row][cell.col] !== cell.value)
     const before = this.grid
+    // A new garden puts up its census signs before anything else is laid out around them.
+    if (!hadGrid) this.villages.set(signs)
     this.grid = grid.map((row) => [...row])
     if (!hadGrid) this.clueSeed = clues.flat().reduce((sum, value, index) => sum + (value === null ? 0 : (value + 1) * (index % 7 + 1)), 0) % 997
     this.clues = clues
@@ -477,6 +482,7 @@ export class GardenScene {
       this.renderer.shadowMap.needsUpdate = true
     }
     this.waterLife.grid = this.grid
+    this.villages.update(grid, this.time, hadGrid && !this.reducedMotion)
     this.sockets.update(grid, this.time, { intro: !hadGrid, animate: !this.reducedMotion })
     const filled = grid.flat().filter((value) => value !== null).length
     this.daylightTarget = complete ? 1 : filled / 100
@@ -507,8 +513,8 @@ export class GardenScene {
     // Each garden arranges its landmarks differently, but the same garden always looks the same.
     const index = cell.row * 10 + cell.col
     const seed = seeded(index * 7.3 + this.clueSeed), salt = seeded(index * 3.1 + this.clueSeed + 17)
-    // Starting water is marked by its deeper pool alone.
-    if (stone) cell.marker = this.landmarks.land(cell, seed, salt)
+    // Starting water is marked by its deeper pool alone, and a signed tile carries its sign instead.
+    if (stone && !this.villages.signModels.has(index)) cell.marker = this.landmarks.land(cell, seed, salt)
   }
 
   react(origin) {
@@ -798,6 +804,7 @@ export class GardenScene {
     if (this.particleMesh.instanceColor) this.particleMesh.instanceColor.needsUpdate = true
     this.completions.animate(this.time)
     this.flourish.update(this.time)
+    this.villages.animate(this.time, this.reducedMotion)
     this.crossTiles.forEach((plane, index) => {
       if (plane.visible) plane.position.y = this.cellHeight(this.cells[index]) + (this.cells[index].value === 1 ? this.cells[index].land.position.y : 0) + 0.02
     })
