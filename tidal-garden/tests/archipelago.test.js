@@ -9,13 +9,13 @@ import { pilgrimsHold } from '../src/pilgrims.js'
 import { GardenGame, GARDENS, GARDEN_NAMES, chapterOf, findHint, copyGrid } from '../src/game.js'
 import { ARCHIPELAGO_LEVELS, measureArchipelago, archipelagoDifficulty } from '../scripts/generate-archipelago.mjs'
 
-const START = 70
+const START = 180
 const clues = (garden) => ({ signs: garden.signs ?? [], lights: garden.lights ?? [], ferries: garden.ferries ?? [], pilgrims: garden.pilgrims ?? [] })
 const kinds = (garden) => Object.entries(clues(garden)).filter(([, list]) => list.length).map(([kind]) => kind)
 
 test('the archipelago closes the game, every garden with a name', () => {
-  assert.equal(ARCHIPELAGO_PUZZLES.length, 10)
-  assert.equal(GARDENS.length, 80)
+  assert.equal(ARCHIPELAGO_PUZZLES.length, 30)
+  assert.equal(GARDENS.length, 210)
   assert.equal(GARDEN_NAMES.length, GARDENS.length)
   assert.equal(chapterOf(START).name, 'The Archipelago')
   assert.equal(chapterOf(GARDENS.length - 1).name, 'The Archipelago')

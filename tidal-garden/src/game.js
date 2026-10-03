@@ -12,32 +12,60 @@ import { CROSSING_PUZZLES } from './crossingPuzzles.js'
 import { ARCHIPELAGO_PUZZLES } from './archipelagoPuzzles.js'
 import { pilgrimViolations, pilgrimsHold } from './pilgrims.js'
 
-// v2: the gardens were regenerated, so progress saved for the old ones no longer applies.
-const STORAGE_KEY = 'tidal-garden.v2'
+// v3: every chapter was regenerated at thirty gardens, so progress saved for the old ones no
+// longer applies.
+const STORAGE_KEY = 'tidal-garden.v3'
+// Thirty names per chapter, in chapter order.
 export const GARDEN_NAMES = [
-  'First light', 'Quiet currents', 'Emerald shallows', 'Soft horizons',
-  'Stillwater', 'The jade coast', 'Morning dew', 'Hidden springs',
-  'A little wild', 'Gentle tides', 'Silver ripples', 'Salt & sunlight',
-  'Green sanctuary', 'Drifting clouds', 'Low tide', 'Sea glass',
-  'Secret garden', 'Distant shores', 'Moon pool', 'A world in balance',
-  'First hearth', 'Two chimneys', 'Fishing hamlet', 'Lantern row',
-  'Mossy roofs', 'Market day', 'Hill cottages', 'Harbor lights',
-  'Kindling', 'Home',
-  'First light, again', 'Harbor watch', 'Long beam', 'Night ferry',
-  'Foghorn', 'Keeper\'s isle', 'Two lamps', 'Starboard',
-  'Safe passage', 'The guiding light',
-  'First crossing', 'Morning ferry', 'Island hopping', 'Two harbors',
-  'Slow waters', 'The long way round', 'Ferry bells', 'Narrow straits',
-  'All aboard', 'Homeward bound',
-  'First steps', 'Lantern walk', 'Mossy steps', 'Two shrines',
-  'Quiet devotion', 'The winding path', 'Temple bells', 'Pine needles',
-  'Long road', 'Journey\'s end',
-  'Over land and sea', 'Bells and horns', 'Market crossing', 'Tea house',
-  'Harbor shrine', 'Paper lanterns', 'Ferry and footpath', 'The old ways',
-  'Many paths', 'All together',
-  'Landfall', 'Busy waters', 'Smoke and lanterns', 'Island life',
-  'Beacon village', 'The whole map', 'Fair winds', 'Old friends',
-  'Every shore', 'The archipelago',
+  // Shallows
+  'First light', 'Quiet currents', 'Emerald shallows', 'Soft horizons', 'Stillwater',
+  'The jade coast', 'Morning dew', 'Hidden springs', 'A little wild', 'Gentle tides',
+  'Silver ripples', 'Salt & sunlight', 'Green sanctuary', 'Drifting clouds', 'Low tide',
+  'Sea glass', 'Secret garden', 'Distant shores', 'Moon pool', 'Tide line',
+  'Kelp forest', 'Saltmarsh', 'Pebble cove', 'Still harbor', 'Coral garden',
+  'Morning fog', 'Sandpiper', 'Driftwood', 'High water', 'A world in balance',
+  // Villages
+  'First hearth', 'Two chimneys', 'Fishing hamlet', 'Lantern row', 'Mossy roofs',
+  'Market day', 'Hill cottages', 'Harbor lights', 'Kindling', 'Thatch and reed',
+  'Bread oven', 'Little well', 'Goat path', 'Hay bales', 'Woodsmoke',
+  'Weaving day', 'Garden plots', 'Rope swing', 'Village green', 'Bonfire night',
+  'Apple store', 'Clay pots', 'Neighbors', 'Morning bell', 'Duck pond',
+  'Long table', 'Sleepy lane', 'Warm windows', 'Gathering', 'Home',
+  // Lighthouses
+  'First light, again', 'Harbor watch', 'Long beam', 'Night ferry', 'Foghorn',
+  'Keeper\'s isle', 'Two lamps', 'Starboard', 'Safe passage', 'Lamp oil',
+  'Spiral stair', 'Gull rock', 'Watchtower', 'Tide clock', 'Lantern room',
+  'Storm glass', 'Beacon hill', 'Port and starboard', 'North star', 'Signal fire',
+  'Salt spray', 'Lens and prism', 'Hidden reef', 'Calm night', 'Keeper\'s log',
+  'Far shore', 'Moonlit bay', 'Weathervane', 'Last watch', 'The guiding light',
+  // Ferries
+  'First crossing', 'Morning ferry', 'Island hopping', 'Two harbors', 'Slow waters',
+  'The long way round', 'Ferry bells', 'Narrow straits', 'All aboard', 'Gangplank',
+  'Ticket hut', 'Paddle steamer', 'Wake and foam', 'Sea breeze', 'Ropes and knots',
+  'Upper deck', 'Ferryman', 'Tide tables', 'Crossing time', 'Harbor master',
+  'Lifebuoy', 'Mooring', 'Little tugboat', 'Channel markers', 'Passenger list',
+  'Calm crossing', 'Sound the horn', 'Evening run', 'Last sailing', 'Homeward bound',
+  // Pilgrims
+  'First steps', 'Lantern walk', 'Mossy steps', 'Two shrines', 'Quiet devotion',
+  'The winding path', 'Temple bells', 'Pine needles', 'Long road', 'Straw hat',
+  'Walking staff', 'Prayer flags', 'Stone steps', 'Bamboo grove', 'Incense',
+  'Red gate', 'Mountain pass', 'Hermit\'s rest', 'Wayside shrine', 'Cherry petals',
+  'Pilgrim\'s bundle', 'Tea stop', 'Morning chant', 'Stepping stones', 'Wind chimes',
+  'Old cedar', 'Quiet valley', 'Dusk lanterns', 'Summit', 'Journey\'s end',
+  // Crossings
+  'Over land and sea', 'Bells and horns', 'Market crossing', 'Tea house', 'Harbor shrine',
+  'Paper lanterns', 'Ferry and footpath', 'The old ways', 'Many paths', 'Two journeys',
+  'Bridge of boats', 'Shore path', 'Landing stage', 'Sea and stone', 'Pier lanterns',
+  'Foot and keel', 'Tidal causeway', 'Market boats', 'Crossroads', 'Salt road',
+  'Lantern ferry', 'Busy harbor', 'Travelers', 'Sail and sandal', 'Waymarks',
+  'Inn by the sea', 'Dock and shrine', 'Long voyage', 'Meeting point', 'All together',
+  // Archipelago
+  'Landfall', 'Busy waters', 'Smoke and lanterns', 'Island life', 'Beacon village',
+  'The whole map', 'Fair winds', 'Old friends', 'Every shore', 'Chart room',
+  'Compass rose', 'Island chain', 'Many hearths', 'Tidewater', 'Far isles',
+  'Spice route', 'Island post', 'Seafarers', 'Bright harbor', 'Village lights',
+  'Sea lanes', 'Atoll', 'Hidden cove', 'Sun and sail', 'Grand tour',
+  'Lantern festival', 'Homecoming', 'The long summer', 'Twilight isles', 'The archipelago',
 ]
 const GARDENS_BEFORE_ARCHIPELAGO = PUZZLES.length + VILLAGE_PUZZLES.length + LIGHTHOUSE_PUZZLES.length + FERRY_PUZZLES.length + PILGRIM_PUZZLES.length + CROSSING_PUZZLES.length
 // The gardens come in chapters; later chapters add something new to read in the garden.

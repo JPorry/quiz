@@ -1,4 +1,4 @@
-// Builds "The Archipelago": ten gardens that mix everything before them. Each garden carries two to
+// Builds "The Archipelago": thirty gardens that mix everything before them. Each garden carries two to
 // four kinds of clue: village signs, lighthouses, ferry docks, and pilgrims' shrines.
 //
 // Each garden starts from a finished one and sets out its clues so they never crowd each other: a
@@ -16,31 +16,28 @@ import { islandAt, censusHolds } from '../src/census.js'
 import { lighthouses, lighthousesHold } from '../src/lighthouses.js'
 import { passage, ferriesHold } from '../src/ferries.js'
 import { trail, pilgrimsHold } from '../src/pilgrims.js'
+import { parseArgs, rampLevels, gather, climb, climbStart, encodeGrid } from './chapter.mjs'
 
-// Flags without a value, like --output, are simply switched on.
-const args = Object.fromEntries(process.argv.slice(2).map((arg) => { const [key, value = true] = arg.replace(/^--/, '').split('='); return [key, value] }))
+const args = parseArgs()
 const SEED = Number(args.seed ?? 20261011)
 const CANDIDATES = Number(args.candidates ?? 16)
 const SIZE = 10
 
-const CLUES = ['seal', 'apart', 'grow', 'block', 'shine', 'channel', 'trail']
-const BASIC = [...CLUES, 'pair', 'gap']
-const COUNTING = [...BASIC, 'count']
-const ALL = [...COUNTING, 'line']
+// The chapter opens with gardens that pair up a few kinds of clue, cycling through the mixes, then
+// carries all four at once, more of each as it climbs.
+const MIXES = [['signs', 'lights'], ['lights', 'docks', 'shrines'], ['signs', 'docks', 'shrines'], ['signs', 'lights', 'docks'], ['signs', 'lights', 'shrines']]
+const OPENING = 10
 
 // Each garden's techniques, the fewest starting tiles it may keep, and how many of each clue it sets out.
-export const ARCHIPELAGO_LEVELS = [
-  { allowed: BASIC, givens: 28, signs: 3, lights: 2, docks: 0, shrines: 0 },
-  { allowed: BASIC, givens: 26, signs: 0, lights: 2, docks: 1, shrines: 1 },
-  { allowed: BASIC, givens: 24, signs: 3, lights: 0, docks: 1, shrines: 1 },
-  { allowed: COUNTING, givens: 20, signs: 2, lights: 2, docks: 1, shrines: 0 },
-  { allowed: COUNTING, givens: 18, signs: 2, lights: 2, docks: 0, shrines: 1 },
-  { allowed: ALL, givens: 14, signs: 2, lights: 2, docks: 1, shrines: 1 },
-  { allowed: ALL, givens: 10, signs: 3, lights: 2, docks: 1, shrines: 1 },
-  { allowed: ALL, givens: 6, signs: 2, lights: 3, docks: 1, shrines: 1 },
-  { allowed: ALL, givens: 3, signs: 3, lights: 2, docks: 2, shrines: 1 },
-  { allowed: ALL, givens: 0, signs: 3, lights: 3, docks: 1, shrines: 2 },
-]
+export const ARCHIPELAGO_LEVELS = rampLevels({
+  moves: ['seal', 'apart', 'grow', 'block', 'shine', 'channel', 'trail'],
+  givens: [[30, 24], [24, 16], [16, 0]],
+  clues: { signs: [2, 3.4], lights: [2, 3.4], docks: [1, 2], shrines: [1, 2] },
+}).map((level, i) => {
+  if (i >= OPENING) return level
+  const mix = MIXES[i % MIXES.length]
+  return { ...level, ...Object.fromEntries(['signs', 'lights', 'docks', 'shrines'].map((kind) => [kind, mix.includes(kind) ? level[kind] : 0])) }
+})
 
 const KINDS = { signs: ['seal', 'apart', 'grow'], lights: ['block', 'shine'], ferries: ['channel'], pilgrims: ['trail'] }
 
@@ -153,39 +150,22 @@ function carries(level, garden) {
 
 function generate(levels, rng) {
   const pools = levels.map((level, index) => {
-    const pool = []
-    for (let attempt = 0; attempt < CANDIDATES * 40 && pool.length < CANDIDATES; attempt++) {
-      const next = candidate(level, rng)
+    const pool = gather(() => candidate(level, rng), (next) => {
       const { stats } = next
-      if (!stats.solved || !carries(level, next)) continue
-      if (solveLikeAPlayer(next.puzzle, level.allowed).solved) continue
+      if (!stats.solved || !carries(level, next)) return false
+      if (solveLikeAPlayer(next.puzzle, level.allowed).solved) return false
       // A garden that keeps leaving the player with a single move to find is a slog, not a puzzle.
-      if (stats.bottlenecks > Math.max(1, stats.rounds * 0.2)) continue
+      if (stats.bottlenecks > Math.max(1, stats.rounds * 0.2)) return false
       if (!censusHolds(next.solution, next.signs) || !lighthousesHold(next.solution, next.lights) || !ferriesHold(next.solution, next.ferries) || !pilgrimsHold(next.solution, next.pilgrims)) {
         throw new Error(`Archipelago garden ${index + 1} breaks its own clues`)
       }
-      pool.push(next)
-    }
+      return true
+    }, { size: CANDIDATES })
     if (args.debug) console.log('Archipelago', index + 1, pool.length, pool.map((g) => archipelagoDifficulty(g.stats).toFixed(0)).sort((a, b) => a - b).join(' '))
     if (!pool.length) throw new Error(`No garden met the targets for archipelago garden ${index + 1}`)
     return pool
   })
-  // Picks one garden per level, each harder than the last, flowing as well as possible overall.
-  const best = pools.map((pool) => pool.map(() => ({ total: -Infinity, from: -1 })))
-  pools[0].forEach((garden, j) => { best[0][j] = { total: flowScore(garden.stats), from: -1 } })
-  for (let i = 1; i < pools.length; i++) {
-    pools[i].forEach((garden, j) => {
-      pools[i - 1].forEach((before, k) => {
-        if (archipelagoDifficulty(before.stats) >= archipelagoDifficulty(garden.stats)) return
-        const total = best[i - 1][k].total + flowScore(garden.stats)
-        if (total > best[i][j].total) best[i][j] = { total, from: k }
-      })
-    })
-  }
-  let j = best.at(-1).reduce((top, entry, index, all) => (entry.total > all[top].total ? index : top), 0)
-  if (best.at(-1)[j].total === -Infinity) throw new Error('No climbing run of archipelago gardens; try more candidates')
-  const gardens = []
-  for (let i = pools.length - 1; i >= 0; i--) { gardens.unshift(pools[i][j]); j = best[i][j].from }
+  const gardens = climb(pools, ({ stats }) => archipelagoDifficulty(stats), ({ stats }) => flowScore(stats), climbStart(levels))
   gardens.forEach((garden, index) => {
     const s = garden.stats
     console.log(`Archipelago ${String(index + 1).padStart(2)}: ${s.givens} tiles, ${garden.signs.length} signs, ${garden.lights.length} lights, ${garden.ferries.length} docks, ${garden.pilgrims.length} shrines, ${s.rounds} rounds (signs ${s.signs}, lights ${s.lights}, ferries ${s.ferries}, pilgrims ${s.pilgrims}, pair ${s.pair}, gap ${s.gap}, count ${s.count}, line ${s.line}), ${s.bottlenecks} bottlenecks, flow ${s.flow.toFixed(2)}, difficulty ${archipelagoDifficulty(s).toFixed(1)}`)
@@ -193,7 +173,7 @@ function generate(levels, rng) {
   return gardens
 }
 
-const encode = (grid) => `[\n${grid.map((row) => `      [${row.map((value) => value ?? 'null').join(', ')}],`).join('\n')}\n    ]`
+const encode = encodeGrid
 const cell = ([r, c]) => `[${r}, ${c}]`
 const list = (items, format) => `[\n${items.map((item) => `      ${format(item)},`).join('\n')}\n    ]`
 

@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { GardenGame, findHint, findViolations, copyGrid } from '../src/game.js'
+import { GardenGame, GARDENS, GARDEN_NAMES, CHAPTERS, findHint, findViolations, copyGrid } from '../src/game.js'
 import { PUZZLES } from '../src/puzzles.js'
 import { countBinarySolutions, isValidBinarySolution } from '../src/binaryLogic.js'
 
@@ -10,7 +10,7 @@ function memoryStorage() {
 }
 
 test('every garden is valid, unique, and consistent with its fixed terrain', () => {
-  assert.equal(PUZZLES.length, 20)
+  assert.equal(PUZZLES.length, 30)
   for (const level of PUZZLES) {
     assert.ok(isValidBinarySolution(level.solution))
     assert.equal(countBinarySolutions(level.puzzle, 2), 1)
@@ -18,6 +18,14 @@ test('every garden is valid, unique, and consistent with its fixed terrain', () 
       if (v !== null) assert.equal(v, level.solution[r][c])
     }))
   }
+})
+
+test('seven chapters of thirty gardens, each garden with its own name', () => {
+  assert.equal(CHAPTERS.length, 7)
+  assert.ok(CHAPTERS.every((chapter) => chapter.count === 30))
+  assert.equal(GARDENS.length, 210)
+  assert.equal(GARDEN_NAMES.length, GARDENS.length)
+  assert.equal(new Set(GARDEN_NAMES).size, GARDEN_NAMES.length)
 })
 
 test('placement, erase, fixed clues, and one-step undo preserve the puzzle', () => {

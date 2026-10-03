@@ -1,4 +1,4 @@
-// Builds the "Lighthouses" chapter: ten gardens with lighthouses on some starting land tiles.
+// Builds the "Lighthouses" chapter: thirty gardens with lighthouses on some starting land tiles.
 //
 // A lighthouse's number counts the water tiles its light reaches straight up, down, left and right
 // before land or the board's edge stops it. Each garden starts from a finished one, raises a few
@@ -10,30 +10,16 @@ import { writeFileSync } from 'node:fs'
 import { random, shuffle, randomSolution } from './generate-gardens.mjs'
 import { solveLikeAPlayer } from '../src/solver.js'
 import { lighthouses, lighthousesHold } from '../src/lighthouses.js'
+import { parseArgs, rampLevels, gather, climb, climbStart, encodeGrid } from './chapter.mjs'
 
-const args = Object.fromEntries(process.argv.slice(2).map((arg) => arg.replace(/^--/, '').split('=')))
+const args = parseArgs()
 const SEED = Number(args.seed ?? 20261005)
 const CANDIDATES = Number(args.candidates ?? 16)
 const SIZE = 10
 
 const LIGHT = ['block', 'shine']
-const BASIC = [...LIGHT, 'pair', 'gap']
-const COUNTING = [...BASIC, 'count']
-const ALL = [...COUNTING, 'line']
-
 // Each garden's techniques, the fewest starting tiles it may keep, and how many lighthouses it raises.
-export const LIGHT_LEVELS = [
-  { allowed: BASIC, givens: 30, lights: 5 },
-  { allowed: BASIC, givens: 26, lights: 5 },
-  { allowed: BASIC, givens: 22, lights: 6 },
-  { allowed: COUNTING, givens: 20, lights: 6 },
-  { allowed: COUNTING, givens: 16, lights: 6 },
-  { allowed: ALL, givens: 14, lights: 7 },
-  { allowed: ALL, givens: 10, lights: 7 },
-  { allowed: ALL, givens: 6, lights: 7 },
-  { allowed: ALL, givens: 3, lights: 7 },
-  { allowed: ALL, givens: 0, lights: 8 },
-]
+export const LIGHT_LEVELS = rampLevels({ moves: LIGHT, clues: { lights: [5, 8] } })
 
 export function measureLights(puzzle, lights) {
   const { solved, steps } = solveLikeAPlayer(puzzle, undefined, { flow: true, lights })
@@ -73,7 +59,8 @@ function candidate(level, rng) {
   const puzzle = solution.map((row) => [...row])
   let remaining = SIZE * SIZE
   for (const index of shuffle([...Array(SIZE * SIZE).keys()], rng)) {
-    if (remaining <= level.givens) break
+    // Past its target, a garden keeps carving only until it can't be finished without its lighthouses.
+    if (remaining <= level.givens && !solveLikeAPlayer(puzzle, level.allowed).solved) break
     // A lighthouse's own tile always starts in place: the tower stands on it.
     if (towers.has(index)) continue
     const row = Math.floor(index / SIZE), col = index % SIZE
@@ -90,27 +77,22 @@ const flowScore = (stats) => stats.flow - stats.bottlenecks * 0.35 + lightMoves(
 
 function generate() {
   const rng = random(SEED)
-  const gardens = []
-  LIGHT_LEVELS.forEach((level, index) => {
-    let best = null
-    for (let attempt = 0; attempt < CANDIDATES * 30 && (!best || attempt < CANDIDATES); attempt++) {
-      const next = candidate(level, rng)
-      const { stats } = next
-      // The lighthouses must carry real weight in every garden of this chapter.
-      if (!stats.solved || lightMoves(stats) < 4 || stats.lights < level.lights - 1) continue
-      if (gardens.length && lightDifficulty(stats) <= lightDifficulty(gardens.at(-1).stats)) continue
-      if (!best || flowScore(stats) > flowScore(best.stats)) best = next
-    }
-    if (!best) throw new Error(`No garden met the targets for lighthouse garden ${index + 1}`)
-    if (!lighthousesHold(best.solution, best.lights)) throw new Error(`Lighthouse garden ${index + 1} breaks its own lighthouses`)
-    gardens.push(best)
-    const s = best.stats
-    console.log(`Lighthouses ${String(index + 1).padStart(2)}: ${s.givens} tiles, ${s.lights} lights, ${s.rounds} rounds (block ${s.block}, shine ${s.shine}, pair ${s.pair}, gap ${s.gap}, count ${s.count}, line ${s.line}), ${s.bottlenecks} bottlenecks, flow ${s.flow.toFixed(2)}`)
+  const pools = LIGHT_LEVELS.map((level, index) => {
+    const pool = gather(() => candidate(level, rng), ({ puzzle, solution, lights, stats }) =>
+      // The lighthouses must carry real weight, and the garden can't be finished without them.
+      stats.solved && lightMoves(stats) >= 4 && stats.lights >= level.lights - 1 && lighthousesHold(solution, lights)
+      && !solveLikeAPlayer(puzzle, level.allowed).solved && stats.bottlenecks <= Math.max(1, stats.rounds * 0.2), { size: CANDIDATES })
+    if (!pool.length) throw new Error(`No garden met the targets for lighthouse garden ${index + 1}`)
+    return pool
+  })
+  const gardens = climb(pools, ({ stats }) => lightDifficulty(stats), ({ stats }) => flowScore(stats), climbStart(LIGHT_LEVELS))
+  gardens.forEach(({ stats: s }, index) => {
+    console.log(`Lighthouses ${String(index + 1).padStart(2)}: ${s.givens} tiles, ${s.lights} lights, ${s.rounds} rounds (block ${s.block}, shine ${s.shine}, pair ${s.pair}, gap ${s.gap}, count ${s.count}, line ${s.line}), ${s.bottlenecks} bottlenecks, flow ${s.flow.toFixed(2)}, difficulty ${lightDifficulty(s).toFixed(1)}`)
   })
   return gardens
 }
 
-const encode = (grid) => `[\n${grid.map((row) => `      [${row.map((value) => value ?? 'null').join(', ')}],`).join('\n')}\n    ]`
+const encode = encodeGrid
 const encodeLights = (lights) => `[\n${lights.map(({ cell, sees }) => `      { cell: [${cell.join(', ')}], sees: ${sees} },`).join('\n')}\n    ]`
 
 if (import.meta.url === `file://${process.argv[1]}`) {

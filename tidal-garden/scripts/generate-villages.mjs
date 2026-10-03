@@ -1,4 +1,4 @@
-// Builds the "Villages" chapter: ten gardens whose islands carry census signs.
+// Builds the "Villages" chapter: thirty gardens whose islands carry census signs.
 //
 // A sign on a starting land tile shows how many land tiles its island holds. Each garden starts
 // from a finished one, signs a handful of its smaller islands, then carves starting tiles away for
@@ -9,30 +9,16 @@ import { writeFileSync } from 'node:fs'
 import { random, shuffle, randomSolution } from './generate-gardens.mjs'
 import { solveLikeAPlayer } from '../src/solver.js'
 import { islandAt, censusHolds } from '../src/census.js'
+import { parseArgs, rampLevels, gather, climb, climbStart, encodeGrid } from './chapter.mjs'
 
-const args = Object.fromEntries(process.argv.slice(2).map((arg) => arg.replace(/^--/, '').split('=')))
+const args = parseArgs()
 const SEED = Number(args.seed ?? 20261004)
 const CANDIDATES = Number(args.candidates ?? 16)
 const SIZE = 10
 
 const VILLAGE = ['seal', 'apart', 'grow']
-const BASIC = [...VILLAGE, 'pair', 'gap']
-const COUNTING = [...BASIC, 'count']
-const ALL = [...COUNTING, 'line']
-
 // Each garden's techniques, the fewest starting tiles it may keep, and how many islands it signs.
-export const VILLAGE_LEVELS = [
-  { allowed: BASIC, givens: 30, signs: 6 },
-  { allowed: BASIC, givens: 26, signs: 6 },
-  { allowed: BASIC, givens: 22, signs: 7 },
-  { allowed: COUNTING, givens: 20, signs: 7 },
-  { allowed: COUNTING, givens: 16, signs: 7 },
-  { allowed: ALL, givens: 14, signs: 8 },
-  { allowed: ALL, givens: 10, signs: 8 },
-  { allowed: ALL, givens: 6, signs: 8 },
-  { allowed: ALL, givens: 3, signs: 8 },
-  { allowed: ALL, givens: 0, signs: 9 },
-]
+export const VILLAGE_LEVELS = rampLevels({ moves: VILLAGE, clues: { signs: [6, 9] } })
 
 export function measureVillages(puzzle, signs) {
   const { solved, steps } = solveLikeAPlayer(puzzle, undefined, { flow: true, signs })
@@ -71,7 +57,8 @@ function candidate(level, rng) {
   const puzzle = solution.map((row) => [...row])
   let remaining = SIZE * SIZE
   for (const index of shuffle([...Array(SIZE * SIZE).keys()], rng)) {
-    if (remaining <= level.givens) break
+    // Past its target, a garden keeps carving only until it can't be finished without its signs.
+    if (remaining <= level.givens && !solveLikeAPlayer(puzzle, level.allowed).solved) break
     // Signed tiles always start in place: the sign stands on them.
     if (signed.has(index)) continue
     const row = Math.floor(index / SIZE), col = index % SIZE
@@ -88,27 +75,22 @@ const flowScore = (stats) => stats.flow - stats.bottlenecks * 0.35 + villageMove
 
 function generate() {
   const rng = random(SEED)
-  const gardens = []
-  VILLAGE_LEVELS.forEach((level, index) => {
-    let best = null
-    for (let attempt = 0; attempt < CANDIDATES * 30 && (!best || attempt < CANDIDATES); attempt++) {
-      const next = candidate(level, rng)
-      const { stats } = next
-      // The signs must carry real weight in every garden of this chapter.
-      if (!stats.solved || villageMoves(stats) < 4 || stats.signs < level.signs - 1) continue
-      if (gardens.length && villageDifficulty(stats) <= villageDifficulty(gardens.at(-1).stats)) continue
-      if (!best || flowScore(stats) > flowScore(best.stats)) best = next
-    }
-    if (!best) throw new Error(`No garden met the targets for village garden ${index + 1}`)
-    if (!censusHolds(best.solution, best.signs)) throw new Error(`Village garden ${index + 1} breaks its own signs`)
-    gardens.push(best)
-    const s = best.stats
-    console.log(`Villages ${String(index + 1).padStart(2)}: ${s.givens} tiles, ${s.signs} signs, ${s.rounds} rounds (seal ${s.seal}, apart ${s.apart}, grow ${s.grow}, pair ${s.pair}, gap ${s.gap}, count ${s.count}, line ${s.line}), ${s.bottlenecks} bottlenecks, flow ${s.flow.toFixed(2)}`)
+  const pools = VILLAGE_LEVELS.map((level, index) => {
+    const pool = gather(() => candidate(level, rng), ({ puzzle, solution, signs, stats }) =>
+      // The signs must carry real weight, and the garden can't be finished without them.
+      stats.solved && villageMoves(stats) >= 4 && stats.signs >= level.signs - 1 && censusHolds(solution, signs)
+      && !solveLikeAPlayer(puzzle, level.allowed).solved && stats.bottlenecks <= Math.max(1, stats.rounds * 0.2), { size: CANDIDATES })
+    if (!pool.length) throw new Error(`No garden met the targets for village garden ${index + 1}`)
+    return pool
+  })
+  const gardens = climb(pools, ({ stats }) => villageDifficulty(stats), ({ stats }) => flowScore(stats), climbStart(VILLAGE_LEVELS))
+  gardens.forEach(({ stats: s }, index) => {
+    console.log(`Villages ${String(index + 1).padStart(2)}: ${s.givens} tiles, ${s.signs} signs, ${s.rounds} rounds (seal ${s.seal}, apart ${s.apart}, grow ${s.grow}, pair ${s.pair}, gap ${s.gap}, count ${s.count}, line ${s.line}), ${s.bottlenecks} bottlenecks, flow ${s.flow.toFixed(2)}, difficulty ${villageDifficulty(s).toFixed(1)}`)
   })
   return gardens
 }
 
-const encode = (grid) => `[\n${grid.map((row) => `      [${row.map((value) => value ?? 'null').join(', ')}],`).join('\n')}\n    ]`
+const encode = encodeGrid
 const encodeSigns = (signs) => `[\n${signs.map(({ cell, size }) => `      { cell: [${cell.join(', ')}], size: ${size} },`).join('\n')}\n    ]`
 
 if (import.meta.url === `file://${process.argv[1]}`) {
