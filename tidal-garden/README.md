@@ -106,7 +106,8 @@ sitting in it: dipping the right edge lowers the board's east side and raising
 the top edge lifts its north side, by up to eight degrees.
 Only movement counts: "level" slowly settles to however the phone is held, so
 any comfortable reading angle is neutral. Android browsers share motion freely,
-so tilting starts on; iOS asks once, on the player's first tap. The tilt button
+so tilting starts on; iOS needs a tap on each visit: the first one prompts and
+later ones confirm quietly, without a prompt, once allowed. The tilt button
 in the header turns it on or off, and the choice is remembered. Reduced motion
 leaves the board still.
 

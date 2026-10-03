@@ -295,12 +295,13 @@ if (tilt.supported && scene && !tilt.reducedMotion) {
   $('#tilt').hidden = false
   tilt.restore()
   showTilt()
+  // iOS only shares motion after a tap on each visit: the first prompts, later ones confirm quietly.
   if (tilt.shouldAsk) {
     const ask = async (event) => {
-      if (event.target.closest?.('#tilt')) return
+      if (event.target.closest?.('#tilt') || !tilt.shouldAsk) return
+      if (await tilt.confirm() === 'retry') return
       removeEventListener('touchend', ask, true)
       removeEventListener('click', ask, true)
-      await tilt.enable()
       showTilt()
     }
     addEventListener('touchend', ask, true)

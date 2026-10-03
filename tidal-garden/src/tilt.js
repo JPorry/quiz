@@ -36,6 +36,9 @@ export class DeviceTilt {
     // iOS asks the player before sharing motion; other browsers share it on secure pages.
     this.needsPermission = this.supported && typeof DeviceOrientationEvent.requestPermission === 'function'
     this.enabled = false
+    // On iOS, whether the player has confirmed motion access on this visit.
+    this.confirmed = !this.needsPermission
+    this.asking = null
     this.reading = null
     this.level = null
     this.side = 0
@@ -58,24 +61,39 @@ export class DeviceTilt {
     try { this.storage?.setItem(STORAGE_KEY, value) } catch { /* Tilting does not depend on storage. */ }
   }
 
-  // Whether to ask on the player's first touch: only where permission is needed and they have not answered yet.
-  get shouldAsk() { return this.needsPermission && !this.enabled && this.preference === null }
+  // Whether the player's next tap should confirm motion access: iOS needs it on every visit,
+  // unless they have turned tilting off. Once granted, iOS confirms quietly without a prompt.
+  get shouldAsk() { return this.needsPermission && !this.confirmed && this.preference !== 'off' }
 
-  // Turns tilting on where allowed without asking; elsewhere waits for a tap.
+  // Starts listening unless the player turned tilting off. On iOS readings only arrive once
+  // permission is confirmed, which may already be the case from an earlier visit.
   restore() {
-    if (!this.supported || this.reducedMotion) return false
-    if (!this.needsPermission && this.preference !== 'off') return this.listen()
-    return false
+    if (!this.supported || this.reducedMotion || this.preference === 'off') return false
+    return this.listen()
   }
 
-  // Must run inside a tap on iOS, where it shows the system permission prompt.
+  // Asks for motion access where needed; must run inside a tap on iOS. Resolves to 'granted',
+  // 'denied', or 'retry' when the browser would not ask outside a tap.
+  confirm() {
+    if (!this.needsPermission) return Promise.resolve('granted')
+    this.asking ??= (async () => {
+      try {
+        const answer = await DeviceOrientationEvent.requestPermission()
+        if (answer === 'granted') { this.confirmed = true; this.remember('on'); this.listen() } else this.disable()
+        return answer === 'granted' ? 'granted' : 'denied'
+      } catch {
+        return 'retry'
+      } finally {
+        this.asking = null
+      }
+    })()
+    return this.asking
+  }
+
+  // Turns tilting on from the button.
   async enable() {
     if (!this.supported) return false
-    if (this.needsPermission) {
-      try {
-        if (await DeviceOrientationEvent.requestPermission() !== 'granted') { this.remember('off'); return false }
-      } catch { return false }
-    }
+    if (await this.confirm() !== 'granted') return false
     this.remember('on')
     return this.listen()
   }
