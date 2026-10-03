@@ -97,9 +97,8 @@ edge stops it. While it is dark, soft breathing dots mark the water it already
 sees, so its count can be read off the garden. When every beam ends at exactly
 its number, the badge pops off with a spin, the tower crouches and springs up
 half again as tall, overshooting and wobbling to rest, and the lamp flickers on
-twice before glowing steadily with a burst of sparkles. A little sailboat then
-sails out and back along the longest lit stretch, and a bright chime plays when
-sound is on. Now and then, at random, a lit lighthouse sweeps its beam slowly
+twice before glowing steadily with a burst of sparkles, and a bright chime plays
+when sound is on. Now and then, at random, a lit lighthouse sweeps its beam slowly
 around once and lets it fade; undone, a lighthouse settles back down and its
 badge returns. A lighthouse that already sees too much,
 or can no longer see enough, is marked like any other mistake, and a garden is
