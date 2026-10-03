@@ -170,6 +170,20 @@ gardens, so water has to join some pairs while land joins others.
 gardens for every level whose clues all carry weight, then picks one per level
 so that each is harder than the last while flowing as well as possible.
 
+## The Archipelago
+
+The seventh and last chapter of ten mixes everything before it: each garden
+carries two to four kinds of clue, from village signs and lighthouses to ferry
+docks and pilgrims' shrines, and the chapter uses all four, several gardens
+carrying every kind at once. Every clue keeps its own rules and its own
+celebration, and the hints reach for whichever move is easiest.
+`scripts/generate-archipelago.mjs --output` builds it into
+`src/archipelagoPuzzles.js`. Clues are set out so they never crowd each other:
+a signed island fills with huts, so it carries no other clue (and no pilgrims'
+path crosses it), and every other clue keeps a tile's distance from the rest.
+Every kind of clue a garden carries has to pull its weight in the solve, and the
+chapter is picked from a pool per level to climb steadily in difficulty.
+
 ## Art
 
 The garden is a little diorama: a tray of sea above a layer of sand, seen

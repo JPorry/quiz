@@ -9,6 +9,7 @@ import { FERRY_PUZZLES } from './ferryPuzzles.js'
 import { ferryViolations, ferriesHold } from './ferries.js'
 import { PILGRIM_PUZZLES } from './pilgrimPuzzles.js'
 import { CROSSING_PUZZLES } from './crossingPuzzles.js'
+import { ARCHIPELAGO_PUZZLES } from './archipelagoPuzzles.js'
 import { pilgrimViolations, pilgrimsHold } from './pilgrims.js'
 
 // v2: the gardens were regenerated, so progress saved for the old ones no longer applies.
@@ -34,7 +35,11 @@ export const GARDEN_NAMES = [
   'Over land and sea', 'Bells and horns', 'Market crossing', 'Tea house',
   'Harbor shrine', 'Paper lanterns', 'Ferry and footpath', 'The old ways',
   'Many paths', 'All together',
+  'Landfall', 'Busy waters', 'Smoke and lanterns', 'Island life',
+  'Beacon village', 'The whole map', 'Fair winds', 'Old friends',
+  'Every shore', 'The archipelago',
 ]
+const GARDENS_BEFORE_ARCHIPELAGO = PUZZLES.length + VILLAGE_PUZZLES.length + LIGHTHOUSE_PUZZLES.length + FERRY_PUZZLES.length + PILGRIM_PUZZLES.length + CROSSING_PUZZLES.length
 // The gardens come in chapters; later chapters add something new to read in the garden.
 export const CHAPTERS = Object.freeze([
   { name: 'The Shallows', start: 0, count: PUZZLES.length },
@@ -48,10 +53,12 @@ export const CHAPTERS = Object.freeze([
     intro: 'Shrines with matching lanterns must stand on the same island, so their pilgrim can walk between them.' },
   { name: 'The Crossings', start: PUZZLES.length + VILLAGE_PUZZLES.length + LIGHTHOUSE_PUZZLES.length + FERRY_PUZZLES.length + PILGRIM_PUZZLES.length, count: CROSSING_PUZZLES.length,
     intro: 'Ferries need water between their docks, and pilgrims need land between their shrines.' },
+  { name: 'The Archipelago', start: GARDENS_BEFORE_ARCHIPELAGO, count: ARCHIPELAGO_PUZZLES.length,
+    intro: 'Villages, lighthouses, ferries and pilgrims, all in one garden. Every clue still holds.' },
 ])
 // Every garden carries its clues: census signs, lighthouses, ferry docks and shrines, any of which may be empty.
 const withClues = (garden) => ({ signs: [], lights: [], ferries: [], pilgrims: [], ...garden })
-export const GARDENS = Object.freeze([...PUZZLES, ...VILLAGE_PUZZLES, ...LIGHTHOUSE_PUZZLES, ...FERRY_PUZZLES, ...PILGRIM_PUZZLES, ...CROSSING_PUZZLES].map(withClues))
+export const GARDENS = Object.freeze([...PUZZLES, ...VILLAGE_PUZZLES, ...LIGHTHOUSE_PUZZLES, ...FERRY_PUZZLES, ...PILGRIM_PUZZLES, ...CROSSING_PUZZLES, ...ARCHIPELAGO_PUZZLES].map(withClues))
 export const chapterOf = (level) => CHAPTERS.findLast((chapter) => level >= chapter.start) ?? CHAPTERS[0]
 export const copyGrid = (grid) => grid.map((row) => [...row])
 
