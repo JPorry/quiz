@@ -3,7 +3,7 @@ import { GardenGame, GARDENS, GARDEN_NAMES, CHAPTERS, chapterOf, findViolations,
 import { GardenScene } from './scene.js'
 import { mapLayout, mapMarkup, MAP_ART } from './map.js'
 import { GardenAudio } from './audio.js'
-import { TITLE_ART, titleLetters } from './titleArt.js'
+import { TITLE_ART } from './titleArt.js'
 import { DeviceTilt } from './tilt.js'
 import './style.css'
 
@@ -72,7 +72,8 @@ app.innerHTML = `
     <section class="title-screen" id="title-screen" aria-label="Tidal Garden">
       ${TITLE_ART}
       <div class="title-content">
-        <h1 class="title-logo" aria-label="Tidal Garden"><span class="logo-line" aria-hidden="true">${titleLetters('Tidal')}</span><span class="logo-line" aria-hidden="true">${titleLetters('Garden')}</span></h1>
+        <h1 class="title-logo"><span class="logo-line">Tidal</span> <span class="logo-line">Garden</span></h1>
+        <svg class="title-flourish" viewBox="0 0 120 12" aria-hidden="true"><path d="M2 6 q7 -6 14 0 t14 0 t14 0 M76 6 q7 -6 14 0 t14 0 t14 0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="60" cy="6" r="3" fill="currentColor"/></svg>
         <p class="title-tagline">A little land, a little water.</p>
       </div>
       <div class="title-bottom">
@@ -480,6 +481,9 @@ function frameTitle() {
 }
 addEventListener('resize', frameTitle)
 frameTitle()
+// Safari zooms on a pinch or a double tap even when the page asks it not to, so those gestures are
+// stopped here; the garden's own pinch and drag go through the canvas's pointer events instead.
+for (const type of ['gesturestart', 'gesturechange', 'dblclick']) document.addEventListener(type, (event) => event.preventDefault(), { passive: false })
 addEventListener('popstate', (event) => showScreen(event.state?.screen ?? 'title', { push: false }))
 $('#title-play').addEventListener('click', () => { audio.unlock(); audio.play('tap'); showScreen('map') })
 $('#map-home').addEventListener('click', () => { audio.play('back'); showScreen('title') })
