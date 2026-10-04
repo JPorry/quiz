@@ -51,8 +51,8 @@ back button walks back through them.
   to the marker when it opens, and the 3D scene rests while it covers it.
 - **Garden:** the game itself, laid out to give the board every pixel it can.
   A slim bar on top holds a map button, a little pill with the garden's
-  number, chapter, name, time, and a progress bar, and round buttons for
-  tilt, sound, and the rules. Below the board sits a single hint line, then a
+  number, chapter, name, time, and a progress bar, and a Settings button
+  (sound, tilt, and the rules live there). Below the board sits a single hint line, then a
   dock with the three pieces and Undo, Hint, and Restart chips. On wide
   screens (iPads and desktops held landscape) the dock stands beside the board
   instead, so the board can use the full height; tablets get bigger pieces,
@@ -77,9 +77,9 @@ and is remembered once done.
 
 ## Settings
 
-The gear on the title and the map (and a button in the rules) opens Settings:
+The gear on the title, the map, and the garden's bar (and a button in the rules) opens Settings:
 sliders for the music and sound-effect volumes (sliding to nothing switches
-one off), the language (English or Spanish), Replay the tutorial (the first
+one off), a switch for tilting with the phone, the rules, the language (English or Spanish), Replay the tutorial (the first
 garden is cleared for it, and every chapter guide returns), and Reset all
 progress, which asks for confirmation before clearing every garden, time, and
 guide.
@@ -152,8 +152,8 @@ and play instantly.
 
 Browsers only allow sound after a tap, so the music starts with the player's
 first tap or key (on iOS both music decks are unlocked by that tap). The title
-and the map have separate switches for music and for sound effects; the
-garden's bar has one speaker that hushes or wakes both. The choices are
+and the map have separate switches for music and for sound effects, and
+Settings has a volume slider for each. The choices are
 remembered, and sound pauses while the page is hidden.
 
 ## Puzzle
@@ -379,8 +379,9 @@ only at a full 30-degree turn of the phone, and followed smoothly.
 Only movement counts: "level" slowly settles to however the phone is held, so
 any comfortable reading angle is neutral. Android browsers share motion freely,
 so tilting starts on; iOS needs a tap on each visit: the first one prompts and
-later ones confirm quietly, without a prompt, once allowed. The tilt button
-in the header turns it on or off, and the choice is remembered. Reduced motion
+later ones confirm quietly, without a prompt, once allowed. A switch in
+Settings (shown only where the phone can tilt the garden) turns it on or off,
+and the choice is remembered. Reduced motion
 leaves the board still.
 
 The water is flat pigment. One cached distance field to the same rounded

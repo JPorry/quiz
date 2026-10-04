@@ -45,9 +45,7 @@ app.innerHTML = `
           </span>
         </div>
         <div class="bar-tools">
-          <button class="round-button" id="tilt" aria-label="${t('bar.tilt')}" aria-pressed="false" title="${t('bar.tiltTitle')}" hidden>${icon('move-3d')}</button>
-          <button class="round-button sound-toggle" id="sound" data-scope="all" aria-label="${t('bar.mute')}" aria-pressed="false" title="${t('bar.sounds')}">${icon('volume-x')}</button>
-          <button class="round-button" id="help" aria-label="${t('bar.rules')}" title="${t('bar.rules')}">${icon('circle-help')}</button>
+          <button class="round-button open-settings" aria-label="${t('settings')}" title="${t('settings')}">${icon('settings')}</button>
         </div>
       </header>
       <section class="coach" id="coach" aria-live="polite" hidden>
@@ -276,8 +274,8 @@ document.querySelectorAll('[data-value]').forEach((button) => button.addEventLis
 }))
 
 $('#undo').addEventListener('click', () => { if (game.undo()) { audio.play('undo'); hintCell = null; render() } })
-// Music and sound effects each have their own switch on the title and the map; the garden's own
-// bar has one button that hushes or wakes both together.
+// Music and sound effects each have their own switch on the title and the map, and a slider in
+// Settings.
 function showAudio() {
   document.querySelectorAll('.music-toggle').forEach((button) => {
     button.setAttribute('aria-pressed', String(audio.music))
@@ -285,9 +283,9 @@ function showAudio() {
     button.classList.toggle('off', !audio.music)
   })
   document.querySelectorAll('.sound-toggle').forEach((button) => {
-    const on = button.dataset.scope === 'all' ? audio.music || audio.effects : audio.effects
+    const on = audio.effects
     button.setAttribute('aria-pressed', String(on))
-    button.setAttribute('aria-label', t(button.dataset.scope === 'all' ? (on ? 'bar.mute' : 'bar.unmute') : (on ? 'audio.effectsOff' : 'audio.effectsOn')))
+    button.setAttribute('aria-label', t(on ? 'audio.effectsOff' : 'audio.effectsOn'))
     button.innerHTML = icon(on ? 'volume-2' : 'volume-x')
   })
   refreshIcons()
@@ -295,11 +293,7 @@ function showAudio() {
 document.querySelectorAll('.music-toggle').forEach((button) => button.addEventListener('click', () => { audio.unlock(); audio.setMusic(!audio.music); showAudio() }))
 document.querySelectorAll('.sound-toggle').forEach((button) => button.addEventListener('click', () => {
   audio.unlock()
-  if (button.dataset.scope === 'all') {
-    const on = !(audio.music || audio.effects)
-    audio.setMusic(on)
-    audio.setEffects(on)
-  } else audio.setEffects(!audio.effects)
+  audio.setEffects(!audio.effects)
   showAudio()
   audio.play('tap')
 }))
@@ -317,19 +311,20 @@ function clueSound(name, options) { if (!game.complete) audio.play(name, options
 // On phones the garden leans very slightly with the device. Where the browser shares motion
 // freely it starts on; iOS asks once, on the player's first tap, and the button turns it on or off.
 const tilt = new DeviceTilt({ reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches })
+// Its switch lives in Settings, shown only where the phone can tilt the garden.
+const tiltAvailable = tilt.supported && !!scene && !tilt.reducedMotion
 function showTilt() {
-  $('#tilt').setAttribute('aria-pressed', String(tilt.enabled))
-  $('#tilt').setAttribute('aria-label', t(tilt.enabled ? 'bar.tiltOff' : 'bar.tilt'))
+  const toggle = $('#tilt-toggle')
+  if (toggle) toggle.checked = tilt.enabled
 }
-if (tilt.supported && scene && !tilt.reducedMotion) {
+if (tiltAvailable) {
   scene.tilt = tilt
-  $('#tilt').hidden = false
   tilt.restore()
   showTilt()
   // iOS only shares motion after a tap on each visit: the first prompts, later ones confirm quietly.
   if (tilt.shouldAsk) {
     const ask = async (event) => {
-      if (event.target.closest?.('#tilt') || !tilt.shouldAsk) return
+      if (event.target.closest?.('#tilt-toggle') || !tilt.shouldAsk) return
       if (await tilt.confirm() === 'retry') return
       removeEventListener('touchend', ask, true)
       removeEventListener('click', ask, true)
@@ -339,11 +334,6 @@ if (tilt.supported && scene && !tilt.reducedMotion) {
     addEventListener('click', ask, true)
   }
 }
-$('#tilt').addEventListener('click', async () => {
-  if (tilt.enabled) tilt.disable()
-  else await tilt.enable()
-  showTilt()
-})
 
 // Says which tile to fill and the reasoning behind it, so the hint teaches the technique.
 function hintText({ row, col, value, technique, axis }) {
@@ -412,7 +402,9 @@ function openSettings() {
     <div class="setting"><label for="effects-volume"><span class="rule-icon">${icon('volume-2')}</span>${t('audio.effects')}</label><input type="range" id="effects-volume" min="0" max="100" step="5" value="${audio.effects ? percent(audio.effectsVolume) : 0}"><output id="effects-volume-value"></output></div>
     <div class="setting"><label for="language"><span class="rule-icon">${icon('languages')}</span>${t('settings.language')}</label><select id="language">${Object.entries(LANGUAGES).map(([code, { name }]) => `<option value="${code}" lang="${code}"${code === language() ? ' selected' : ''}>${name}</option>`).join('')}</select></div>
     <p class="setting-note">${t('settings.languageNote')}</p>
+    ${tiltAvailable ? `<div class="setting"><label for="tilt-toggle"><span class="rule-icon">${icon('move-3d')}</span>${t('settings.tilt')}</label><input type="checkbox" role="switch" class="switch" id="tilt-toggle"${tilt.enabled ? ' checked' : ''}></div><p class="setting-note">${t('settings.tiltNote')}</p>` : ''}
     <div class="settings-actions">
+      <button class="secondary-button" id="settings-rules">${icon('circle-help')} ${t('bar.rules')}</button>
       <button class="secondary-button" id="replay-tutorial">${icon('graduation-cap')} ${t('settings.replay')}</button>
       <button class="danger-button" id="reset-progress">${icon('trash-2')} ${t('settings.reset')}</button>
     </div>`)
@@ -432,6 +424,12 @@ function openSettings() {
     try { sessionStorage.setItem(REOPEN, screen) } catch { /* It just opens on the title. */ }
     location.reload()
   })
+  $('#tilt-toggle')?.addEventListener('change', async (event) => {
+    if (event.target.checked) await tilt.enable()
+    else tilt.disable()
+    showTilt()
+  })
+  $('#settings-rules').addEventListener('click', openHelp)
   $('#replay-tutorial').addEventListener('click', replayTutorial)
   $('#reset-progress').addEventListener('click', confirmResetAll)
 }
@@ -470,7 +468,6 @@ function confirmResetAll() {
     else showScreen('title')
   })
 }
-$('#help').addEventListener('click', openHelp)
 $('#title-help').addEventListener('click', openHelp)
 
 $('#to-map').addEventListener('click', () => { audio.play('back'); showScreen('map') })

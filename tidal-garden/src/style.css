@@ -121,6 +121,11 @@ h2 { font: 400 42px/1.08 'DM Serif Display', Georgia, serif; margin: 0 0 24px; }
 .setting input[type=range] { grid-column: 1 / -1; grid-row: 2; }
 .setting output { font-size: 13px; font-weight: 600; color: #6d8a7c; font-variant-numeric: tabular-nums; }
 .setting select { min-height: 40px; padding: 0 34px 0 14px; border: 1px solid #d6dfd2; border-radius: 10px; font: 600 14px 'DM Sans', sans-serif; color: #27433a; background: #fffdf6 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%236d8a7c' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 12px center; appearance: none; -webkit-appearance: none; }
+.switch { grid-column: 2; appearance: none; -webkit-appearance: none; position: relative; width: 52px; height: 30px; margin: 0; border-radius: 15px; background: #dfe6da; cursor: pointer; transition: background .2s; }
+.switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fffdf6; box-shadow: 0 2px 4px #1d4f4a40; transition: translate .2s; }
+.switch:checked { background: #5bb8ad; }
+.switch:checked::after { translate: 22px 0; }
+.switch:focus-visible { outline: 2px solid #2b8980; outline-offset: 3px; }
 .setting-note { margin: -8px 0 0; font-size: 13px; color: #7d8d7f; }
 input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 28px; margin: 0; background: transparent; touch-action: pan-y; --fill: 100%; }
 input[type=range]::-webkit-slider-runnable-track { height: 8px; border-radius: 4px; background: linear-gradient(90deg, #5bb8ad var(--fill), #dfe6da var(--fill)); }
