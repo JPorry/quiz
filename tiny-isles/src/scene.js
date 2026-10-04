@@ -1,7 +1,9 @@
 import * as THREE from 'three'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
-import { City, Island, BIOME_NAMES } from './city.js'
+import { City, BIOMES, BIOME_NAMES } from './city.js'
+import { Island } from './island.js'
 import { Sea } from './sea.js'
+import { Ambient } from './ambient.js'
 import { toon, outline, part, merge, canvasTexture, seeded } from './look.js'
 
 // A tilted diorama of a turquoise sea. Islands sit on a grid; bridges are built
@@ -14,87 +16,166 @@ const DECK_Y = 0.2
 const LINE = 0x5e4a58
 const CAR_COLORS = [0xff8fa3, 0x7fc8ff, 0xffd166, 0x8ee39b, 0xc7a3ff, 0xffa96b, 0xffffff]
 const clamp = THREE.MathUtils.clamp
-export const islandRadius = (value) => 0.36 + value * 0.038
+export const islandRadius = (value) => 0.39 + value * 0.04
 
 /* ---------- bridges ---------- */
 
-const PLANK = new RoundedBoxGeometry(1, 1, 1, 2, 0.2)
+const SOFT = new RoundedBoxGeometry(1, 1, 1, 2, 0.2)
 const POST = new THREE.CylinderGeometry(1, 1, 1, 8)
+const BALL = new THREE.SphereGeometry(1, 10, 8)
+const CAP = new THREE.ConeGeometry(1, 1, 10)
+const RING = new THREE.TorusGeometry(1, 0.18, 6, 20).rotateX(Math.PI / 2)
+const FLAG = (() => {
+  const g = new THREE.BufferGeometry()
+  g.setAttribute('position', new THREE.Float32BufferAttribute([-0.5, 0, 0, 0.5, 0, 0, 0, -1, 0, 0.5, 0, 0, -0.5, 0, 0, 0, -1, 0], 3))
+  g.computeVertexNormals()
+  return g
+})()
+const WOOD = [0xe8b98a, 0xdba878, 0xe3b182]
+const BUNTING = [0xff8fa3, 0xffd166, 0x7fc8ff, 0x8ee39b, 0xc7a3ff]
+const STONE = 0xf6e8d6
+const DROPLET = new THREE.SphereGeometry(1, 8, 6)
+const CONFETTI = new THREE.PlaneGeometry(1, 0.6)
+const easeOut = (k) => 1 - (1 - k) ** 3
 
+// A bridge is laid plank by plank. One lane is a wooden bridge with rope rails
+// and bunting; a second lane rebuilds it as a wide stone bridge with lamps.
 class Bridge {
   // a: start point, b: end point on the water plane (Vector3), lanes: 1 or 2
-  constructor(parent, a, b, lanes, { color = 0xfff0d8, rail = 0xff8a8a } = {}) {
+  constructor(parent, a, b, lanes, { preview = false } = {}) {
     this.group = new THREE.Group()
     parent.add(this.group)
     this.a = a.clone()
     this.b = b.clone()
     this.lanes = lanes
+    this.preview = preview
+    const stone = lanes === 2
     const len = a.distanceTo(b)
     this.length = len
     const dir = b.clone().sub(a).normalize()
     this.group.position.copy(a)
     this.group.rotation.y = -Math.atan2(dir.z, dir.x)
-    const width = lanes === 2 ? 0.3 : 0.17
+    const width = stone ? 0.32 : 0.19
     this.width = width
-    const n = Math.max(4, Math.round(len / 0.07))
-    this.planks = []
-    const deck = toon(color, { rim: 0.12 })
-    const deckLine = outline(LINE, 0.006)
-    const railMat = toon(rail)
+    const n = Math.max(4, Math.round(len / (stone ? 0.1 : 0.062)))
+    const seg = len / n
+    this.material = toon(0xffffff, { vertexColors: true, rim: 0.12 })
+    this.blockedMaterial = toon(0xffa898, { vertexColors: true, rim: 0.12 })
+    const line = outline(LINE, 0.005)
+    this.segments = []
     for (let i = 0; i < n; i++) {
       const t = (i + 0.5) / n
-      const x = t * len
-      const y = this.heightAt(t)
+      const parts = stone
+        ? [
+            part(SOFT, STONE, [0, 0, 0], [seg * 1.01, 0.045, width]),
+            part(SOFT, 0xe6d0b8, [0, 0.022, 0], [seg * 1.01, 0.006, width * 0.7]),
+            i % 2 ? null : part(SOFT, 0xffffff, [0, 0.026, 0], [seg * 0.5, 0.004, 0.016]),
+            ...[-1, 1].map((s) => part(SOFT, i % 2 ? 0xffb8a0 : 0xffc9b4, [0, 0.042, s * (width / 2 - 0.016)], [seg * 0.96, 0.055, 0.034])),
+          ]
+        : [part(SOFT, WOOD[i % 3], [0, 0, 0], [seg * 0.88, 0.028, width * (i % 2 ? 1 : 0.94)])]
+      const geometry = merge(parts)
       const g = new THREE.Group()
-      g.position.set(x, y, 0)
-      g.rotation.z = Math.atan(this.slopeAt(t))
-      const plank = new THREE.Mesh(PLANK, deck)
-      plank.scale.set(len / n * 0.96, 0.035, width)
-      plank.castShadow = true
-      g.add(plank)
-      const edge = new THREE.Mesh(PLANK, deckLine)
-      edge.scale.copy(plank.scale)
-      g.add(edge)
-      if (lanes === 2 && i % 2 === 0) {
-        const dash = new THREE.Mesh(PLANK, toon(0xffd166))
-        dash.scale.set(len / n * 0.6, 0.038, 0.018)
-        g.add(dash)
-      }
-      // railing posts on both sides, every other plank
-      if (i % 3 === 0) for (const side of [-1, 1]) {
-        const post = new THREE.Mesh(POST, railMat)
-        post.scale.set(0.006, 0.05, 0.006)
-        post.position.set(0, 0.025, side * (width / 2 - 0.008))
-        g.add(post)
-      }
-      g.scale.setScalar(0.001)
+      const mesh = new THREE.Mesh(geometry, this.material)
+      mesh.castShadow = true
+      g.add(mesh, new THREE.Mesh(geometry, line))
+      g.visible = false
       this.group.add(g)
-      this.planks.push({ g, t })
+      this.segments.push({ g, mesh, t, home: new THREE.Vector3(t * len, this.heightAt(t), 0), tilt: Math.atan(this.slopeAt(t)), state: 0, k: 0, vy: 0, spin: 0 })
     }
-    // hand rails along the arch
-    this.rails = new THREE.Group()
-    for (const side of [-1, 1]) {
-      const pts = []
-      for (let k = 0; k <= 20; k++) pts.push(new THREE.Vector3((k / 20) * len, this.heightAt(k / 20) + 0.05, side * (width / 2 - 0.008)))
-      const tube = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 24, 0.009, 6), railMat)
-      this.rails.add(tube)
+    this.place()
+    this.extras = this.makeExtras(stone, len, width)
+    this.extras.visible = false
+    this.group.add(this.extras)
+    this.piers = this.makePiers(stone, len, width)
+    this.piers.visible = false
+    this.group.add(this.piers)
+    if (preview) {
+      // a dotted guide shows where the bridge will go
+      this.guide = []
+      this.dot = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, depthWrite: false })
+      for (let k = 0; k < Math.round(len / 0.09); k++) {
+        const t = (k + 0.5) / Math.round(len / 0.09)
+        const d = new THREE.Mesh(BALL, this.dot)
+        d.scale.set(0.026, 0.01, 0.026)
+        d.position.set(t * len, this.heightAt(t), 0)
+        this.group.add(d)
+        this.guide.push({ d, t })
+      }
     }
-    // little lamp posts at each end
-    for (const x of [0.02, len - 0.02]) for (const side of [-1, 1]) {
-      const lamp = new THREE.Group()
-      lamp.position.set(x, this.heightAt(x / len), side * (width / 2 + 0.01))
-      const pole = new THREE.Mesh(POST, toon(0x6b5a6e))
-      pole.scale.set(0.008, 0.14, 0.008)
-      pole.position.y = 0.07
-      const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.02, 10, 8), new THREE.MeshBasicMaterial({ color: 0xfff1a8 }))
-      bulb.position.y = 0.15
-      lamp.add(pole, bulb)
-      this.rails.add(lamp)
-    }
-    this.rails.visible = false
-    this.group.add(this.rails)
     this.built = 0 // how much of the bridge stands, 0..1
     this.target = 0
+    this.open = 0
+    this.manual = preview
+    this.mode = 'fall'
+  }
+
+  makeExtras(stone, len, width) {
+    const parts = []
+    if (stone) {
+      // lamp posts along the parapets
+      for (const t of len > 1 ? [0.03, 0.5, 0.97] : [0.03, 0.97]) for (const s of [-1, 1]) {
+        const y = this.heightAt(t)
+        parts.push(part(POST, 0x8f7fa8, [t * len, y + 0.1, s * (width / 2 - 0.016)], [0.01, 0.16, 0.01]))
+        parts.push(part(BALL, 0xfff1a8, [t * len, y + 0.195, s * (width / 2 - 0.016)], [0.03, 0.03, 0.03]))
+        parts.push(part(CAP, 0x8f7fa8, [t * len, y + 0.225, s * (width / 2 - 0.016)], [0.034, 0.03, 0.034]))
+      }
+    } else {
+      // posts with round caps, rope rails, and a string of little flags
+      const posts = Math.max(2, Math.round(len / 0.2))
+      for (let k = 0; k <= posts; k++) {
+        const t = k / posts
+        for (const s of [-1, 1]) {
+          parts.push(part(POST, 0xa8714a, [t * len, this.heightAt(t) + 0.04, s * (width / 2)], [0.01, 0.08, 0.01]))
+          parts.push(part(BALL, 0xfff3e2, [t * len, this.heightAt(t) + 0.085, s * (width / 2)], [0.014, 0.014, 0.014]))
+        }
+      }
+      for (const s of [-1, 1]) {
+        const pts = []
+        for (let k = 0; k <= 30; k++) {
+          const t = k / 30
+          const sag = Math.abs(Math.sin(t * posts * Math.PI)) * 0.012
+          pts.push(new THREE.Vector3(t * len, this.heightAt(t) + 0.075 - sag, s * (width / 2)))
+        }
+        parts.push(part(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 40, 0.006, 5), 0xf7e3c4))
+        const flags = Math.round(len / 0.07)
+        for (let k = 1; k < flags; k++) {
+          const t = k / flags
+          const sag = Math.abs(Math.sin(t * posts * Math.PI)) * 0.012
+          parts.push(part(FLAG, BUNTING[(k + (s > 0 ? 0 : 2)) % BUNTING.length], [t * len, this.heightAt(t) + 0.072 - sag, s * (width / 2)], [0.036, 0.04, 1]))
+        }
+      }
+    }
+    const geometry = merge(parts)
+    const g = new THREE.Group()
+    const mesh = new THREE.Mesh(geometry, toon(0xffffff, { vertexColors: true, rim: 0.12 }))
+    mesh.castShadow = true
+    g.add(mesh, new THREE.Mesh(geometry, outline(LINE, 0.004)))
+    return g
+  }
+
+  makePiers(stone, len, width) {
+    const g = new THREE.Group()
+    const parts = []
+    this.rings = []
+    const at = len > 1.4 ? [0.3, 0.7] : len > 0.6 ? [0.5] : []
+    for (const t of at) {
+      const top = this.heightAt(t) - 0.02
+      if (stone) parts.push(part(SOFT, 0xe6d6c2, [t * len, (top - 0.06) / 2, 0], [0.11, top + 0.06, width * 0.8]))
+      else for (const s of [-1, 1]) parts.push(part(POST, 0xa8714a, [t * len, (top - 0.06) / 2, s * width * 0.36], [0.016, top + 0.06, 0.016]))
+      const ring = new THREE.Mesh(RING, toon(0xffffff, { rim: 0 }))
+      ring.position.set(t * len, -0.005, 0)
+      ring.scale.set(stone ? 0.1 : 0.08, 0.05, stone ? width * 0.55 : width * 0.5)
+      ring.userData.base = ring.scale.clone()
+      g.add(ring)
+      this.rings.push(ring)
+    }
+    if (parts.length) {
+      const geometry = merge(parts)
+      const mesh = new THREE.Mesh(geometry, toon(0xffffff, { vertexColors: true, rim: 0.12 }))
+      mesh.castShadow = true
+      g.add(mesh, new THREE.Mesh(geometry, outline(LINE, 0.005)))
+    }
+    return g
   }
 
   heightAt(t) {
@@ -107,21 +188,111 @@ class Bridge {
 
   // a point on the deck, lane -1 or 1 for two-lane bridges
   pointAt(t, lane = 0) {
-    const local = new THREE.Vector3(t * this.length, this.heightAt(t) + 0.018, lane * this.width * 0.25)
+    const local = new THREE.Vector3(t * this.length, this.heightAt(t) + (this.lanes === 2 ? 0.026 : 0.016), lane * this.width * 0.2)
     return this.group.localToWorld(local)
   }
 
-  update(dt) {
-    // planks pop in one after another as the bridge is built
-    const speed = this.target > this.built ? 2.6 : 3.5
-    this.built += clamp(this.target - this.built, -dt * speed, dt * speed)
-    for (const p of this.planks) {
-      const local = clamp((this.built - p.t) * 8 + 1, 0, 1)
-      const s = local >= 1 ? 1 : local <= 0 ? 0.001 : 1 + 2.4 * (local - 1) ** 3 + 1.4 * (local - 1) ** 2
-      p.g.scale.setScalar(Math.max(0.001, s))
+  place() {
+    for (const s of this.segments) {
+      if (s.state === 3) continue
+      s.g.position.copy(s.home)
+      s.g.rotation.set(0, 0, s.tilt)
     }
-    this.rails.visible = this.built > 0.999
+  }
+
+  setBlocked(blocked) {
+    for (const s of this.segments) s.mesh.material = blocked ? this.blockedMaterial : this.material
+    this.dot?.color.setHex(blocked ? 0xff8f80 : 0xffffff)
+  }
+
+  // the preview the player dragged out becomes the real bridge
+  adopt() {
+    this.preview = false
+    this.manual = false
+    this.setBlocked(false)
+    for (const { d } of this.guide ?? []) d.removeFromParent()
+    this.guide = null
+  }
+
+  update(dt, time = 0) {
+    if (!this.manual) {
+      const speed = this.target > this.built ? 2.2 : 2.6
+      this.built += clamp(this.target - this.built, -dt * speed, dt * speed)
+    }
+    const n = this.segments.length
+    let landed = 0
+    this.segments.forEach((s, i) => {
+      const want = this.built >= s.t - 0.5 / n + 0.001
+      if (want && (s.state === 0 || s.state === 3)) {
+        // drop in from above with a little bounce
+        s.state = 1
+        s.k = 0
+        s.g.visible = true
+        this.onPlank?.(this, i)
+      } else if (!want && (s.state === 1 || s.state === 2)) {
+        s.state = 3
+        s.k = 0
+        s.vy = 0.3 + Math.random() * 0.2
+        s.spin = (Math.random() - 0.5) * 8
+      }
+      if (s.state === 1) {
+        s.k = Math.min(1, s.k + dt / 0.2)
+        const drop = (1 - easeOut(s.k)) * 0.22
+        const squash = s.k > 0.7 ? Math.sin((s.k - 0.7) / 0.3 * Math.PI) * 0.25 : 0
+        s.g.position.set(s.home.x, s.home.y + drop, s.home.z)
+        s.g.rotation.set((1 - s.k) * 0.6, 0, s.tilt)
+        s.g.scale.set(1 + squash * 0.3, 1 - squash, 1 + squash * 0.3)
+        if (s.k >= 1) { s.state = 2; s.g.scale.set(1, 1, 1); s.g.rotation.set(0, 0, s.tilt) }
+      } else if (s.state === 3) {
+        if (this.preview || this.mode === 'fade') {
+          s.k += dt / 0.12
+          s.g.scale.setScalar(Math.max(0.001, 1 - s.k))
+          if (s.k >= 1) { s.state = 0; s.g.visible = false; s.g.scale.set(1, 1, 1) }
+        } else {
+          // tumble into the sea
+          s.vy -= dt * 3.2
+          s.g.position.y += s.vy * dt
+          s.g.rotation.x += s.spin * dt
+          if (s.g.position.y < -0.04) {
+            s.state = 0
+            s.g.visible = false
+            this.onSplash?.(this.group.localToWorld(s.g.position.clone()))
+            s.g.position.copy(s.home)
+            s.g.rotation.set(0, 0, s.tilt)
+          }
+        }
+      }
+      if (s.state === 2) landed++
+    })
+    // once every plank is down, rails and piers pop up
+    const done = landed === n && !this.preview
+    if (done && this.open === 0) this.onOpen?.(this)
+    this.open = clamp(this.open + (done ? dt / 0.5 : -dt / 0.15), 0, 1)
+    this.extras.visible = this.open > 0
+    this.piers.visible = this.open > 0
+    if (this.open > 0) {
+      const k = this.open
+      const s = k >= 1 ? 1 : 1 + 2.4 * (k - 1) ** 3 + 1.4 * (k - 1) ** 2
+      this.extras.scale.set(1, Math.max(0.001, s), 1)
+      this.piers.position.y = (1 - easeOut(k)) * -0.3
+    }
+    // foam rings around the piers breathe with the swell
+    this.rings.forEach((ring, k) => {
+      const w = 1 + Math.sin(time * 2.4 + k * 2) * 0.12
+      const base = ring.userData.base
+      ring.scale.set(base.x * w, base.y, base.z * w)
+    })
+    // the guide dots ahead of the last plank bob in a little wave
+    if (this.guide) for (const { d, t } of this.guide) {
+      d.visible = t > this.built
+      d.position.y = this.heightAt(t) + 0.02 + Math.max(0, Math.sin(time * 6 - t * 12)) * 0.02
+    }
     return this.built
+  }
+
+  // nothing left standing or falling
+  get gone() {
+    return this.built <= 0.001 && this.segments.every((s) => s.state === 0)
   }
 
   dispose() {
@@ -193,6 +364,7 @@ export class IslandScene {
     this.sun.shadow.normalBias = 0.02
     this.scene.add(this.sky, this.sun, this.sun.target)
     this.sea = new Sea(this.scene)
+    this.ambient = new Ambient(this.scene)
     this.world = new THREE.Group()
     this.scene.add(this.world)
     this.ray = new THREE.Raycaster()
@@ -224,7 +396,7 @@ export class IslandScene {
       this.world.add(group)
       // neighbouring islands get different biomes, so each one has its own character
       const biome = BIOME_NAMES[(b.index * 5 + seed) % BIOME_NAMES.length]
-      const island = new Island(r, seed * 13 + b.index * 7, biome)
+      const island = new Island(r, seed * 13 + b.index * 7, biome, BIOMES[biome])
       group.add(island.group)
       const city = new City(seed * 17 + b.index * 11, biome)
       city.group.scale.setScalar(r)
@@ -248,6 +420,7 @@ export class IslandScene {
     this.bridges = board.edges.map(() => null)
     this.counts = board.edges.map(() => 0)
     this.preview = null
+    this.retiring = []
     const reach = Math.max(width, height * this.CZ) + 3
     const shores = []
     for (const is of this.islands) {
@@ -256,6 +429,7 @@ export class IslandScene {
       for (const rock of is.island.rocks) shores.push({ x: x + rock.x, z: z + rock.z, r: rock.r })
     }
     this.sea.setShores(shores, reach)
+    this.ambient.setup((x, z) => this.sea.distance(x, z), [-width / 2 - 0.3, width / 2 + 0.3, -height * this.CZ / 2 - 0.3, height * this.CZ / 2 + 0.3])
     Object.assign(this.sun.shadow.camera, { left: -reach, right: reach, top: reach, bottom: -reach, near: 0.5, far: 60 })
     this.sun.shadow.camera.updateProjectionMatrix()
     this.resize()
@@ -290,26 +464,56 @@ export class IslandScene {
     this.board.edges.forEach((e, i) => {
       const want = counts[i]
       const cur = this.bridges[i]
-      if ((cur?.lanes ?? 0) === want && !cur?.dying) return
-      if (cur) { cur.target = 0; cur.dying = true }
-      if (want) {
-        const [a, b, from] = this.ends(i)
-        const br = new Bridge(this.world, a, b, want)
-        br.target = 1
-        br.from = from
-        br.edge = i
-        this.bridges[i] = br
-        if (cur) this.retire(cur)
-      } else if (cur) {
-        this.bridges[i] = null
-        this.retire(cur)
+      if ((cur?.lanes ?? 0) === want) return
+      if (cur) this.retire(cur, want ? 'fade' : 'fall')
+      this.bridges[i] = null
+      if (!want) return
+      let br
+      if (this.preview?.edge === i && this.preview.bridge.lanes === want) {
+        // the bridge the player just dragged out stays and opens
+        br = this.preview.bridge
+        br.adopt()
+        this.preview = null
+      } else {
+        const [a, b] = this.ends(i)
+        br = new Bridge(this.world, a, b, want)
       }
+      br.target = 1
+      br.built = Math.max(br.built, 0)
+      br.edge = i
+      this.hook(br)
+      this.bridges[i] = br
     })
     this.counts = counts.slice()
+    // footpaths run from every bridge into town
+    for (const is of this.islands) {
+      const dirs = Object.entries(this.board.neighbors[is.b.index]).filter(([, e]) => counts[e] > 0).map(([d]) => d)
+      is.island.setPaths(dirs)
+    }
   }
 
-  retire(bridge) {
-    this.retiring = this.retiring ?? []
+  hook(br) {
+    br.onPlank = (b, k) => this.onPlank?.(k / b.segments.length, b.preview)
+    br.onSplash = (p) => this.droplets(p, 4)
+    br.onOpen = (b) => {
+      // confetti at both ends, and the islands give a little hop
+      for (const t of [0, 1]) {
+        const p = b.pointAt(t)
+        this.confetti(p.x, p.y, p.z)
+      }
+      const e = this.board.edges[b.edge]
+      this.bounce(e.a)
+      this.bounce(e.b)
+      b.spawn = 0.15
+      this.onOpen?.(b.lanes)
+    }
+  }
+
+  retire(bridge, mode) {
+    bridge.mode = mode
+    bridge.target = 0
+    bridge.built = Math.min(bridge.built, 1)
+    if (mode === 'fade') bridge.built = 0
     this.retiring.push(bridge)
     for (const car of this.cars) if (car.bridge === bridge) car.gone = true
   }
@@ -319,13 +523,14 @@ export class IslandScene {
     states.forEach((s, i) => {
       const is = this.islands[i]
       if (is.city.setTier(s.tier)) is.bounce = 0
+      is.island.setHappy(s.done)
       this.drawBadge(is, s.have, s.done, s.over)
     })
   }
 
   setPreview(p) {
     if (!p) {
-      if (this.preview) { this.preview.bridge.dispose() }
+      if (this.preview) this.preview.bridge.dispose()
       this.preview = null
       return null
     }
@@ -333,27 +538,38 @@ export class IslandScene {
     if (!this.preview || this.preview.key !== key) {
       this.setPreview(null)
       const [a, b] = this.ends(p.edge, p.from)
-      const bridge = new Bridge(this.world, a, b, p.lanes, { color: 0xffffff, rail: 0xffb3b3 })
-      this.preview = { key, bridge, a, b }
+      const bridge = new Bridge(this.world, a, b, p.lanes, { preview: true })
+      bridge.edge = p.edge
+      this.hook(bridge)
+      this.preview = { key, bridge, edge: p.edge }
     }
     const br = this.preview.bridge
-    br.target = p.progress
-    br.built = p.progress
-    br.update(0)
-    br.planks.forEach((pl) => pl.g.children[0].material.color?.setHex?.(p.blocked ? 0xffb0a0 : 0xffffff))
+    br.built = clamp(p.progress, 0, 1)
+    br.setBlocked(p.blocked)
     return br.pointAt(clamp(p.progress, 0, 1))
   }
 
   bounce(i) { this.islands[i].bounce = 0 }
 
-  splash(edgeIndex, n = 14) {
-    const [a, b] = this.ends(edgeIndex)
+  droplets(p, n) {
     for (let k = 0; k < n; k++) {
-      const p = a.clone().lerp(b, Math.random())
-      const drop = new THREE.Mesh(new THREE.SphereGeometry(0.02, 8, 6), toon(0xe9fbff))
-      drop.position.set(p.x + (Math.random() - 0.5) * 0.1, 0.05, p.z + (Math.random() - 0.5) * 0.1)
+      const drop = new THREE.Mesh(DROPLET, toon(0xffffff, { rim: 0.05 }))
+      drop.position.set(p.x + (Math.random() - 0.5) * 0.06, 0.01, p.z + (Math.random() - 0.5) * 0.06)
+      drop.scale.setScalar(0.014 + Math.random() * 0.01)
       this.world.add(drop)
-      this.fx.push({ mesh: drop, v: new THREE.Vector3((Math.random() - 0.5) * 0.8, 1 + Math.random(), (Math.random() - 0.5) * 0.8), life: 0.7, age: 0, gravity: 6 })
+      this.fx.push({ mesh: drop, v: new THREE.Vector3((Math.random() - 0.5) * 0.5, 0.7 + Math.random() * 0.5, (Math.random() - 0.5) * 0.5), life: 0.6, age: 0, gravity: 4 })
+    }
+  }
+
+  confetti(x, y, z) {
+    for (let k = 0; k < 16; k++) {
+      const bit = new THREE.Mesh(CONFETTI, new THREE.MeshBasicMaterial({ color: BUNTING[k % BUNTING.length], side: THREE.DoubleSide }))
+      bit.position.set(x, y + 0.05, z)
+      bit.rotation.set(Math.random() * 6, Math.random() * 6, 0)
+      bit.scale.setScalar(0.022)
+      this.world.add(bit)
+      const a = Math.random() * Math.PI * 2
+      this.fx.push({ mesh: bit, v: new THREE.Vector3(Math.cos(a) * 0.5, 0.9 + Math.random() * 0.6, Math.sin(a) * 0.5), life: 0.9, age: 0, gravity: 2.6, spin: 8 })
     }
   }
 
@@ -423,7 +639,7 @@ export class IslandScene {
     this.camera.position.set(0, Math.sin(ELEVATION) * 40, Math.cos(ELEVATION) * 40)
     this.camera.lookAt(0, 0, 0)
     this.camera.updateMatrixWorld()
-    const hw = this.width * CX / 2 + 0.2, hd = this.height * this.CZ / 2 + 0.25
+    const hw = this.width * CX / 2 + 0.4, hd = this.height * this.CZ / 2 + 0.3
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity
     for (const [x, y, z] of [[-hw, 0, -hd], [hw, 0, -hd], [-hw, 0, hd], [hw, 0, hd], [-hw, 0.9, -hd + 0.6], [hw, 0.9, -hd + 0.6]]) {
       const v = new THREE.Vector3(x, y, z).applyMatrix4(this.camera.matrixWorldInverse)
@@ -445,11 +661,13 @@ export class IslandScene {
     this.time += dt
     this.dusk = THREE.MathUtils.damp(this.dusk, this.duskTarget, 1.2, dt)
     this.sea.update(dt, this.dusk * 0.6)
+    this.ambient.update(dt)
     this.sun.color.setHex(0xfff1dc).lerp(new THREE.Color(0xffb27a), this.dusk)
     this.sky.color.setHex(0xf2f8ff).lerp(new THREE.Color(0xffd9c9), this.dusk)
     if (!this.board) return
     for (const is of this.islands) {
       is.city.update(dt)
+      is.island.update(dt)
       if (is.bounce >= 0) {
         is.bounce += dt / 0.45
         const k = Math.min(1, is.bounce)
@@ -461,18 +679,15 @@ export class IslandScene {
     }
     for (const br of this.bridges) {
       if (!br) continue
-      const was = br.built
-      br.update(dt)
-      if (was < 1 && br.built >= 1) br.opened = true
+      br.update(dt, this.time)
       if (br.shake > 0) {
         br.shake -= dt
         br.group.position.y = Math.abs(Math.sin(this.time * 40)) * 0.03 * Math.max(0, br.shake)
       }
     }
-    if (this.retiring) {
-      for (const br of this.retiring) br.update(dt)
-      this.retiring = this.retiring.filter((br) => { if (br.built <= 0.001) { br.dispose(); return false } return true })
-    }
+    this.preview?.bridge.update(dt, this.time)
+    for (const br of this.retiring) br.update(dt, this.time)
+    this.retiring = this.retiring.filter((br) => { if (br.gone) { br.dispose(); return false } return true })
     this.traffic(dt)
     for (let k = this.fx.length - 1; k >= 0; k--) {
       const f = this.fx[k]
@@ -480,6 +695,7 @@ export class IslandScene {
       f.v.y -= f.gravity * dt
       f.mesh.position.addScaledVector(f.v, dt)
       f.mesh.scale.multiplyScalar(1 - dt * 1.5)
+      if (f.spin) { f.mesh.rotation.x += f.spin * dt; f.mesh.rotation.y += f.spin * 0.7 * dt }
       if (f.age > f.life) { f.mesh.removeFromParent(); this.fx.splice(k, 1) }
     }
     if (this.fireworks > 0) {

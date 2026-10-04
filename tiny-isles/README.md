@@ -33,14 +33,27 @@ up the cliffs and break into crisp white foam that slowly dissolves, throwing up
 a few droplets as they hit. Lighting comes in hard bands, and depth shows as flat
 rings of colour. Each level bakes its shorelines (islands and the rocks along
 their cliffs) into a distance-field texture, so the shaders never loop over
-islands. Islands are soft pudding shapes with a
-frosting-like top that drips over the edge, and bigger numbers make bigger
-islands.
+islands. Islands (`src/island.js`) are little plateaus with cliffs in coloured layers, a
+top that drips over the edge, rocks for the waves to break on, and a beach on
+one side with a dock and a rowboat. Bigger numbers make bigger islands.
 
-Each island has a personality. It belongs to a biome (meadow with a windmill,
-tropical with a lighthouse, snowy with a snowman, cherry blossom with a pagoda,
-desert with a dome, autumn with a barn) that sets its colours, trees and
-landmark.
+Each island has a personality. It belongs to a biome that sets its colours,
+trees, landmark, the animals on its beach, the little things dotted on its top,
+and what drifts through the air above it:
+
+| Biome | Landmark | Locals | Dotted about | In the air |
+| --- | --- | --- | --- | --- |
+| Meadow | windmill | sheep | flowers, mushrooms | butterflies |
+| Tropical | lighthouse | crabs | hibiscus | |
+| Snowy | snowman | penguins | snow mounds, ice crystals | snow |
+| Cherry blossom | pagoda | bunnies | fallen petals | petals |
+| Desert | dome | tortoises | pebbles, barrel cacti | |
+| Autumn | barn | hedgehogs | mushrooms, leaf piles | leaves |
+
+The animals potter along their beach and hop about once their island has
+exactly its number of bridges. Every bridge grows a footpath into town.
+Sailboats tack in circles on the open water, leaving a wake, and gulls wheel
+overhead.
 
 Every island's city grows a step with each bridge it gets (`src/city.js`):
 
@@ -59,11 +72,15 @@ New buildings rise with a springy pop and the ones they replace sink away.
 Buildings are baked into one toon-shaded mesh each, with a soft outline so they
 read like stickers.
 
-Bridges are pastel arches with railings and lamp posts, built plank by plank.
-A second bridge between the same islands makes one wide two-lane bridge with a
-dashed centre line. Once a bridge stands, tiny rounded cars drive across it,
-two-way on two-lane bridges, and more of them as the cities on both ends grow.
-Taking a bridge down drops its planks into the sea with a splash.
+A bridge is laid plank by plank: each plank drops in with a little bounce and
+a note a step higher than the last. A dotted guide shows where it is heading.
+Once every plank is down, the wooden bridge gets rope rails strung with
+bunting, its piers rise out of the water with foam rings around them, confetti
+pops at both ends and a chime plays. A second bridge between the same islands
+rebuilds it as a wide stone bridge with peach parapets, a dashed road and lamp
+posts. Tiny rounded cars drive across, two-way on two-lane bridges, and more
+of them as the cities on both ends grow. Taking a bridge down tumbles its
+planks into the sea, each with a splash.
 
 Each island's badge shows its number with a ring of segments, one per bridge
 it wants, filling as bridges arrive; it turns green when the island is happy

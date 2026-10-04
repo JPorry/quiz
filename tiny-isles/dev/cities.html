@@ -3,7 +3,8 @@
 <style>html,body{margin:0;width:1400px;height:640px;overflow:hidden;background:#8fd8e6}</style></head>
 <body><script type="module">
 import * as THREE from 'three'
-import { City, Island, BIOME_NAMES } from '../src/city.js'
+import { City, BIOMES, BIOME_NAMES } from '../src/city.js'
+import { Island } from '../src/island.js'
 const q = new URLSearchParams(location.search)
 const W = 1400, H = 640
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true })
@@ -28,7 +29,7 @@ for (let t = 0; t <= 8; t++) {
   const g = new THREE.Group()
   g.position.set((t - 4) * 1.32, 0, 0)
   const biome = BIOME_NAMES[(t + Number(q.get('b') ?? 0)) % BIOME_NAMES.length]
-  const isl = new Island(rad, t + 3, biome)
+  const isl = new Island(rad, t + 3, biome, BIOMES[biome])
   g.add(isl.group)
   const c = new City(t + 1, biome)
   c.group.scale.setScalar(rad)

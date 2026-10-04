@@ -57,6 +57,15 @@ const save = () => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(save
 
 const sounds = new Sounds()
 const scene = new IslandScene($('stage'))
+// every plank that lands plinks a little higher than the last
+let lastPlank = 0
+scene.onPlank = (along) => {
+  const now = performance.now()
+  if (now - lastPlank < 45) return
+  lastPlank = now
+  sounds.lay(along)
+}
+scene.onOpen = (lanes) => sounds.open(lanes)
 let levelIndex = Math.min(saved.level ?? 0, LEVELS.length - 1)
 let board, counts, history, won, built, tiers
 
@@ -114,7 +123,7 @@ function apply(edge, next) {
   const e = board.edges[edge]
   scene.bounce(e.a)
   scene.bounce(e.b)
-  if (next > before) { sounds.build(++built); buzz(12) } else { sounds.splash(); scene.splash(edge); buzz(8) }
+  if (next > before) { sounds.build(++built); buzz(12) } else { sounds.splash(); buzz(8) }
   const st = refresh()
   const d = st.degree
   if ([e.a, e.b].some((i) => d[i] > board.burrows[i].value)) say('That island has more bridges than its number. Tap a bridge to take it down.')
@@ -157,7 +166,7 @@ canvas.addEventListener('pointerdown', (ev) => {
   if (!p) return
   canvas.setPointerCapture(ev.pointerId)
   const island = scene.islandAt(p)
-  drag = { id: ev.pointerId, island, start: p, sx: ev.clientX, sy: ev.clientY, moved: false, edge: null, progress: 0, shown: 0, snapped: false, plank: 0 }
+  drag = { id: ev.pointerId, island, start: p, sx: ev.clientX, sy: ev.clientY, moved: false, edge: null, progress: 0, shown: 0, snapped: false }
   if (island !== null) { scene.bounce(island); sounds.press() }
 })
 
@@ -183,12 +192,14 @@ function endDrag(ev) {
   if (!drag || drag.id !== ev.pointerId) return
   const d = drag
   drag = null
-  scene.setPreview(null)
   if (d.island !== null && d.moved) {
+    // a snapped bridge opens right where it was dragged out
     if (d.snapped && d.edge !== null) apply(d.edge, (counts[d.edge] + 1) % 3)
-    else if (d.edge !== null && d.shown > 0.05) sounds.splash()
+    else if (d.edge !== null && d.shown > 0.05) sounds.undo()
+    scene.setPreview(null)
     return
   }
+  scene.setPreview(null)
   if (d.moved) return
   const island = scene.islandAt(d.start)
   if (island !== null) {
@@ -228,7 +239,6 @@ function updateDrag(dt) {
   const blocked = !n && blockedBy(board, counts, drag.edge) !== undefined
   const snap = drag.progress > 0.55 && !blocked
   const target = snap ? 1 : Math.min(drag.progress, blocked ? 0.35 : 1)
-  const before = drag.shown
   drag.shown += (target - drag.shown) * (1 - Math.exp(-dt * (snap ? 20 : 15)))
   if (snap && !drag.snapped) {
     drag.snapped = true
@@ -238,11 +248,6 @@ function updateDrag(dt) {
     scene.bounce(e.a === drag.island ? e.b : e.a)
   } else if (!snap) drag.snapped = false
   scene.setPreview({ edge: drag.edge, from: drag.island, lanes: n + 1, progress: drag.shown, blocked })
-  // a soft knock for every few planks laid
-  if (Math.abs(drag.shown - before) > 0.002) {
-    drag.plank += Math.abs(drag.shown - before)
-    if (drag.plank > 0.09) { drag.plank = 0; sounds.plank() }
-  }
 }
 
 /* ---------- buttons ---------- */

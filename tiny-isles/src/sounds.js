@@ -77,6 +77,14 @@ export class Sounds {
     this.pluck(this.note(step % 8 + 1))
     this.pluck(this.note(step % 8 + 3), { at: 0.06, vol: 0.25 })
   }
+  // a plank laid at this fraction of the way across
+  lay(along) { this.pluck(this.note(Math.round(along * 7)) * 0.5, { len: 0.14, vol: 0.13, ot: 3 }) }
+  // a bridge opens: a bright little chime, fuller for a two-lane bridge
+  open(lanes) {
+    const top = lanes === 2 ? [5, 7, 9, 10] : [4, 6, 8]
+    top.forEach((n, k) => this.pluck(this.note(n), { at: k * 0.06, len: 0.5, vol: 0.18 }))
+    this.pop(900, 1800, { at: 0, len: 0.09, vol: 0.08 })
+  }
   splash() { this.noise({ vol: 0.12, freq: 700, len: 0.25 }) }
   snap() { this.pluck(this.note(6), { len: 0.18, vol: 0.2 }) }
   press() { this.pop(500, 700, { len: 0.05, vol: 0.12 }) }

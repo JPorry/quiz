@@ -76,24 +76,22 @@ function material(flat) {
         vec3 deep = vec3(0.22, 0.69, 0.82);
         vec3 col = deep;
         col = mix(col, vec3(0.30, 0.77, 0.86), step(sd, 0.9));
-        col = mix(col, vec3(0.45, 0.86, 0.88), step(sd, 0.42));
-        col = mix(col, vec3(0.66, 0.94, 0.90), step(sd, 0.15));
+        col = mix(col, vec3(0.40, 0.83, 0.87), step(sd, 0.42));
+        col = mix(col, vec3(0.56, 0.90, 0.88), step(sd, 0.15));
 
         // cel lighting from the wave's slope, in three hard bands
         float e = 0.025;
         float h0 = seaHeight(p);
         vec3 nrm = normalize(vec3(h0 - seaHeight(p + vec2(e, 0.0)), e, h0 - seaHeight(p + vec2(0.0, e))));
         float lit = dot(nrm, uSun) - dot(vec3(0.0, 1.0, 0.0), uSun);
-        col *= 1.0 + 0.09 * step(0.07, lit + (n1 - 0.5) * 0.03) - 0.08 * step(lit, -0.09);
-        // hard little glints of sunlight
-        vec3 view = normalize(vec3(0.0, 0.79, 0.62));
-        float spec = pow(max(dot(nrm, normalize(uSun + view)), 0.0), 90.0);
-        col = mix(col, vec3(1.0), step(0.6, spec * n2) * 0.9);
-
-        // doodled ripple lines drifting across open water
+        col *= 1.0 + 0.05 * step(0.08, lit) - 0.05 * step(lit, -0.1);
+        // the soft shadows of clouds drifting over
+        float cloud = noise(p * 0.32 + vec2(uTime * 0.035, uTime * 0.012)) * 0.75 + noise(p * 0.9 - uTime * 0.02) * 0.25;
+        col *= 1.0 - 0.06 * step(0.6, cloud);
+        // now and then a ripple line drifting across open water
         float lines = abs(sin((p.x * 0.6 + p.y) * 9.0 + n1 * 6.0 + uTime * 0.6));
-        float area = step(0.74, noise(p * 1.1 + uTime * 0.05));
-        col = mix(col, vec3(0.78, 0.96, 0.96), step(lines, 0.045) * area * step(0.8, s) * 0.7);
+        float area = step(0.8, noise(p * 1.1 + uTime * 0.05));
+        col = mix(col, vec3(0.7, 0.92, 0.94), step(lines, 0.04) * area * step(0.8, s) * 0.45);
 
         float foam = 0.0;
         float x = wavePhase(p, max(s, 0.0));
@@ -103,7 +101,7 @@ function material(flat) {
         foam = max(foam, crest * step(0.3 + 0.45 * (1.0 - near), n2 * 0.7 + n1 * 0.3 + 0.3 * near) * step(0.03, s));
         // backwash: foam spread over the shallows after a wave hits, dissolving
         float age = fract(uTime * ${SPEED.toFixed(2)} + 0.25 * sin(p.x * 1.3) + 0.25 * sin(p.y * 1.7 + 1.0) - 0.15);
-        float wash = step(s, 0.05 + 0.2 * sqrt(age)) * step(age * 1.25, n2 * 0.9 + n1 * 0.3);
+        float wash = step(s, 0.04 + 0.13 * sqrt(age)) * step(age * 1.25, n2 * 0.9 + n1 * 0.3);
         foam = max(foam, wash);
         // a constant lacy lip where the water meets land
         foam = max(foam, step(s, 0.035 + 0.025 * n1));
@@ -139,6 +137,7 @@ export class Sea {
 
   // shores: [{ x, z, radius(angle) }] for islands, or { x, z, r } for round rocks
   setShores(shores, reach) {
+    this.shores = shores
     let minX = Infinity, minZ = Infinity, maxX = -Infinity, maxZ = -Infinity
     for (const s of shores) {
       minX = Math.min(minX, s.x); maxX = Math.max(maxX, s.x)
@@ -192,6 +191,13 @@ export class Sea {
     }
     for (const d of this.drops) d.mesh.removeFromParent()
     this.drops = []
+  }
+
+  // how far a point is from the nearest shore
+  distance(x, z) {
+    let d = Infinity
+    for (const s of this.shores) d = Math.min(d, Math.hypot(x - s.x, z - s.z) - (s.radius ? s.radius(Math.atan2(z - s.z, x - s.x)) : s.r))
+    return d
   }
 
   phase(p) {

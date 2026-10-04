@@ -14,12 +14,12 @@ const DOOR = 0x9a6648
 const PANE = 0x9fdcff
 
 export const BIOMES = {
-  meadow: { rock: 0xb9b0c9, top: 0x9edc78, drip: 0x8bd068, side: 0xf6dfae, walls: [0xfff3e2, 0xffe0d2, 0xe2f4ff, 0xfff4bf], roofs: [0xff8270, 0xff9fb8, 0x6fb4ff], tree: 'round', landmark: 'windmill' },
-  tropical: { rock: 0xd8c6a8, top: 0xaee887, drip: 0x96dc6e, side: 0xfcebc0, walls: [0xfff6e6, 0xd9fbff, 0xfff0c2, 0xffe2ec], roofs: [0x3fc7c7, 0xff9f68, 0xffd166], tree: 'palm', landmark: 'lighthouse' },
-  snowy: { rock: 0xa9b6cc, snowcap: true, top: 0xf4fbff, drip: 0xffffff, side: 0xcdd9ea, walls: [0xffe7d6, 0xd6e9ff, 0xfff4e6, 0xe9e1ff], roofs: [0xd9534f, 0x5a8fd6, 0x7b6aa8], tree: 'pine', landmark: 'snowman' },
-  blossom: { rock: 0xc2b3c4, top: 0xc9eda6, drip: 0xffc6d8, side: 0xf3dcc0, walls: [0xfff4ef, 0xffe6ee, 0xfffaf0, 0xf2ecff], roofs: [0xe8506b, 0xff8fb0, 0x8a6aa8], tree: 'cherry', landmark: 'pagoda' },
-  desert: { rock: 0xd99b6a, top: 0xf2d79b, drip: 0xe9c482, side: 0xe7b47c, walls: [0xffe9cc, 0xf6c99a, 0xfff2df, 0xf3b88f], roofs: [0xd9784a, 0x3fb6a8, 0xf2a03d], tree: 'cactus', landmark: 'dome' },
-  autumn: { rock: 0xb7a69a, top: 0xc2d97a, drip: 0xb0cc66, side: 0xe9cfa0, walls: [0xfff1dc, 0xffe2c4, 0xf7efe2, 0xffe9d6], roofs: [0xc8553d, 0x8a5a44, 0xe08a3c], tree: 'autumn', landmark: 'barn' },
+  meadow: { top: 0x9edc78, drip: 0x8bd068, walls: [0xfff3e2, 0xffe0d2, 0xe2f4ff, 0xfff4bf], roofs: [0xff8270, 0xff9fb8, 0x6fb4ff], tree: 'round', landmark: 'windmill' },
+  tropical: { top: 0xaee887, drip: 0x96dc6e, walls: [0xfff6e6, 0xd9fbff, 0xfff0c2, 0xffe2ec], roofs: [0x3fc7c7, 0xff9f68, 0xffd166], tree: 'palm', landmark: 'lighthouse' },
+  snowy: { top: 0xf4fbff, drip: 0xffffff, walls: [0xffe7d6, 0xd6e9ff, 0xfff4e6, 0xe9e1ff], roofs: [0xd9534f, 0x5a8fd6, 0x7b6aa8], tree: 'pine', landmark: 'snowman' },
+  blossom: { top: 0xc9eda6, drip: 0xffc6d8, walls: [0xfff4ef, 0xffe6ee, 0xfffaf0, 0xf2ecff], roofs: [0xe8506b, 0xff8fb0, 0x8a6aa8], tree: 'cherry', landmark: 'pagoda' },
+  desert: { top: 0xf6c483, drip: 0xeeb070, walls: [0xffe9cc, 0xf6c99a, 0xfff2df, 0xf3b88f], roofs: [0xd9784a, 0x3fb6a8, 0xf2a03d], tree: 'cactus', landmark: 'dome' },
+  autumn: { top: 0xc2d97a, drip: 0xb0cc66, walls: [0xfff1dc, 0xffe2c4, 0xf7efe2, 0xffe9d6], roofs: [0xc8553d, 0x8a5a44, 0xe08a3c], tree: 'autumn', landmark: 'barn' },
 }
 export const BIOME_NAMES = Object.keys(BIOMES)
 
@@ -36,7 +36,6 @@ const CAPSULE = new THREE.CapsuleGeometry(1, 1, 6, 16)
 const LOAF = new THREE.CylinderGeometry(0.5, 0.5, 1, 20, 1, false, 0, Math.PI).rotateZ(Math.PI / 2).rotateY(Math.PI / 2) // a rounded roof along x
 const TORUS = new THREE.TorusGeometry(1, 0.22, 8, 24)
 const ARCH = new THREE.CylinderGeometry(1, 1, 1, 16, 1, false, 0, Math.PI).rotateX(Math.PI / 2).rotateZ(Math.PI / 2)
-const ROCK = new THREE.DodecahedronGeometry(1, 1)
 const SAIL = (() => {
   const s = new THREE.Shape()
   s.moveTo(0, 0)
@@ -270,6 +269,8 @@ const KITS = {
   },
 }
 
+// The outer ring sits between the four directions bridges come from, so the
+// footpaths from the bridges run between buildings.
 // What stands on an island with this many bridges. Slot 0 is the middle; slots
 // 1-5 ring it; 6-13 sit near the shore. The biome's landmark always has slot 12,
 // and 'tree' means the biome's own kind of tree.
@@ -285,7 +286,7 @@ const PLAN = [
   { 0: 'spire', 1: 'twist', 2: 'skyscraper', 3: 'sail', 4: 'twist', 5: 'glass', 6: 'tree', 8: 'ring', 10: 'bubble', 13: 'tree' },
 ]
 const LANDMARK_SLOT = 12
-const SLOTS = [[0, 0], ...[0, 1, 2, 3, 4].map((k) => [0.5, k * 1.2566 + 0.6]), ...[0, 1, 2, 3, 4, 5, 6, 7].map((k) => [0.8, k * 0.785 + 0.2])]
+const SLOTS = [[0, 0], ...[0, 1, 2, 3, 4].map((k) => [0.5, k * 1.2566 + 0.6]), ...[0, 1, 2, 3, 4, 5, 6, 7].map((k) => [0.8, k * 0.785 + 0.39])]
 // tall buildings stretch a little as the city grows
 const GROW = { apartment: [1, 1.15, 1.3], glass: [0.85, 1, 1.1], skyscraper: [0.85, 1, 1.1], twist: [0.8, 0.95, 1.05], spire: [0.85, 0.9, 1], sail: [0.9, 0.9, 1], ring: [1, 1, 1], bubble: [1, 1.1, 1.2] }
 
@@ -415,76 +416,5 @@ export class City {
     for (const s of this.slots) if (s) { s.t = 1; s.delay = 0; s.group.scale.set(1, 1, 1) }
     for (const s of this.retiring) s.group.removeFromParent()
     this.retiring = []
-  }
-}
-
-/* ---------- the island itself ---------- */
-
-// A soft pudding-shaped island with "frosting" that drips over its edge.
-export class Island {
-  constructor(radius, seed, biome) {
-    const b = BIOMES[biome]
-    const r = seeded(seed)
-    this.group = new THREE.Group()
-    this.radius = radius
-    const bulge = (a, amount) => 1 + Math.sin(a * 3 + seed) * amount + Math.sin(a * 5 + seed * 2) * amount * 0.6
-    // how far the shore is from the middle at this angle, where the body meets the sea
-    this.shore = (a) => radius * 1.185 * bulge(a, 0.03)
-    const wobble = (geo, amount) => {
-      const p = geo.attributes.position
-      for (let i = 0; i < p.count; i++) {
-        const x = p.getX(i), z = p.getZ(i)
-        const k = bulge(Math.atan2(z, x), amount)
-        p.setX(i, x * k)
-        p.setZ(i, z * k)
-      }
-      geo.computeVertexNormals()
-      return geo
-    }
-    // the body: a lathe that bulges like a pudding and sinks below the water
-    const profile = [[0, -0.3], [1.06, -0.3], [1.16, -0.15], [1.19, 0.03], [1.14, 0.13], [1.03, 0.18], [0, 0.18]]
-    const curve = new THREE.SplineCurve(profile.map(([x, y]) => new THREE.Vector2(x * radius, y)))
-    const pts = curve.getSpacedPoints(30).map((p) => new THREE.Vector2(Math.max(0.001, p.x), p.y))
-    pts[0].x = pts[pts.length - 1].x = 0.001
-    const body = new THREE.Mesh(wobble(new THREE.LatheGeometry(pts, 56), 0.03), toon(b.side, { rim: 0.18 }))
-    body.receiveShadow = true
-    this.group.add(body)
-    this.group.add(new THREE.Mesh(body.geometry, outline(LINE, 0.012)))
-    const top = new THREE.Mesh(wobble(new THREE.CylinderGeometry(radius * 1.02, radius * 1.07, 0.05, 56), 0.03), toon(b.top, { rim: 0.15 }))
-    top.position.y = 0.18
-    top.receiveShadow = true
-    this.group.add(top)
-    // drips of frosting over the edge
-    const drips = []
-    const n = Math.round(10 + radius * 10)
-    for (let k = 0; k < n; k++) {
-      const a = (k / n) * Math.PI * 2 + r() * 0.2
-      const rr = radius * 1.065 * (1 + Math.sin(a * 3 + seed) * 0.03 + Math.sin(a * 5 + seed * 2) * 0.018)
-      drips.push(part(CAPSULE, b.drip, [Math.cos(a) * rr, 0.15, Math.sin(a) * rr], [0.03, 0.02 + r() * 0.04, 0.03]))
-    }
-    const dripMesh = new THREE.Mesh(merge(drips), toon(0xffffff, { vertexColors: true, rim: 0.15 }))
-    dripMesh.receiveShadow = true
-    this.group.add(dripMesh)
-    // a few rocks along the cliffs for the waves to break around; never where a
-    // bridge leaves (straight up, down, left or right)
-    this.rocks = []
-    const rockParts = []
-    const angles = [-Math.PI * 0.75, -Math.PI * 0.25, Math.PI * 0.22, Math.PI * 0.78].filter(() => r() < 0.6)
-    for (const base of angles) {
-      const a = base + (r() - 0.5) * 0.3
-      const size = 0.06 + r() * 0.05
-      const d = this.shore(a) + size * 0.35
-      const x = Math.cos(a) * d, z = Math.sin(a) * d
-      rockParts.push(part(ROCK, b.rock, [x, 0.0, z], [size, size * 0.85, size * 0.9], [r(), r() * 6, r()]))
-      if (r() < 0.6) rockParts.push(part(ROCK, b.rock, [x + Math.cos(a + 1.4) * size * 1.2, -0.01, z + Math.sin(a + 1.4) * size * 1.2], [size * 0.55, size * 0.5, size * 0.55], [r(), r() * 6, 0]))
-      if (b.snowcap) rockParts.push(part(SPHERE, 0xffffff, [x, size * 0.62, z], [size * 0.75, size * 0.25, size * 0.7]))
-      this.rocks.push({ x, z, r: size * 0.95 })
-    }
-    if (rockParts.length) {
-      const geo = merge(rockParts)
-      const rocks = new THREE.Mesh(geo, toon(0xffffff, { vertexColors: true, rim: 0.15 }))
-      rocks.castShadow = rocks.receiveShadow = true
-      this.group.add(rocks, new THREE.Mesh(geo, outline(LINE, 0.008)))
-    }
   }
 }
