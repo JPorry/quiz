@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;450;500;550;600;650;700&family=DM+Serif+Display:ital@0;1&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;450;500;550;600;650;700&family=DM+Serif+Display:ital@0;1&family=Fredoka:wght@500;600;700&display=swap');
 
 :root { font-family: 'DM Sans', sans-serif; color: #27433a; background: #e9efe9; font-synthesis: none; --ink: #27433a; --muted: #74837b; --water: #368c86; --land: #7f9e63; }
 * { box-sizing: border-box; }
@@ -172,7 +172,7 @@ dialog { color: #27433a; }
 }
 
 /* Three screens: a title, a map of every garden, and the garden itself. The garden's own interface
-   only shows while playing; the scene stays behind the title as a living backdrop. */
+   only shows while playing; the title and the map are pictures of their own. */
 .play-button { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-width: 190px; min-height: 58px; padding: 0 30px; border-radius: 999px; font-size: 19px; font-weight: 700; color: #fffaf0; letter-spacing: .01em;
   background: linear-gradient(180deg, #ffb36b 0%, #f08a5d 100%); box-shadow: 0 6px 0 #c9643f, 0 14px 26px #1d4f4a55, inset 0 2px 0 #ffd8a8; transition: transform .15s, box-shadow .15s; }
 .play-button:hover { transform: translateY(-2px); }
@@ -182,23 +182,6 @@ dialog { color: #27433a; }
 .round-button:active { transform: translateY(3px); box-shadow: 0 1px 0 #d7c9a6, 0 4px 10px #1d4f4a33; }
 .round-button svg { width: 20px; height: 20px; }
 .round-button[aria-pressed=true] { background: #e9f6e4; }
-
-/* The title: the garden glows softly behind a big friendly logo and a play button. */
-.title-screen { position: absolute; inset: 0; z-index: 10; display: grid; place-items: center; opacity: 0; visibility: hidden; transition: opacity .5s ease, visibility 0s .5s; }
-.garden-app[data-screen=title] .title-screen { opacity: 1; visibility: visible; transition: opacity .6s ease; }
-.title-veil { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 42%, #2f8a8433 0%, #23716cb3 58%, #1b5b5ae6 100%); backdrop-filter: blur(3px); }
-.title-content { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 24px; }
-.title-mark { width: 74px; height: 74px; border-radius: 50%; display: grid; place-items: center; color: #2f7a55; background: radial-gradient(circle at 35% 30%, #fffbe8, #e3f2c4); box-shadow: 0 8px 0 #b9d39a, 0 16px 30px #10403c55; margin-bottom: 22px; animation: title-bob 4s ease-in-out infinite; }
-.title-mark svg { width: 38px; height: 38px; }
-.title-logo { font-size: clamp(64px, 15vw, 118px); line-height: .9; margin: 0 0 18px; color: #fff8dc; text-shadow: 0 4px 0 #1f6c66, 0 10px 30px #0e3d3a80; }
-.title-logo em { color: #d9f0a6; }
-.title-tagline { margin: 0 0 34px; color: #d9efe4; font-size: 15px; text-shadow: 0 1px 8px #10403c80; }
-.title-progress { margin: 22px 0 0; color: #cfe9de; font-size: 13px; text-shadow: 0 1px 8px #10403c80; }
-.title-tools { position: absolute; top: max(20px, env(safe-area-inset-top)); right: 22px; display: flex; gap: 8px; }
-.title-tools .icon-button { color: #ecf5e8; border-color: #bce4dc70; background: #35858140; backdrop-filter: blur(8px); }
-#title-play { animation: play-breathe 2.6s ease-in-out infinite; }
-@keyframes title-bob { 50% { transform: translateY(-6px) rotate(-3deg); } }
-@keyframes play-breathe { 50% { scale: 1.04; } }
 
 /* The map: one long path of stepping-stone islands winding up through every chapter's sea. */
 .map-screen { position: absolute; inset: 0; z-index: 12; background: #6d7fbe; opacity: 0; visibility: hidden; transition: opacity .45s ease, visibility 0s .45s; }
@@ -268,7 +251,7 @@ dialog { color: #27433a; }
 .map-card-name { margin: 6px 0 10px; font-size: 16px; font-weight: 600; color: #557b61; }
 .map-card-status { margin: 0 0 20px; font-size: 13px; color: #7b8a7c; }
 .map-card .play-button { width: 100%; }
-@media (prefers-reduced-motion: reduce) { .map-deco, .map-marker span, .map-node.frontier::before, #title-play, .title-mark { animation: none !important; } }
+@media (prefers-reduced-motion: reduce) { .map-deco, .map-marker span, .map-node.frontier::before { animation: none !important; } }
 
 /* The garden screen: a slim bar on top, the board in all the space left, a line for hints, and the
    pieces in a dock. Portrait puts the dock below the board; landscape stands it at the side. */
@@ -365,5 +348,85 @@ dialog { color: #27433a; }
 .map-tools { display: flex; gap: 10px; }
 .music-toggle { position: relative; }
 .music-toggle.off::after { content: ''; position: absolute; left: 50%; top: 50%; width: 24px; height: 2.5px; border-radius: 2px; background: currentColor; translate: -50% -50%; rotate: -45deg; box-shadow: 0 0 0 1.5px #fffaf0; }
-.title-tools .music-toggle.off::after { box-shadow: 0 0 0 1.5px #2f7e7a; }
 .music-toggle.off svg { opacity: .55; }
+
+/* The title: a sunny little seascape, with a happy island bobbing in the middle. */
+.title-screen { position: absolute; inset: 0; z-index: 10; overflow: hidden; background: #c3eaf2; opacity: 0; visibility: hidden; transition: opacity .5s ease, visibility 0s .5s; }
+.garden-app[data-screen=title] .title-screen { opacity: 1; visibility: visible; transition: opacity .6s ease; }
+.title-art { position: absolute; inset: 0; width: 100%; height: 100%; }
+.title-content { position: absolute; left: 0; right: 0; top: max(7vh, calc(env(safe-area-inset-top) + 56px)); display: flex; flex-direction: column; align-items: center; text-align: center; padding: 0 16px; pointer-events: none; }
+.title-logo { margin: 0; display: flex; flex-direction: column; align-items: center; font: 700 clamp(58px, min(17vw, 11.5vh), 124px)/.92 'Fredoka', ui-rounded, 'Arial Rounded MT Bold', 'Nunito', sans-serif; letter-spacing: .01em; }
+.logo-line { display: flex; }
+.logo-line + .logo-line { margin-top: -.02em; }
+.title-logo span span { display: inline-block; color: #fffaf0; -webkit-text-stroke: .085em #2f8f8a; paint-order: stroke fill; text-shadow: 0 .07em 0 #2f8f8a, 0 .12em 0 #2a7b77, 0 .2em .22em #1d5a5a55;
+  animation: logo-bob 3.2s ease-in-out infinite; animation-delay: calc(var(--i) * -.18s); }
+.logo-line:last-child span { color: #fff3c9; }
+.title-logo .gap { width: .3em; }
+@keyframes logo-bob { 0%, 100% { translate: 0 0; rotate: -2deg; } 50% { translate: 0 -.07em; rotate: 2deg; } }
+.title-tagline { margin: 14px 0 0; padding: 6px 16px; border-radius: 999px; font: 600 15px 'Fredoka', ui-rounded, sans-serif; color: #2c6e6a; background: #ffffffb0; box-shadow: 0 3px 0 #ffffff60; }
+.title-bottom { position: absolute; left: 0; right: 0; bottom: max(6vh, calc(env(safe-area-inset-bottom) + 24px)); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
+.title-bottom .play-button { min-width: 210px; min-height: 64px; font: 700 24px 'Fredoka', ui-rounded, sans-serif; animation: play-breathe 2.6s ease-in-out infinite; }
+.title-progress { margin: 0; padding: 5px 14px; border-radius: 999px; font: 600 13px 'Fredoka', ui-rounded, sans-serif; color: #fffaf0; background: #1d5f6066; }
+.title-progress:empty { display: none; }
+.title-tools { position: absolute; top: max(14px, env(safe-area-inset-top)); right: 16px; display: flex; gap: 8px; }
+.title-tools .round-button { width: 44px; height: 44px; }
+@keyframes play-breathe { 50% { scale: 1.05; } }
+
+/* Everything in the picture moves gently. */
+.title-sun-corner { position: absolute; top: max(-34px, calc(env(safe-area-inset-top) - 40px)); left: -46px; width: clamp(150px, 26vmin, 230px); height: auto; overflow: visible; pointer-events: none; }
+.title-sun { animation: sun-bob 6s ease-in-out infinite; }
+/* Pieces that turn, swell, or squash do so around their own middle. */
+:is(.title-rays, .title-flap, .title-smoke, .title-lamp-glow, .title-puff, .title-sparkle, .title-splash ellipse, .title-island) { transform-box: fill-box; }
+.title-rays { transform-origin: center; animation: rays-turn 40s linear infinite; }
+@keyframes sun-bob { 50% { translate: 0 -8px; } }
+@keyframes rays-turn { to { rotate: 360deg; } }
+.title-cloud, .title-gull { animation: drift var(--speed) linear infinite; animation-delay: var(--delay); }
+@keyframes drift { from { translate: -1200px var(--y); } to { translate: 2200px var(--y); } }
+.title-flap { transform-origin: center; animation: flap .9s ease-in-out infinite; }
+@keyframes flap { 50% { scale: 1 .45; } }
+.title-wave { animation: wave-roll var(--speed) linear infinite; }
+@keyframes wave-roll { to { translate: var(--shift) 0; } }
+.title-island { transform-origin: 50% 90%; animation: island-bob 5s ease-in-out infinite; }
+@keyframes island-bob { 0%, 100% { translate: 0 0; rotate: -.8deg; } 50% { translate: 0 -9px; rotate: .8deg; } }
+.title-sway { animation: sway 4s ease-in-out infinite; }
+@keyframes sway { 50% { rotate: 3deg; } }
+.title-smoke { transform-origin: center; animation: smoke 4.2s ease-out infinite; opacity: 0; }
+@keyframes smoke { 0% { translate: 0 0; scale: .4; opacity: .9; } 100% { translate: 18px -90px; scale: 1.8; opacity: 0; } }
+.title-lamp-glow { transform-origin: center; animation: lamp 3s ease-in-out infinite; }
+@keyframes lamp { 0%, 100% { opacity: .35; scale: .8; } 50% { opacity: 1; scale: 1.15; } }
+.title-ferry { animation: ferry-cross 44s ease-in-out infinite; }
+@keyframes ferry-cross { 0%, 100% { translate: 150px 694px; } 50% { translate: 850px 694px; } }
+.title-ferry-turn { animation: ferry-turn 44s steps(1) infinite; }
+@keyframes ferry-turn { 0% { scale: 1 1; } 50% { scale: -1 1; } }
+.title-bob { animation: bob 2.4s ease-in-out infinite; }
+@keyframes bob { 50% { translate: 0 -4px; rotate: 2deg; } }
+.title-puff { transform-origin: center; animation: puff 2.2s ease-out infinite; opacity: 0; }
+@keyframes puff { 0% { translate: 0 0; scale: .5; opacity: .9; } 100% { translate: -26px -40px; scale: 1.6; opacity: 0; } }
+.title-fish { opacity: 0; animation: fish-leap 7s ease-in-out infinite 2s; }
+@keyframes fish-leap {
+  0%, 70% { opacity: 0; translate: 640px 790px; rotate: -45deg; }
+  72% { opacity: 1; translate: 640px 780px; rotate: -45deg; }
+  78% { translate: 672px 690px; rotate: -15deg; }
+  81% { translate: 692px 672px; rotate: 8deg; }
+  85% { translate: 714px 700px; rotate: 35deg; }
+  89% { opacity: 1; translate: 736px 786px; rotate: 60deg; }
+  90%, 100% { opacity: 0; translate: 736px 800px; rotate: 60deg; }
+}
+.title-splash { opacity: 0; translate: 736px 790px; animation: splash 7s ease-out infinite 2s; }
+.title-splash ellipse { transform-origin: center; }
+@keyframes splash { 0%, 88% { opacity: 0; scale: .3; } 90% { opacity: 1; scale: .5; } 100% { opacity: 0; scale: 1.8; } }
+.title-sparkle { transform-origin: center; animation: twinkle 3s ease-in-out infinite; }
+@keyframes twinkle { 0%, 100% { scale: .2; opacity: 0; } 50% { scale: 1; opacity: .95; } }
+.title-petals i { position: absolute; top: -20px; left: var(--x); width: 12px; height: 9px; border-radius: 80% 10% 80% 10%; background: #ffc4d2; opacity: .9; animation: petal var(--speed) linear infinite; animation-delay: var(--delay); }
+.title-petals i:nth-child(3n) { background: #fff; }
+@keyframes petal { 0% { translate: 0 0; rotate: 0deg; } 100% { translate: var(--drift) 110vh; rotate: 540deg; } }
+
+/* Short screens, like a phone on its side: one line of logo. */
+@media (max-height: 520px) {
+  .title-content { top: max(10px, env(safe-area-inset-top)); }
+  .title-logo { flex-direction: row; gap: .3em; font-size: 50px; }
+  .title-tagline { display: none; }
+  .title-bottom { bottom: max(14px, env(safe-area-inset-bottom)); flex-direction: row; }
+  .title-bottom .play-button { min-height: 52px; font-size: 20px; }
+}
+@media (prefers-reduced-motion: reduce) { .title-screen * { animation: none !important; } .title-fish, .title-splash, .title-smoke, .title-puff, .title-petals { display: none; } }

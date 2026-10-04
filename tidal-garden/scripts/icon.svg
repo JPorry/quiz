@@ -1,11 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024"><clipPath id="round"><rect width="1024" height="1024" rx="230"/></clipPath><g clip-path="url(#round)">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
   <defs>
     <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8fd3f0"/><stop offset=".6" stop-color="#c9ecf2"/><stop offset="1" stop-color="#ffe2cf"/></linearGradient>
     <linearGradient id="grass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a8e27f"/><stop offset="1" stop-color="#7fca62"/></linearGradient>
     <linearGradient id="sand" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f7dfa8"/><stop offset="1" stop-color="#ebc27e"/></linearGradient>
     <radialGradient id="glow"><stop offset="0" stop-color="#fff2b8" stop-opacity=".9"/><stop offset="1" stop-color="#fff2b8" stop-opacity="0"/></radialGradient>
   </defs>
-  <rect width="1024" height="1024" rx="230" fill="url(#sky)"/>
+  <rect width="1024" height="1024" fill="url(#sky)"/>
   <g id="art">
     <circle cx="812" cy="200" r="150" fill="url(#glow)"/>
     <circle cx="812" cy="200" r="78" fill="#ffd56e" stroke="#ffc24f" stroke-width="8"/>
@@ -33,4 +33,4 @@
     <path d="M-20 860 q80 -30 160 0 t160 0 t160 0 t160 0 t160 0 t160 0 t160 0 V1100 H-20Z" fill="#5cc4c6"/>
     <path d="M60 852 q40 -14 80 0 M380 860 q40 -14 80 0 M700 852 q40 -14 80 0" fill="none" stroke="#fff" stroke-width="12" stroke-linecap="round" opacity=".6"/>
   </g>
-</g></svg>
+</svg>

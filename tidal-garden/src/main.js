@@ -3,6 +3,7 @@ import { GardenGame, GARDENS, GARDEN_NAMES, CHAPTERS, chapterOf, findViolations,
 import { GardenScene } from './scene.js'
 import { mapLayout, mapMarkup, MAP_ART } from './map.js'
 import { GardenAudio } from './audio.js'
+import { TITLE_ART, titleLetters } from './titleArt.js'
 import { DeviceTilt } from './tilt.js'
 import './style.css'
 
@@ -69,18 +70,19 @@ app.innerHTML = `
       <p class="finale-tip">Drag to turn the island</p>
     </section>
     <section class="title-screen" id="title-screen" aria-label="Tidal Garden">
-      <div class="title-veil" aria-hidden="true"></div>
+      ${TITLE_ART}
       <div class="title-content">
-        <span class="title-mark" aria-hidden="true">${icon('sprout')}</span>
-        <h1 class="title-logo">Tidal<br><em>Garden.</em></h1>
-        <p class="title-tagline">A quiet place. A little land, a little water.</p>
+        <h1 class="title-logo" aria-label="Tidal Garden"><span class="logo-line" aria-hidden="true">${titleLetters('Tidal')}</span><span class="logo-line" aria-hidden="true">${titleLetters('Garden')}</span></h1>
+        <p class="title-tagline">A little land, a little water.</p>
+      </div>
+      <div class="title-bottom">
         <button class="play-button" id="title-play">${icon('play')}<span>Play</span></button>
         <p class="title-progress" id="title-progress"></p>
       </div>
       <div class="title-tools">
-        <button class="icon-button music-toggle" aria-label="Turn the music off" aria-pressed="false" title="Music">${icon('music')}</button>
-        <button class="icon-button sound-toggle" aria-label="Turn sound effects off" aria-pressed="false" title="Sound effects">${icon('volume-x')}</button>
-        <button class="icon-button" id="title-help" aria-label="Garden rules" title="Garden rules">${icon('circle-help')}</button>
+        <button class="round-button music-toggle" aria-label="Turn the music off" aria-pressed="false" title="Music">${icon('music')}</button>
+        <button class="round-button sound-toggle" aria-label="Turn sound effects off" aria-pressed="false" title="Sound effects">${icon('volume-x')}</button>
+        <button class="round-button" id="title-help" aria-label="Garden rules" title="Garden rules">${icon('circle-help')}</button>
       </div>
     </section>
     <section class="map-screen" id="map-screen" aria-label="Garden map" inert>
@@ -456,8 +458,8 @@ function showScreen(name, { push = true, offer = false } = {}) {
   audio.setMood(name)
   $('#title-screen').inert = name !== 'title'
   mapScreen.inert = name !== 'map'
-  // The map covers the whole garden, so the scene rests while it's open.
-  if (scene) scene.paused = name === 'map'
+  // The title and the map cover the whole garden, so the scene rests while they're open.
+  if (scene) scene.paused = name !== 'play'
   if (name === 'title') {
     const done = game.completed.length
     $('#title-progress').textContent = done ? `${done} of ${GARDEN_NAMES.length} gardens in balance` : `${GARDEN_NAMES.length} little gardens to grow`
@@ -471,6 +473,13 @@ function showScreen(name, { push = true, offer = false } = {}) {
   }
   if (push) history.pushState({ screen: name }, '', name === 'title' ? location.pathname + location.search : `#${name}`)
 }
+// Tall screens crop the title's picture to fill; wide ones fit it whole, so the island stays a
+// sensible size beneath the logo.
+function frameTitle() {
+  $('.title-art')?.setAttribute('preserveAspectRatio', innerWidth / innerHeight > 0.85 ? 'xMidYMax meet' : 'xMidYMax slice')
+}
+addEventListener('resize', frameTitle)
+frameTitle()
 addEventListener('popstate', (event) => showScreen(event.state?.screen ?? 'title', { push: false }))
 $('#title-play').addEventListener('click', () => { audio.unlock(); audio.play('tap'); showScreen('map') })
 $('#map-home').addEventListener('click', () => { audio.play('back'); showScreen('title') })
