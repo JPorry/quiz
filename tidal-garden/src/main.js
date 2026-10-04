@@ -26,48 +26,38 @@ app.innerHTML = `
     <div class="world" id="world">
       <div class="board-access" role="group" aria-label="Garden puzzle grid"></div>
     </div>
-    <header class="masthead">
-      <a class="brand" href="./" aria-label="Tidal Garden home"><span class="brand-icon">${icon('sprout')}</span><span>Tidal Garden</span></a>
-      <div class="header-tools">
-        <button class="icon-button" id="to-map" aria-label="Garden map" title="Garden map">${icon('map')}</button>
-        <button class="icon-button" id="tilt" aria-label="Tilt the garden with your phone" aria-pressed="false" title="Tilt with your phone" hidden>${icon('move-3d')}</button>
-        <button class="icon-button sound-toggle" id="sound" aria-label="Enable placement sounds" aria-pressed="false" title="Placement sounds">${icon('volume-x')}</button>
-        <button class="icon-button" id="help" aria-label="Garden rules" title="Garden rules">${icon('circle-help')}</button>
-      </div>
-    </header>
-    <aside class="garden-journal">
-      <p class="eyebrow"><span></span> A world in balance</p>
-      <h1>Tidal<br><em>Garden.</em></h1>
-      <p class="intro">A quiet place.<br>A little land. A little water.</p>
-      <div class="journal-divider"></div>
-      <button class="chapter" id="levels">
-        <span class="chapter-number" id="chapter-number">01</span>
-        <span class="chapter-text"><small>Your garden</small><strong id="garden-name">First light</strong></span>
-        ${icon('chevron-down')}
-      </button>
-      <div class="progress-block">
-        <div class="progress-heading"><span>Growing in harmony</span><span><strong id="progress-value">34</strong><small> / 100</small></span></div>
-        <div class="progress-track"><span id="progress-bar"></span></div>
-        <div class="terrain-counts"><span><b class="water-dot"></b>Water <strong id="water-count">0</strong></span><span><b class="land-dot"></b>Land <strong id="land-count">0</strong></span></div>
-      </div>
-      <div class="time-detail">${icon('clock-3')}<span id="time">00:00</span><span class="time-divider"></span><span id="remaining">66 to grow</span></div>
-    </aside>
-    <div class="scene-caption"><span class="caption-mark"></span><span id="caption-chapter">THE SHALLOWS</span><span class="caption-line"></span><span>GARDEN <b id="caption-level">01</b></span></div>
-    <footer class="game-dock">
-      <div class="placement-status" id="placement-status" aria-live="polite"><span></span><p></p></div>
-      <div class="palette" role="group" aria-label="Place terrain">
-        ${piece('water', 0, 'Place water', 'Water')}
-        ${piece('land', 1, 'Place land', 'Land')}
-        ${piece('erase', 'erase', 'Erase terrain', 'Clear')}
-      </div>
-      <div class="action-row">
-        <button class="text-tool" id="undo" disabled>${icon('undo-2')}<span>Undo</span></button>
-        <span class="action-divider"></span>
-        <button class="text-tool" id="hint">${icon('lightbulb')}<span>A little nudge</span></button>
-        <span class="action-divider"></span>
-        <button class="text-tool" id="reset">${icon('rotate-ccw')}<span>Start again</span></button>
-      </div>
-    </footer>
+    <div class="game-layout">
+      <header class="game-bar">
+        <button class="round-button" id="to-map" aria-label="Garden map" title="Garden map">${icon('map')}</button>
+        <div class="garden-pill">
+          <span class="pill-number" id="chapter-number">1</span>
+          <span class="pill-text">
+            <small><span id="caption-chapter">The Shallows</span><span class="pill-dot"></span><span id="time">00:00</span></small>
+            <strong id="garden-name">First light</strong>
+            <span class="pill-progress" aria-hidden="true"><span id="progress-bar"></span></span>
+          </span>
+        </div>
+        <div class="bar-tools">
+          <button class="round-button" id="tilt" aria-label="Tilt the garden with your phone" aria-pressed="false" title="Tilt with your phone" hidden>${icon('move-3d')}</button>
+          <button class="round-button sound-toggle" id="sound" aria-label="Enable placement sounds" aria-pressed="false" title="Placement sounds">${icon('volume-x')}</button>
+          <button class="round-button" id="help" aria-label="Garden rules" title="Garden rules">${icon('circle-help')}</button>
+        </div>
+      </header>
+      <div class="board-slot" aria-hidden="true"></div>
+      <div class="placement-status" id="placement-status" aria-live="polite"><p></p></div>
+      <footer class="game-dock">
+        <div class="palette" role="group" aria-label="Place terrain">
+          ${piece('water', 0, 'Place water', 'Water')}
+          ${piece('land', 1, 'Place land', 'Land')}
+          ${piece('erase', 'erase', 'Erase terrain', 'Clear')}
+        </div>
+        <div class="action-row">
+          <button class="tool-chip" id="undo" disabled>${icon('undo-2')}<span>Undo</span></button>
+          <button class="tool-chip" id="hint">${icon('lightbulb')}<span>Hint</span></button>
+          <button class="tool-chip" id="reset">${icon('rotate-ccw')}<span>Restart</span></button>
+        </div>
+      </footer>
+    </div>
     <section class="finale-card" id="finale-card" aria-labelledby="finale-title" inert>
       <p class="eyebrow"><span></span>Garden <b id="finale-number">01</b>&nbsp;·&nbsp;<em id="finale-name">First light</em></p>
       <h2 id="finale-title">A world in balance.</h2>
@@ -108,7 +98,6 @@ app.innerHTML = `
         <button class="play-button" id="map-card-play">${icon('play')}<span id="map-card-play-label">Play</span></button>
       </div>
     </section>
-    <div class="quiet-footer"><span>LAND & WATER, IN EQUAL MEASURE</span><span>NO. <b id="edition-number">001</b></span></div>
   </main>
   <dialog id="modal"><button class="icon-button modal-close" aria-label="Close">${icon('x')}</button><div id="modal-content"></div></dialog>
 `
@@ -143,25 +132,21 @@ for (let row = 0; row < 10; row++) {
   }
 }
 
-// The open space between the journal, the caption, and the dock, where the diorama sits.
+// The board slot is whatever the bar, the hint line, and the dock leave free; the diorama fills it.
 function boardSafeArea() {
   const world = $('#world').getBoundingClientRect()
-  const phone = world.width <= 700
-  const top = $(phone ? '.garden-journal' : '.scene-caption').getBoundingClientRect().bottom - world.top + (phone ? 8 : 14)
-  const bottom = $('#placement-status').getBoundingClientRect().top - world.top - (phone ? 2 : 14)
-  // Phones keep a little breathing room on either side of the tray.
-  const left = phone ? 12 : $('.garden-journal').getBoundingClientRect().right - world.left + 36
-  return { top, bottom, left, right: world.width - (phone ? 12 : 36) }
+  const slot = $('.board-slot').getBoundingClientRect()
+  return { top: slot.top - world.top, bottom: slot.bottom - world.top, left: slot.left - world.left, right: slot.right - world.left }
 }
 
 // While the finished garden is on show, the interface steps aside: the island takes everything
-// between the masthead and the card at the bottom.
+// between the top bar and the card at the bottom.
 // Wide screens keep the card in the journal's place on the left; narrower ones put it underneath.
 function finaleSafeArea() {
   const world = $('#world').getBoundingClientRect()
   const phone = world.width <= 700
   const card = $('#finale-card')
-  const top = $('.masthead').getBoundingClientRect().bottom - world.top + (phone ? 0 : 6)
+  const top = $('.game-bar').getBoundingClientRect().bottom - world.top + (phone ? 0 : 6)
   // Layout positions ignore the card's slide-in offset, so the framing holds still as it appears.
   if (world.width >= 1100) return { top, bottom: world.height - 30, left: card.offsetLeft + card.offsetWidth + 30, right: world.width - 40 }
   return { top, bottom: card.offsetTop - (phone ? 6 : 16), left: phone ? 10 : 40, right: world.width - (phone ? 10 : 40) }
@@ -350,22 +335,16 @@ const pieceFor = (value) => document.querySelector(`.piece[data-value="${value =
 function render() {
   const invalid = findViolations(game.grid, game.puzzle)
   scene?.update(game.grid, game.puzzle.puzzle, invalid, game.complete, game.puzzle)
-  $('#caption-chapter').textContent = chapterOf(game.level).name.toUpperCase()
-  $('#chapter-number').textContent = String(game.level + 1).padStart(2, '0')
+  $('#caption-chapter').textContent = chapterOf(game.level).name
+  $('#chapter-number').textContent = game.level + 1
   $('#garden-name').textContent = GARDEN_NAMES[game.level]
-  $('#caption-level').textContent = String(game.level + 1).padStart(2, '0')
-  $('#edition-number').textContent = String(game.level + 1).padStart(3, '0')
-  $('#progress-value').textContent = game.filled
   $('#progress-bar').style.width = `${game.filled}%`
-  $('#water-count').textContent = game.grid.flat().filter((v) => v === 0).length
-  $('#land-count').textContent = game.grid.flat().filter((v) => v === 1).length
-  $('#remaining').textContent = game.complete ? 'In perfect balance' : `${game.remaining} to grow`
   $('#time').textContent = `${String(Math.floor(game.seconds / 60)).padStart(2, '0')}:${String(game.seconds % 60).padStart(2, '0')}`
   $('#undo').disabled = !game.history.length
   // A finished garden swaps the hint for a way back to its evening view.
   if (game.complete !== shownComplete) {
     shownComplete = game.complete
-    $('#hint').innerHTML = game.complete ? `${icon('moon-star')}<span>See it at dusk</span>` : `${icon('lightbulb')}<span>A little nudge</span>`
+    $('#hint').innerHTML = game.complete ? `${icon('moon-star')}<span>See it at dusk</span>` : `${icon('lightbulb')}<span>Hint</span>`
     refreshIcons()
   }
   if (finale && !game.complete) endFinale()
@@ -499,7 +478,6 @@ function openHelp() {
 $('#help').addEventListener('click', openHelp)
 $('#title-help').addEventListener('click', openHelp)
 
-$('#levels').addEventListener('click', () => showScreen('map'))
 $('#to-map').addEventListener('click', () => showScreen('map'))
 
 // The finale: the interface steps aside while the scene celebrates, then a small card
@@ -601,8 +579,6 @@ function showScreen(name, { push = true, offer = false } = {}) {
 }
 addEventListener('popstate', (event) => showScreen(event.state?.screen ?? 'title', { push: false }))
 $('#title-play').addEventListener('click', () => showScreen('map'))
-// The masthead's name leads back to the title rather than reloading the page.
-document.querySelector('.brand').addEventListener('click', (event) => { event.preventDefault(); showScreen('title') })
 $('#map-home').addEventListener('click', () => showScreen('title'))
 
 // Lays out the whole map and scrolls to the newest open garden. When a garden has opened since the
