@@ -59,31 +59,47 @@ current garden, as the visual tests do. The map's layout lives in `src/map.js`.
 
 ## Music and sound
 
-All the music and sound is made in code with the Web Audio API (`src/audio.js`);
-there are no audio files. The music is generative, calm, and never repeats: a
-slow, warm progression in F major (Fmaj7, Am7, B♭maj7, Cadd9, about ten seconds
-each) on a soft pad and a deep bass, with kalimba-like plucks that wander only
-through the F major pentatonic scale in small steps, so nothing can clash.
-Beneath it the sea laps in slow swells, a bird sings now and then, and a wind
-chime stirs in the breeze. Each screen has its own mood: the title and the map
-are a little fuller and full of birdsong, the garden is quieter and sparser so
-it never distracts, and the finale's evening settles the melody and brings out
-crickets. Everything shares a soft room reverb and a gentle compressor.
+The music and sound effects are real audio files in `public/audio/`, composed
+and rendered by `scripts/compose-audio.py` (run it with `npm run compose:audio`;
+it needs FluidSynth, the `fluid-soundfont-gm` soundfont, ffmpeg, numpy, and
+scipy). It writes the notes itself, renders them through sampled instruments
+from the FluidR3 General MIDI soundfont, and lays them over a nature bed made
+with numpy, then masters and encodes everything to MP3 and lists the files in
+`src/audioManifest.js`.
 
-Sound effects are cute and pitched in the same key, so they sit inside the
-music: bloops for buttons, a breeze between screens, a rising run for Play, a
-marimba note for each garden on the map that climbs with its number, wooden
-knocks for locked gardens, a hop and a shower of pings when a garden opens,
-bubbles, rustles, and mist for the three pieces, a droplet or an earthy thump
-with a marimba note (pitched by where the tile lands) for each placement, a
-rewind for Undo, twinkles for a hint, a soft rounded bonk when something falls
-out of balance, the tide washing out for Restart, and the clue celebrations
-(village, lighthouse, ferry, pilgrim) and finished-garden arpeggio.
+The music is calm and slow, in F major: a warm pad and a soft low root hold a
+progression that alternates Fmaj7, Am7, B♭maj7, Cadd9 with Dm9, B♭maj7, F/A,
+Csus4, two bars per chord at 66 beats a minute. A harp rolls gently through some
+chords, a lead sings short motifs that repeat with little twists and only ever
+use the F major pentatonic scale, wind chimes stir now and then, and on the
+title a flute breathes the odd long note. Beneath it the sea laps in slow,
+uneven swells with a hiss of foam as each breaks, a breeze comes and goes, and
+little songbirds sing now and then. Each screen has its own track: the title
+(kalimba), the map (music box, more birdsong), the garden (two longer, sparser
+kalimba tracks that take turns, the quietest), and the finale's evening
+(vibraphone, crickets instead of birds). Music streams through two decks that
+crossfade at the end of a track and between screens.
+
+The 43 sound effects are pitched in the same key, so they sit inside the music:
+a marimba tap and a bubble for buttons, a breeze between screens, a kalimba run
+and a celesta sparkle for Play, a marimba note for each garden on the map that
+climbs with its number, a woodblock knock for locked gardens, a pizzicato hop
+and a music-box cascade when a garden opens, bubbles, a leafy rustle, and mist
+for the three pieces, a droplet with a kalimba note or an earthy thump with a
+marimba note for each placement (pitched by where the tile lands, so filling a
+row plays a little tune), a kalimba rewind for Undo, a celesta twinkle for a
+hint, a soft marimba bonk when something falls out of balance, the tide
+washing out for Restart, a gust and a harp sweep for a finished row, and the
+clue celebrations: a kalimba welcome for a village, a bell buoy for a
+lighthouse, a little ferry horn, a temple bell for the pilgrims, and a harp
+arpeggio with a celesta shimmer for a finished garden. Effects are decoded once
+and play instantly.
 
 Browsers only allow sound after a tap, so the music starts with the player's
-first tap or key. The title and the map have separate switches for music and
-for sound effects; the garden's bar has one speaker that hushes or wakes both.
-The choices are remembered, and sound pauses while the page is hidden.
+first tap or key (on iOS both music decks are unlocked by that tap). The title
+and the map have separate switches for music and for sound effects; the
+garden's bar has one speaker that hushes or wakes both. The choices are
+remembered, and sound pauses while the page is hidden.
 
 ## Puzzle
 
