@@ -6,6 +6,7 @@ import { GardenAudio } from './audio.js'
 import { TITLE_ART } from './titleArt.js'
 import { DeviceTilt } from './tilt.js'
 import { Tutorial } from './tutorial.js'
+import { t, LANGUAGES, language, setLanguage, gardenName, chapterName, chapterIntro, terrain } from './i18n.js'
 import './style.css'
 
 const game = new GardenGame()
@@ -14,6 +15,9 @@ let scene
 const audio = new GardenAudio()
 let hintCell = null
 const app = document.querySelector('#app')
+// The page speaks the player's language, down to its title and description.
+document.documentElement.lang = language()
+document.querySelector('meta[name="description"]')?.setAttribute('content', t('app.description'))
 const icon = (name) => `<i data-lucide="${name}" aria-hidden="true"></i>`
 // The picker is three little diorama pieces: a pool, a grassy islet, and an empty socket.
 const PIECE_ART = {
@@ -27,23 +31,23 @@ app.innerHTML = `
   <main class="garden-app">
     <div class="dusk" aria-hidden="true"></div>
     <div class="world" id="world">
-      <div class="board-access" role="group" aria-label="Garden puzzle grid"></div>
+      <div class="board-access" role="group" aria-label="${t('board.grid')}"></div>
     </div>
     <div class="game-layout">
       <header class="game-bar">
-        <button class="round-button" id="to-map" aria-label="Garden map" title="Garden map">${icon('map')}</button>
+        <button class="round-button" id="to-map" aria-label="${t('bar.map')}" title="${t('bar.map')}">${icon('map')}</button>
         <div class="garden-pill">
           <span class="pill-number" id="chapter-number">1</span>
           <span class="pill-text">
-            <small><span id="caption-chapter">The Shallows</span><span class="pill-dot"></span><span id="time">00:00</span></small>
-            <strong id="garden-name">First light</strong>
+            <small><span id="caption-chapter"></span><span class="pill-dot"></span><span id="time">00:00</span></small>
+            <strong id="garden-name"></strong>
             <span class="pill-progress" aria-hidden="true"><span id="progress-bar"></span></span>
           </span>
         </div>
         <div class="bar-tools">
-          <button class="round-button" id="tilt" aria-label="Tilt the garden with your phone" aria-pressed="false" title="Tilt with your phone" hidden>${icon('move-3d')}</button>
-          <button class="round-button sound-toggle" id="sound" data-scope="all" aria-label="Mute music and sounds" aria-pressed="false" title="Music and sounds">${icon('volume-x')}</button>
-          <button class="round-button" id="help" aria-label="Garden rules" title="Garden rules">${icon('circle-help')}</button>
+          <button class="round-button" id="tilt" aria-label="${t('bar.tilt')}" aria-pressed="false" title="${t('bar.tiltTitle')}" hidden>${icon('move-3d')}</button>
+          <button class="round-button sound-toggle" id="sound" data-scope="all" aria-label="${t('bar.mute')}" aria-pressed="false" title="${t('bar.sounds')}">${icon('volume-x')}</button>
+          <button class="round-button" id="help" aria-label="${t('bar.rules')}" title="${t('bar.rules')}">${icon('circle-help')}</button>
         </div>
       </header>
       <section class="coach" id="coach" aria-live="polite" hidden>
@@ -51,76 +55,76 @@ app.innerHTML = `
         <p class="coach-text" id="coach-text"></p>
         <div class="coach-foot">
           <p class="coach-instruction" id="coach-instruction"></p>
-          <button class="coach-skip" id="coach-skip">Skip tutorial</button>
+          <button class="coach-skip" id="coach-skip">${t('coach.skip')}</button>
           <button class="coach-next" id="coach-next"></button>
         </div>
       </section>
       <div class="board-slot" aria-hidden="true"></div>
       <div class="placement-status" id="placement-status" aria-live="polite"><p></p></div>
       <footer class="game-dock">
-        <div class="palette" role="group" aria-label="Place terrain">
-          ${piece('water', 0, 'Place water', 'Water')}
-          ${piece('land', 1, 'Place land', 'Land')}
-          ${piece('erase', 'erase', 'Erase terrain', 'Clear')}
+        <div class="palette" role="group" aria-label="${t('dock.palette')}">
+          ${piece('water', 0, t('piece.placeWater'), t('piece.water'))}
+          ${piece('land', 1, t('piece.placeLand'), t('piece.land'))}
+          ${piece('erase', 'erase', t('piece.erase'), t('piece.clear'))}
         </div>
         <div class="action-row">
-          <button class="tool-chip" id="undo" disabled>${icon('undo-2')}<span>Undo</span></button>
-          <button class="tool-chip" id="hint">${icon('lightbulb')}<span>Hint</span></button>
-          <button class="tool-chip" id="reset">${icon('rotate-ccw')}<span>Restart</span></button>
+          <button class="tool-chip" id="undo" disabled>${icon('undo-2')}<span>${t('dock.undo')}</span></button>
+          <button class="tool-chip" id="hint">${icon('lightbulb')}<span>${t('dock.hint')}</span></button>
+          <button class="tool-chip" id="reset">${icon('rotate-ccw')}<span>${t('dock.restart')}</span></button>
         </div>
       </footer>
     </div>
     <section class="finale-card" id="finale-card" aria-labelledby="finale-title" inert>
-      <p class="eyebrow"><span></span>Garden <b id="finale-number">01</b>&nbsp;·&nbsp;<em id="finale-name">First light</em></p>
-      <h2 id="finale-title">A world in balance.</h2>
-      <p class="finale-meta"><span>${icon('clock-3')}Grown in <b id="finale-time">00:00</b></span><span class="time-divider"></span><span><b id="finale-count">1</b> of ${GARDEN_NAMES.length} gardens</span></p>
+      <p class="eyebrow"><span></span>${t('finale.garden')} <b id="finale-number">01</b>&nbsp;·&nbsp;<em id="finale-name"></em></p>
+      <h2 id="finale-title">${t('finale.title')}</h2>
+      <p class="finale-meta"><span>${icon('clock-3')}${t('finale.grownIn')} <b id="finale-time">00:00</b></span><span class="time-divider"></span><span><b id="finale-count">1</b> ${t('finale.of', { total: GARDEN_NAMES.length })}</span></p>
       <div class="finale-actions">
-        <button class="secondary-button" id="finale-stay">Stay a little longer</button>
-        <button class="primary-button" id="finale-next"><span id="finale-next-label">Grow the next garden</span> ${icon('arrow-right')}</button>
+        <button class="secondary-button" id="finale-stay">${t('finale.stay')}</button>
+        <button class="primary-button" id="finale-next"><span id="finale-next-label">${t('finale.next')}</span> ${icon('arrow-right')}</button>
       </div>
-      <p class="finale-tip">Drag to turn the island</p>
+      <p class="finale-tip">${t('finale.tip')}</p>
     </section>
     <section class="title-screen" id="title-screen" aria-label="Tidal Garden">
       ${TITLE_ART}
       <div class="title-content">
         <h1 class="title-logo"><span class="logo-line">Tidal</span> <span class="logo-line">Garden</span></h1>
         <svg class="title-flourish" viewBox="0 0 120 12" aria-hidden="true"><path d="M2 6 q7 -6 14 0 t14 0 t14 0 M76 6 q7 -6 14 0 t14 0 t14 0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="60" cy="6" r="3" fill="currentColor"/></svg>
-        <p class="title-tagline">A little land, a little water.</p>
+        <p class="title-tagline">${t('title.tagline')}</p>
       </div>
       <div class="title-bottom">
-        <button class="play-button" id="title-play">${icon('play')}<span>Play</span></button>
+        <button class="play-button" id="title-play">${icon('play')}<span>${t('title.play')}</span></button>
         <p class="title-progress" id="title-progress"></p>
       </div>
       <div class="title-tools">
-        <button class="round-button music-toggle" aria-label="Turn the music off" aria-pressed="false" title="Music">${icon('music')}</button>
-        <button class="round-button sound-toggle" aria-label="Turn sound effects off" aria-pressed="false" title="Sound effects">${icon('volume-x')}</button>
-        <button class="round-button open-settings" aria-label="Settings" title="Settings">${icon('settings')}</button>
-        <button class="round-button" id="title-help" aria-label="Garden rules" title="Garden rules">${icon('circle-help')}</button>
+        <button class="round-button music-toggle" aria-label="${t('audio.musicOff')}" aria-pressed="false" title="${t('audio.music')}">${icon('music')}</button>
+        <button class="round-button sound-toggle" aria-label="${t('audio.effectsOff')}" aria-pressed="false" title="${t('audio.effects')}">${icon('volume-x')}</button>
+        <button class="round-button open-settings" aria-label="${t('settings')}" title="${t('settings')}">${icon('settings')}</button>
+        <button class="round-button" id="title-help" aria-label="${t('bar.rules')}" title="${t('bar.rules')}">${icon('circle-help')}</button>
       </div>
     </section>
-    <section class="map-screen" id="map-screen" aria-label="Garden map" inert>
+    <section class="map-screen" id="map-screen" aria-label="${t('map.label')}" inert>
       <div class="map-scroll" id="map-scroll"><div class="map-canvas" id="map-canvas"></div></div>
       <header class="map-bar">
-        <button class="round-button" id="map-home" aria-label="Back to the title">${icon('house')}</button>
+        <button class="round-button" id="map-home" aria-label="${t('map.home')}">${icon('house')}</button>
         <div class="map-progress" id="map-progress" aria-live="polite"><span>${icon('sprout')}</span><b id="map-count">0</b><small>/ ${GARDEN_NAMES.length}</small></div>
         <div class="map-tools">
-          <button class="round-button music-toggle" aria-label="Turn the music off" aria-pressed="false" title="Music">${icon('music')}</button>
-          <button class="round-button sound-toggle" aria-label="Turn sound effects off" aria-pressed="false" title="Sound effects">${icon('volume-x')}</button>
-          <button class="round-button open-settings" aria-label="Settings" title="Settings">${icon('settings')}</button>
+          <button class="round-button music-toggle" aria-label="${t('audio.musicOff')}" aria-pressed="false" title="${t('audio.music')}">${icon('music')}</button>
+          <button class="round-button sound-toggle" aria-label="${t('audio.effectsOff')}" aria-pressed="false" title="${t('audio.effects')}">${icon('volume-x')}</button>
+          <button class="round-button open-settings" aria-label="${t('settings')}" title="${t('settings')}">${icon('settings')}</button>
         </div>
       </header>
       <p class="map-toast" id="map-toast" role="status"></p>
       <div class="map-card" id="map-card" role="dialog" aria-labelledby="map-card-title" inert>
-        <button class="round-button map-card-close" id="map-card-close" aria-label="Close">${icon('x')}</button>
+        <button class="round-button map-card-close" id="map-card-close" aria-label="${t('close')}">${icon('x')}</button>
         <p class="map-card-chapter" id="map-card-chapter"></p>
         <h2 id="map-card-title"></h2>
         <p class="map-card-name" id="map-card-name"></p>
         <p class="map-card-status" id="map-card-status"></p>
-        <button class="play-button" id="map-card-play">${icon('play')}<span id="map-card-play-label">Play</span></button>
+        <button class="play-button" id="map-card-play">${icon('play')}<span id="map-card-play-label">${t('map.play')}</span></button>
       </div>
     </section>
   </main>
-  <dialog id="modal"><button class="icon-button modal-close" aria-label="Close">${icon('x')}</button><div id="modal-content"></div></dialog>
+  <dialog id="modal"><button class="icon-button modal-close" aria-label="${t('close')}">${icon('x')}</button><div id="modal-content"></div></dialog>
 `
 
 const $ = (selector) => document.querySelector(selector)
@@ -176,7 +180,7 @@ function finaleSafeArea() {
 try {
   scene = new GardenScene($('#world'), { onCell: placeCell, safeArea: boardSafeArea, finaleArea: finaleSafeArea, onFlourish: (lines) => clueSound('flourish', { lines: lines.length }), onVillage: () => clueSound('village'), onLighthouse: () => clueSound('lighthouse'), onFerry: () => clueSound('ferry'), onPilgrim: () => clueSound('pilgrim') })
 } catch (error) {
-  $('#world').innerHTML = `<div class="render-error"><p>Your garden needs WebGL to bloom.</p><small>Please open it in a browser with hardware acceleration enabled.</small></div>`
+  $('#world').innerHTML = `<div class="render-error"><p>${t('render.error')}</p><small>${t('render.errorHelp')}</small></div>`
   console.error(error)
 }
 
@@ -208,24 +212,24 @@ function render() {
   const invalid = findViolations(game.grid, game.puzzle)
   const coach = tutorial.card(game.level, game.grid, game.selected, game.complete, game.puzzle)
   scene?.update(game.grid, game.puzzle.puzzle, invalid, game.complete, game.puzzle)
-  $('#caption-chapter').textContent = chapterOf(game.level).name
+  $('#caption-chapter').textContent = chapterName(CHAPTERS.indexOf(chapterOf(game.level)))
   $('#chapter-number').textContent = game.level + 1
-  $('#garden-name').textContent = GARDEN_NAMES[game.level]
+  $('#garden-name').textContent = gardenName(game.level)
   $('#progress-bar').style.width = `${game.filled}%`
   $('#time').textContent = `${String(Math.floor(game.seconds / 60)).padStart(2, '0')}:${String(game.seconds % 60).padStart(2, '0')}`
   $('#undo').disabled = !game.history.length
   // A finished garden swaps the hint for a way back to its evening view.
   if (game.complete !== shownComplete) {
     shownComplete = game.complete
-    $('#hint').innerHTML = game.complete ? `${icon('moon-star')}<span>See it at dusk</span>` : `${icon('lightbulb')}<span>Hint</span>`
+    $('#hint').innerHTML = game.complete ? `${icon('moon-star')}<span>${t('dock.dusk')}</span>` : `${icon('lightbulb')}<span>${t('dock.hint')}</span>`
     refreshIcons()
   }
   if (finale && !game.complete) endFinale()
   // The raised piece already shows the selection, so the status line only speaks up when it matters.
   // The first garden of a chapter explains what is new until the first tile goes down.
-  const introducing = !coach && !game.history.length && CHAPTERS.find((chapter) => chapter.start === game.level && chapter.intro)
-  const status = game.complete ? 'A world in balance' : invalid.size ? 'A little out of balance' : hintCell ? hintText(hintCell)
-    : introducing ? introducing.intro : ''
+  const introducing = !coach && !game.history.length && CHAPTERS.findIndex((chapter) => chapter.start === game.level && chapter.intro)
+  const status = game.complete ? t('status.balanced') : invalid.size ? t('status.invalid') : hintCell ? hintText(hintCell)
+    : introducing > 0 ? chapterIntro(introducing) : ''
   $('#placement-status p').textContent = status
   $('#placement-status').classList.toggle('invalid', invalid.size > 0)
   document.querySelectorAll('[data-value]').forEach((button) => {
@@ -277,13 +281,13 @@ $('#undo').addEventListener('click', () => { if (game.undo()) { audio.play('undo
 function showAudio() {
   document.querySelectorAll('.music-toggle').forEach((button) => {
     button.setAttribute('aria-pressed', String(audio.music))
-    button.setAttribute('aria-label', audio.music ? 'Turn the music off' : 'Turn the music on')
+    button.setAttribute('aria-label', t(audio.music ? 'audio.musicOff' : 'audio.musicOn'))
     button.classList.toggle('off', !audio.music)
   })
   document.querySelectorAll('.sound-toggle').forEach((button) => {
     const on = button.dataset.scope === 'all' ? audio.music || audio.effects : audio.effects
     button.setAttribute('aria-pressed', String(on))
-    button.setAttribute('aria-label', button.dataset.scope === 'all' ? (on ? 'Mute music and sounds' : 'Play music and sounds') : (on ? 'Turn sound effects off' : 'Turn sound effects on'))
+    button.setAttribute('aria-label', t(button.dataset.scope === 'all' ? (on ? 'bar.mute' : 'bar.unmute') : (on ? 'audio.effectsOff' : 'audio.effectsOn')))
     button.innerHTML = icon(on ? 'volume-2' : 'volume-x')
   })
   refreshIcons()
@@ -315,7 +319,7 @@ function clueSound(name, options) { if (!game.complete) audio.play(name, options
 const tilt = new DeviceTilt({ reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches })
 function showTilt() {
   $('#tilt').setAttribute('aria-pressed', String(tilt.enabled))
-  $('#tilt').setAttribute('aria-label', tilt.enabled ? 'Stop tilting the garden with your phone' : 'Tilt the garden with your phone')
+  $('#tilt').setAttribute('aria-label', t(tilt.enabled ? 'bar.tiltOff' : 'bar.tilt'))
 }
 if (tilt.supported && scene && !tilt.reducedMotion) {
   scene.tilt = tilt
@@ -343,34 +347,21 @@ $('#tilt').addEventListener('click', async () => {
 
 // Says which tile to fill and the reasoning behind it, so the hint teaches the technique.
 function hintText({ row, col, value, technique, axis }) {
-  const kind = value === 0 ? 'water' : 'land', other = value === 0 ? 'land' : 'water'
-  const why = {
-    pair: `it's beside two ${other} tiles in a row`,
-    gap: `it sits between two ${other} tiles`,
-    count: `its ${axis} already has five ${other}`,
-    line: `it's the only way to finish its ${axis}`,
-    seal: `the village beside it already has as many tiles as its sign`,
-    grow: `it's the only way the village beside it can still grow`,
-    apart: `land here would join islands into a village bigger than its sign`,
-    block: `the lighthouse beside it already sees its number, so land must stop the beam here`,
-    shine: `a lighthouse can only reach its number if its light passes here`,
-    channel: `every way left between two matching docks passes here, so their ferry needs this water`,
-    trail: `every way left between two matching shrines passes here, so their pilgrim needs this land`,
-  }[technique]
-  return `Row ${row + 1}, column ${col + 1} is ${kind}: ${why}`
+  const why = t(`hint.${technique}`, { other: terrain(1 - value), axis: t(`axis.${axis}`) })
+  return t('hint.text', { row: row + 1, col: col + 1, kind: terrain(value), why })
 }
 
 $('#hint').addEventListener('click', () => {
   if (game.complete) { startFinale('revisit'); return }
   if (findViolations(game.grid, game.puzzle).size) {
     audio.play('oops')
-    $('#placement-status p').textContent = 'Check the coral-marked tiles first'
+    $('#placement-status p').textContent = t('status.checkFirst')
     return
   }
   hintCell = findHint(game.grid, game.puzzle.solution, game.puzzle)
   if (!hintCell) {
     audio.play('oops')
-    $('#placement-status p').textContent = 'One of your tiles is out of place'
+    $('#placement-status p').textContent = t('status.misplaced')
     return
   }
   audio.play('hint')
@@ -399,30 +390,31 @@ modal.addEventListener('click', (event) => {
 
 $('#reset').addEventListener('click', () => {
   audio.play('open')
-  openModal(`<p class="eyebrow">A fresh beginning</p><h2>Let the tide<br>start again?</h2><p class="modal-description">Your placed terrain in this garden will be cleared.</p><div class="modal-actions"><button class="secondary-button" id="cancel-reset">Keep growing</button><button class="primary-button" id="confirm-reset">Start again ${icon('rotate-ccw')}</button></div>`)
+  openModal(`<p class="eyebrow">${t('restart.eyebrow')}</p><h2>${t('restart.title')}</h2><p class="modal-description">${t('restart.text')}</p><div class="modal-actions"><button class="secondary-button" id="cancel-reset">${t('restart.keep')}</button><button class="primary-button" id="confirm-reset">${t('restart.confirm')} ${icon('rotate-ccw')}</button></div>`)
   $('#cancel-reset').addEventListener('click', () => { audio.play('back'); modal.close() })
   $('#confirm-reset').addEventListener('click', () => { audio.play('restart'); scene?.resetPresentation(); game.reset(); hintCell = null; render(); modal.close() })
 })
 
 function openHelp() {
   audio.play('open')
-  openModal(`<p class="eyebrow">The art of balance</p><h2>A little land.<br>A little water.</h2><div class="rule"><span class="rule-icon">${icon('scale')}</span><div><h3>Equal measure</h3><p>Every row and column contains five water tiles and five land tiles.</p></div></div><div class="rule"><span class="rule-icon">${icon('grid-3x3')}</span><div><h3>Keep the rhythm</h3><p>Three water tiles or three land tiles may never appear consecutively, horizontally or vertically.</p></div></div><div class="rule"><span class="rule-icon">${icon('fingerprint')}</span><div><h3>Every line is its own</h3><p>No two completed rows or columns can have the same terrain pattern.</p></div></div><div class="rule"><span class="rule-icon">${icon('house')}</span><div><h3>Village signs</h3><p>In later gardens, a wooden sign counts the land tiles of its island. Each new tile you join to it raises a little hut, and the village comes to life when the island is closed in at its number.</p></div></div><div class="rule"><span class="rule-icon">${icon('sun')}</span><div><h3>Lighthouses</h3><p>A lighthouse counts the water tiles its light reaches straight up, down, left and right before land or the edge stops it. Glowing dots show what it already sees, and it lights up when every beam ends at its number.</p></div></div><div class="rule"><span class="rule-icon">${icon('ship')}</span><div><h3>Ferries</h3><p>Docks with matching roofs must be joined by water, moving up, down, left and right, so their little ferry can sail from one to the other.</p></div></div><div class="rule"><span class="rule-icon">${icon('footprints')}</span><div><h3>Pilgrims</h3><p>Shrines with matching lanterns must stand on the same island, joined by land up, down, left and right, so their little pilgrim can walk from one to the other.</p></div></div><p class="given-note"><b></b> Stone-rimmed land with a little landmark, and deeper pools of water, mark the terrain already in place.</p><div class="modal-actions"><button class="secondary-button" id="help-settings">${icon('settings')} Settings</button></div>`)
+  openModal(`<p class="eyebrow">${t('rules.eyebrow')}</p><h2>${t('rules.title')}</h2><div class="rule"><span class="rule-icon">${icon('scale')}</span><div><h3>${t('rules.balance')}</h3><p>${t('rules.balanceText')}</p></div></div><div class="rule"><span class="rule-icon">${icon('grid-3x3')}</span><div><h3>${t('rules.rhythm')}</h3><p>${t('rules.rhythmText')}</p></div></div><div class="rule"><span class="rule-icon">${icon('fingerprint')}</span><div><h3>${t('rules.unique')}</h3><p>${t('rules.uniqueText')}</p></div></div><div class="rule"><span class="rule-icon">${icon('house')}</span><div><h3>${t('rules.villages')}</h3><p>${t('rules.villagesText')}</p></div></div><div class="rule"><span class="rule-icon">${icon('sun')}</span><div><h3>${t('rules.lighthouses')}</h3><p>${t('rules.lighthousesText')}</p></div></div><div class="rule"><span class="rule-icon">${icon('ship')}</span><div><h3>${t('rules.ferries')}</h3><p>${t('rules.ferriesText')}</p></div></div><div class="rule"><span class="rule-icon">${icon('footprints')}</span><div><h3>${t('rules.pilgrims')}</h3><p>${t('rules.pilgrimsText')}</p></div></div><p class="given-note"><b></b> ${t('rules.given')}</p><div class="modal-actions"><button class="secondary-button" id="help-settings">${icon('settings')} ${t('settings')}</button></div>`)
   $('#help-settings').addEventListener('click', openSettings)
 }
 
 // Settings: how loud the music and the effects are, the language, and two fresh starts: the
 // tutorial again, or every garden from the beginning.
 const percent = (value) => Math.round(value * 100)
+const REOPEN = 'tidal-garden.reopen'
 function openSettings() {
   audio.play('open')
-  openModal(`<p class="eyebrow">Settings</p><h2>Make it yours</h2>
-    <div class="setting"><label for="music-volume"><span class="rule-icon">${icon('music')}</span>Music</label><input type="range" id="music-volume" min="0" max="100" step="5" value="${audio.music ? percent(audio.musicVolume) : 0}"><output id="music-volume-value"></output></div>
-    <div class="setting"><label for="effects-volume"><span class="rule-icon">${icon('volume-2')}</span>Sound effects</label><input type="range" id="effects-volume" min="0" max="100" step="5" value="${audio.effects ? percent(audio.effectsVolume) : 0}"><output id="effects-volume-value"></output></div>
-    <div class="setting"><label for="language"><span class="rule-icon">${icon('languages')}</span>Language</label><select id="language"><option value="en" selected>English</option></select></div>
-    <p class="setting-note">More languages are on their way.</p>
+  openModal(`<p class="eyebrow">${t('settings.eyebrow')}</p><h2>${t('settings.title')}</h2>
+    <div class="setting"><label for="music-volume"><span class="rule-icon">${icon('music')}</span>${t('audio.music')}</label><input type="range" id="music-volume" min="0" max="100" step="5" value="${audio.music ? percent(audio.musicVolume) : 0}"><output id="music-volume-value"></output></div>
+    <div class="setting"><label for="effects-volume"><span class="rule-icon">${icon('volume-2')}</span>${t('audio.effects')}</label><input type="range" id="effects-volume" min="0" max="100" step="5" value="${audio.effects ? percent(audio.effectsVolume) : 0}"><output id="effects-volume-value"></output></div>
+    <div class="setting"><label for="language"><span class="rule-icon">${icon('languages')}</span>${t('settings.language')}</label><select id="language">${Object.entries(LANGUAGES).map(([code, { name }]) => `<option value="${code}" lang="${code}"${code === language() ? ' selected' : ''}>${name}</option>`).join('')}</select></div>
+    <p class="setting-note">${t('settings.languageNote')}</p>
     <div class="settings-actions">
-      <button class="secondary-button" id="replay-tutorial">${icon('graduation-cap')} Replay the tutorial</button>
-      <button class="danger-button" id="reset-progress">${icon('trash-2')} Reset all progress</button>
+      <button class="secondary-button" id="replay-tutorial">${icon('graduation-cap')} ${t('settings.replay')}</button>
+      <button class="danger-button" id="reset-progress">${icon('trash-2')} ${t('settings.reset')}</button>
     </div>`)
   const show = () => {
     $('#music-volume-value').textContent = `${$('#music-volume').value}%`
@@ -434,6 +426,12 @@ function openSettings() {
   $('#effects-volume').addEventListener('input', (event) => { audio.setEffectsVolume(event.target.value / 100); showAudio(); show() })
   // Letting go of the effects slider plays a little tap at the new loudness.
   $('#effects-volume').addEventListener('change', () => audio.play('tap'))
+  // A new language reloads the game in it, back on the same screen with Settings open.
+  $('#language').addEventListener('change', (event) => {
+    setLanguage(event.target.value)
+    try { sessionStorage.setItem(REOPEN, screen) } catch { /* It just opens on the title. */ }
+    location.reload()
+  })
   $('#replay-tutorial').addEventListener('click', replayTutorial)
   $('#reset-progress').addEventListener('click', confirmResetAll)
 }
@@ -456,7 +454,7 @@ function replayTutorial() {
 function confirmResetAll() {
   audio.play('oops')
   const done = game.completed.length
-  openModal(`<p class="eyebrow">A fresh start</p><h2>Clear every garden?</h2><p class="modal-description">${done ? `All ${done} finished garden${done === 1 ? '' : 's'}, ` : 'All '}your tiles and your times will be cleared, and the tutorial will start again. This can\u2019t be undone.</p><div class="modal-actions"><button class="secondary-button" id="keep-progress">Keep my gardens</button><button class="danger-button" id="confirm-reset-all">${icon('trash-2')} Clear everything</button></div>`)
+  openModal(`<p class="eyebrow">${t('resetAll.eyebrow')}</p><h2>${t('resetAll.title')}</h2><p class="modal-description">${t(done === 0 ? 'resetAll.textNone' : done === 1 ? 'resetAll.textOne' : 'resetAll.textMany', { done })}</p><div class="modal-actions"><button class="secondary-button" id="keep-progress">${t('resetAll.keep')}</button><button class="danger-button" id="confirm-reset-all">${icon('trash-2')} ${t('resetAll.confirm')}</button></div>`)
   $('#keep-progress').addEventListener('click', () => { audio.play('back'); openSettings() })
   $('#confirm-reset-all').addEventListener('click', () => {
     audio.play('restart')
@@ -492,10 +490,9 @@ function startFinale(mode, origin = null) {
   // Evening falls in the music too: the melody settles and crickets come out.
   audio.setMood('evening')
   $('#finale-number').textContent = String(game.level + 1).padStart(2, '0')
-  $('#finale-name').textContent = GARDEN_NAMES[game.level]
+  $('#finale-name').textContent = gardenName(game.level)
   $('#finale-time').textContent = $('#time').textContent
   $('#finale-count').textContent = game.completed.length
-  $('#finale-next-label').textContent = 'Onward'
   finale.timer = setTimeout(showCard, scene.finale.plan.card * 1000)
 }
 function showCard() {
@@ -557,7 +554,7 @@ let cardLevel = null
 
 function updateTitle() {
   const done = game.completed.length
-  $('#title-progress').textContent = done ? `${done} of ${GARDEN_NAMES.length} gardens in balance` : `${GARDEN_NAMES.length} little gardens to grow`
+  $('#title-progress').textContent = done ? t('title.progress', { done, total: GARDEN_NAMES.length }) : t('title.fresh', { total: GARDEN_NAMES.length })
 }
 
 function showScreen(name, { push = true, offer = false } = {}) {
@@ -602,10 +599,11 @@ function openMap({ offer = false } = {}) {
   const width = Math.min(mapScroll.clientWidth || innerWidth, 560)
   mapWidth = width
   const frontier = game.frontier
-  const layout = mapLayout(CHAPTERS, width)
+  const chapters = CHAPTERS.map((chapter, index) => ({ ...chapter, name: chapterName(index) }))
+  const layout = mapLayout(chapters, width)
   mapCanvas.style.width = `${width}px`
   mapCanvas.style.height = `${layout.height}px`
-  mapCanvas.innerHTML = MAP_ART + mapMarkup(layout, CHAPTERS, { completed: game.completed, isUnlocked: (level) => game.isUnlocked(level), frontier, names: GARDEN_NAMES })
+  mapCanvas.innerHTML = MAP_ART + mapMarkup(layout, chapters, { completed: game.completed, isUnlocked: (level) => game.isUnlocked(level), frontier, names: GARDEN_NAMES.map((_, level) => gardenName(level)) })
   refreshIcons()
   $('#map-count').textContent = game.completed.length
   const marker = mapCanvas.querySelector('.map-marker')
@@ -655,7 +653,7 @@ $('#map-progress').addEventListener('click', () => {
   game.unlockAll = !game.unlockAll
   audio.play(game.unlockAll ? 'unlock' : 'locked')
   const toast = $('#map-toast')
-  toast.textContent = game.unlockAll ? 'Developer mode: every garden is open' : 'Developer mode off'
+  toast.textContent = t(game.unlockAll ? 'map.devOn' : 'map.devOff')
   toast.classList.remove('visible')
   void toast.offsetWidth
   toast.classList.add('visible')
@@ -670,11 +668,11 @@ function openCard(level) {
   const filled = saved?.grid?.flat().filter((value) => value !== null).length ?? 0
   const givens = GARDENS[level].puzzle.flat().filter((value) => value !== null).length
   const done = game.completed.includes(level)
-  $('#map-card-chapter').textContent = chapterOf(level).name
-  $('#map-card-title').textContent = `Garden ${level + 1}`
-  $('#map-card-name').textContent = GARDEN_NAMES[level]
-  $('#map-card-status').textContent = done ? `In balance · grown in ${clock(saved?.seconds ?? 0)}` : filled > givens ? `Growing · ${filled} of 100 tiles` : 'A new garden'
-  $('#map-card-play-label').textContent = done ? 'Visit' : filled > givens ? 'Continue' : 'Play'
+  $('#map-card-chapter').textContent = chapterName(CHAPTERS.indexOf(chapterOf(level)))
+  $('#map-card-title').textContent = t('map.garden', { n: level + 1 })
+  $('#map-card-name').textContent = gardenName(level)
+  $('#map-card-status').textContent = done ? t('map.done', { time: clock(saved?.seconds ?? 0) }) : filled > givens ? t('map.growing', { filled }) : t('map.new')
+  $('#map-card-play-label').textContent = t(done ? 'map.visit' : filled > givens ? 'map.continue' : 'map.play')
   mapCard.inert = false
   mapCard.classList.add('visible')
   mapCanvas.querySelectorAll('.map-node.chosen').forEach((node) => node.classList.remove('chosen'))
@@ -697,11 +695,15 @@ $('#map-card-play').addEventListener('click', () => {
   showScreen('play')
 })
 
-// Every visit opens on the title; ?play goes straight into the current garden, for testing.
-const firstScreen = new URLSearchParams(location.search).has('play') ? 'play' : 'title'
+// Every visit opens on the title; ?play goes straight into the current garden, for testing. After
+// switching language, the game comes back where it was, with Settings open.
+let reopen = null
+try { reopen = sessionStorage.getItem(REOPEN); sessionStorage.removeItem(REOPEN) } catch { /* Fine without. */ }
+const firstScreen = new URLSearchParams(location.search).has('play') ? 'play' : ['title', 'map', 'play'].includes(reopen) ? reopen : 'title'
 history.replaceState({ screen: firstScreen }, '', location.pathname + location.search)
 render()
 showScreen(firstScreen, { push: false })
+if (reopen) openSettings()
 
 // Read-only development diagnostics keep visual and canvas tests grounded in the rendered scene.
 if (import.meta.env.DEV) {

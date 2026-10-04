@@ -1,6 +1,7 @@
 // The garden map: one long winding path of stepping-stone islands, from the first garden at the
 // bottom to the last at the top, through a region for every chapter. Layout is pure, so it can be
 // tested; markup turns a layout into HTML for the map screen.
+import { t } from './i18n.js'
 
 export const NODE_GAP = 96
 export const CHAPTER_GAP = 170
@@ -92,14 +93,14 @@ export function mapMarkup(layout, chapters, { completed, isUnlocked, frontier, n
   }).join('')
   const banners = layout.banners.map((banner) => {
     const style = CHAPTER_STYLE[banner.index % CHAPTER_STYLE.length]
-    return `<div class="map-banner" style="top:${banner.y}px;--ribbon:${style.ribbon}"><strong>${banner.name}</strong><small>Gardens ${banner.start + 1}–${banner.start + banner.count}</small></div>`
+    return `<div class="map-banner" style="top:${banner.y}px;--ribbon:${style.ribbon}"><strong>${banner.name}</strong><small>${t('map.banner', { from: banner.start + 1, to: banner.start + banner.count })}</small></div>`
   }).join('')
   const art = layout.decorations.map((item, i) => `<svg class="map-deco${item.flip ? ' flip' : ''}" style="left:${item.x}px;top:${item.y}px;--sway:${(i % 5) * 0.7}s" aria-hidden="true"><use href="#art-${item.kind}"/></svg>`).join('')
   // The player's marker stands on the newest garden open to play.
   const walked = layout.nodes[Math.max(0, frontier)]
   const nodes = layout.nodes.map(({ level, x, y, chapter }) => {
     const state = done.has(level) ? 'done' : isUnlocked(level) ? 'open' : 'locked'
-    const label = `Garden ${level + 1}: ${names[level]}${state === 'done' ? ', in balance' : state === 'locked' ? ', not yet open' : ''}`
+    const label = t(state === 'done' ? 'map.nodeDone' : state === 'locked' ? 'map.nodeLocked' : 'map.node', { n: level + 1, name: names[level] })
     return `<button class="map-node ${state}${level === frontier ? ' frontier' : ''}" style="left:${x}px;top:${y}px" data-level="${level}" data-chapter="${chapter}" aria-label="${label}"${state === 'locked' ? ' aria-disabled="true"' : ''}><span class="node-top">${state === 'locked' ? '<i data-lucide="lock" aria-hidden="true"></i>' : `<b>${level + 1}</b>`}</span>${state === 'done' ? '<span class="node-badge"><i data-lucide="check" aria-hidden="true"></i></span>' : ''}</button>`
   }).join('')
   return `${regions}<svg class="map-path" width="${layout.width}" height="${layout.height}" viewBox="0 0 ${layout.width} ${layout.height}" aria-hidden="true"><path class="path-shadow" d="${layout.path}"/><path class="path-sand" d="${layout.path}"/><path class="path-dash" d="${layout.path}"/></svg>${art}${banners}${nodes}<div class="map-marker" style="left:${walked.x}px;top:${walked.y}px" aria-hidden="true"><span><i data-lucide="sprout"></i></span></div>`
