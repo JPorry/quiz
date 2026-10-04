@@ -31,17 +31,15 @@ Screenshots and canvas diagnostics are written to `test-results/`.
 The game has three screens, each a step in the browser's history, so a phone's
 back button walks back through them.
 
-- **Title:** a sunny little seascape, drawn in SVG and animated with CSS
-  (`src/titleArt.js`). A happy island with a smiling face bobs on three bands of
-  rolling waves, with a straw hut puffing smoke, a blossom tree swaying, and a
-  lighthouse whose lamp glows and fades; a tiny ferry chugs back and forth
-  behind it, a fish leaps with a splash, sparkles twinkle on the water, clouds
-  and gulls drift across a pastel sky, petals float down, and a smiling sun
-  peeks in from the corner. The logo is a bubbly "Tidal Garden" whose letters
-  bob one after another, above a big Play button and the number of gardens in
-  balance, with buttons for music, sound effects, and the rules. Tall screens
-  crop the picture's sides to fill; wide ones fit it whole. The 3D garden
-  rests while the title is up.
+- **Title:** a soft dawn over a calm sea, drawn in SVG and animated with CSS
+  (`src/titleArt.js`). The sun glows low behind a little island with a
+  thatched hut, a blossom tree, and a lighthouse; a ferry crosses behind it,
+  distant isles sit on the horizon, and long clouds, gulls, smoke, petals,
+  and the waves all drift on the same left-to-right breeze, while a fish
+  leaps nose first now and then. The logo is set in Fraunces, above a Play
+  button and the number of gardens in balance, with buttons for settings and
+  the rules. Tall screens crop the picture's sides to
+  fill; wide ones fit it whole. The 3D garden rests while the title is up.
 - **Map:** one long winding path of stepping-stone islands, from garden 1 at
   the bottom to garden 210 at the top, through a sea of its own color for each
   chapter. A ribbon names each chapter, little illustrations drift beside the
@@ -53,14 +51,53 @@ back button walks back through them.
   to the marker when it opens, and the 3D scene rests while it covers it.
 - **Garden:** the game itself, laid out to give the board every pixel it can.
   A slim bar on top holds a map button, a little pill with the garden's
-  number, chapter, name, time, and a progress bar, and round buttons for
-  tilt, sound, and the rules. Below the board sits a single hint line, then a
+  number, chapter, name, time, and a progress bar, and a Settings button
+  (sound, tilt, and the rules live there). Below the board sits a single hint line, then a
   dock with the three pieces and Undo, Hint, and Restart chips. On wide
   screens (iPads and desktops held landscape) the dock stands beside the board
   instead, so the board can use the full height; tablets get bigger pieces,
   and short landscape phones a compact, icon-only dock. Finishing a
   garden plays the finale; Onward returns to the map, where the marker hops
   along to the garden that just opened and its card comes up.
+
+## Guided gardens
+
+The first garden teaches the rules on the player's own board (`src/tutorial.js`).
+A coach card above the board takes one rule at a time (never three in a row,
+mind the gap, five and five), each on a real tile it decides, chosen near the
+front of the board. The piece to pick bounces, the tile to place pulses gold,
+and the tiles that decide it wear golden rings; a wrong tile there asks for
+Undo. It ends with the last rule and where Hint is. The first garden of every
+later chapter has a short guide of its own: it introduces the new clue
+(villages, lighthouses, ferries, pilgrims, crossings, the archipelago), then
+shows it deciding a tile, using the solver's simplest clue move. When the clue
+can't decide anything yet, the coach rings those clues and the player plays on
+until one does. Each guide can be skipped, ends when its garden is finished,
+and is remembered once done.
+
+## Settings
+
+The gear on the title, the map, and the garden's bar (and a button in the rules) opens Settings:
+sliders for the music and sound-effect volumes (sliding to nothing switches
+one off), a switch for tilting with the phone, the rules, the language (English or Spanish), Replay the tutorial (the first
+garden is cleared for it, and every chapter guide returns), and Reset all
+progress, which asks for confirmation before clearing every garden, time, and
+guide.
+
+## Languages
+
+The game speaks English and Spanish (Spain). Every word the player sees lives
+in a dictionary per language (`src/locales/en.js`, `src/locales/es.js`), read
+through `src/i18n.js`: `t('key', { values })` fills in `{placeholders}`, and the
+garden and chapter names have their own lists. The first visit follows the
+device's language; the picker in Settings changes it and reloads the game on
+the same screen, with Settings open. Anything a language hasn't translated
+falls back to English, and a test checks that every language has every
+string with the same placeholders. To add a language, copy `es.js`, translate
+it, and list it in `LANGUAGES`.
+
+For development, tapping the map's garden count seven times within three
+seconds opens every garden (and again closes them).
 
 Every visit opens on the title. Add `?play` to the URL to go straight into the
 current garden, as the visual tests do. The map's layout lives in `src/map.js`.
@@ -114,9 +151,8 @@ arpeggio with a celesta shimmer for a finished garden. Effects are decoded once
 and play instantly.
 
 Browsers only allow sound after a tap, so the music starts with the player's
-first tap or key (on iOS both music decks are unlocked by that tap). The title
-and the map have separate switches for music and for sound effects; the
-garden's bar has one speaker that hushes or wakes both. The choices are
+first tap or key (on iOS both music decks are unlocked by that tap). Settings
+has a volume slider each for the music and the sound effects. The choices are
 remembered, and sound pauses while the page is hidden.
 
 ## Puzzle
@@ -337,12 +373,14 @@ along both.
 
 On phones the garden leans very slightly with the device, as if the diorama were
 sitting in it: dipping the right edge lowers the board's east side and raising
-the top edge lifts its north side, by up to eight degrees.
+the top edge lifts its north side, by up to three and a half degrees, reached
+only at a full 30-degree turn of the phone, and followed smoothly.
 Only movement counts: "level" slowly settles to however the phone is held, so
 any comfortable reading angle is neutral. Android browsers share motion freely,
 so tilting starts on; iOS needs a tap on each visit: the first one prompts and
-later ones confirm quietly, without a prompt, once allowed. The tilt button
-in the header turns it on or off, and the choice is remembered. Reduced motion
+later ones confirm quietly, without a prompt, once allowed. A switch in
+Settings (shown only where the phone can tilt the garden) turns it on or off,
+and the choice is remembered. Reduced motion
 leaves the board still.
 
 The water is flat pigment. One cached distance field to the same rounded

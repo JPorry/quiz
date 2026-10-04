@@ -5,6 +5,7 @@ import { connectedTerrain, landMask, landOutline } from './terrain.js'
 import { createRimField, RIM, waterVertexHead, waterVertexBody, waterFragmentHead, waterFragmentColor } from './ocean.js'
 import { RegionCompletions } from './completions.js'
 import { renderProfile, frameIsDue, scheduledFrameTime } from './renderProfile.js'
+import { t, terrain } from './i18n.js'
 import { WaterRipples } from './waterRipples.js'
 import { WaterLife } from './waterLife.js'
 import { SocketBoard, SOCKET_TOP } from './sockets.js'
@@ -101,7 +102,7 @@ export class GardenScene {
     this.renderer.shadowMap.type = THREE.PCFShadowMap
     this.renderer.shadowMap.autoUpdate = false
     this.renderer.outputColorSpace = THREE.SRGBColorSpace
-    this.renderer.domElement.setAttribute('aria-label', 'A little island diorama seen from above, with interactive land and water puzzle cells')
+    this.renderer.domElement.setAttribute('aria-label', t('board.scene'))
     this.renderer.domElement.setAttribute('role', 'img')
     container.append(this.renderer.domElement)
     this.raycaster = new THREE.Raycaster()
@@ -565,7 +566,7 @@ export class GardenScene {
     if (!overlay) return
     this.cells.forEach((cell, index) => {
       const button = overlay.children[index]
-      button.setAttribute('aria-label', `Row ${cell.row + 1}, column ${cell.col + 1}: ${cell.value === null ? 'undecided' : cell.value === 0 ? 'water' : 'land'}${this.clues[cell.row][cell.col] !== null ? ', fixed' : ''}`)
+      button.setAttribute('aria-label', t('board.cell', { row: cell.row + 1, col: cell.col + 1, state: cell.value === null ? t('board.undecided') : terrain(cell.value), fixed: this.clues[cell.row][cell.col] !== null ? t('board.fixed') : '' }))
       button.disabled = this.clues[cell.row][cell.col] !== null || this.complete
     })
     this.positionAccess()
@@ -668,13 +669,13 @@ export class GardenScene {
   }
 
   // The tutorial's marks: the tile to place pulses gold, and the tiles that decide it wear soft
-  // cream rings. Null clears them.
+  // golden-cream rings. Null clears them.
   showGuide(guide) {
     if (!this.guideMarks) {
       this.guideMarks = new THREE.Group()
       this.scene.add(this.guideMarks)
       this.guideGold = new THREE.MeshBasicMaterial({ color: 0xffc94d, transparent: true, opacity: 1, depthTest: false })
-      this.guideCream = new THREE.MeshBasicMaterial({ color: 0xfff6dc, transparent: true, opacity: 0.85, depthTest: false })
+      this.guideCream = new THREE.MeshBasicMaterial({ color: 0xffeab0, transparent: true, opacity: 0.95, depthTest: false })
       this.guideGlow = new THREE.MeshBasicMaterial({ color: 0xffd36e, transparent: true, opacity: 0.35, depthTest: false, depthWrite: false })
     }
     const key = guide ? JSON.stringify([guide.target, guide.because]) : ''
@@ -691,7 +692,7 @@ export class GardenScene {
       this.guideMarks.add(mark)
       this.guideCells.push({ mark, cell: this.cells[row * 10 + col], pulse })
     }
-    for (const cell of guide.because ?? []) add(cell, { material: this.guideCream, size: 0.7, thickness: 0.035 }, false)
+    for (const cell of guide.because ?? []) add(cell, { material: this.guideCream, size: 0.8, thickness: 0.05 }, false)
     if (guide.target) {
       add([guide.target.row, guide.target.col], { material: this.guideGold, size: 0.94, thickness: 0.07 }, true)
       const glow = new THREE.Mesh(new THREE.PlaneGeometry(0.88, 0.88), this.guideGlow)

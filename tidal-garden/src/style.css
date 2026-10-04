@@ -99,9 +99,12 @@ h1 em { font-weight: 400; color: #557b61; }
 .board-access { position: absolute; inset: 0; pointer-events: none; }
 .cell-access { position: absolute; transform: translate(-50%, -50%); opacity: 0; pointer-events: none; background: transparent; border-radius: 5px; }
 .cell-access:focus-visible { opacity: 1; outline: 2px solid #f9ce83; outline-offset: 0; box-shadow: 0 0 0 3px #ffffff50; }
-dialog { padding: 42px; width: min(490px, calc(100% - 32px)); border: 1px solid #e2e9dd; border-radius: 8px; color: var(--ink); background: #f5f7ef; box-shadow: 0 20px 100px #223c3930; max-height: calc(100svh - 40px); overflow-y: auto; }
+/* Dialogs sit between the status bar and the home indicator, and a long one scrolls inside, with
+   its close button pinned to the top corner so it can always be reached. */
+dialog { padding: 42px; width: min(490px, calc(100% - 32px)); border: 1px solid #e2e9dd; border-radius: 8px; color: var(--ink); background: #f5f7ef; box-shadow: 0 20px 100px #223c3930;
+  top: var(--inset-top); bottom: var(--inset-bottom); max-height: calc(100svh - var(--inset-top) - var(--inset-bottom) - 24px); overflow-y: auto; overscroll-behavior: contain; }
 dialog::backdrop { background: #29453940; backdrop-filter: blur(7px); }
-.modal-close { position: absolute; top: 15px; right: 15px; width: 30px; height: 30px; }
+.modal-close { position: sticky; top: -27px; z-index: 2; display: grid; width: 36px; height: 36px; margin: -27px -27px -36px auto; background: #f5f7ef; box-shadow: 0 0 0 4px #f5f7ef; }
 .modal-close svg { width: 17px; height: 17px; }
 dialog .eyebrow { margin: 7px 0 18px; }
 h2 { font: 400 42px/1.08 'DM Serif Display', Georgia, serif; margin: 0 0 24px; }
@@ -112,6 +115,29 @@ h2 { font: 400 42px/1.08 'DM Serif Display', Georgia, serif; margin: 0 0 24px; }
 .primary-button:hover { background: #325440; }
 .primary-button svg { width: 16px; height: 16px; }
 .secondary-button { background: #e7ecdf; }
+/* Settings: a row per setting, with a slider or a picker, then the two fresh starts. */
+.setting { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px 14px; margin: 18px 0; }
+.setting label { display: flex; align-items: center; gap: 12px; font-size: 15px; font-weight: 600; }
+.setting input[type=range] { grid-column: 1 / -1; grid-row: 2; }
+.setting output { font-size: 13px; font-weight: 600; color: #6d8a7c; font-variant-numeric: tabular-nums; }
+.setting select { min-height: 40px; padding: 0 34px 0 14px; border: 1px solid #d6dfd2; border-radius: 10px; font: 600 14px 'DM Sans', sans-serif; color: #27433a; background: #fffdf6 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%236d8a7c' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 12px center; appearance: none; -webkit-appearance: none; }
+.switch { grid-column: 2; appearance: none; -webkit-appearance: none; position: relative; width: 52px; height: 30px; margin: 0; border-radius: 15px; background: #dfe6da; cursor: pointer; transition: background .2s; }
+.switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fffdf6; box-shadow: 0 2px 4px #1d4f4a40; transition: translate .2s; }
+.switch:checked { background: #5bb8ad; }
+.switch:checked::after { translate: 22px 0; }
+.switch:focus-visible { outline: 2px solid #2b8980; outline-offset: 3px; }
+.setting-note { margin: -8px 0 0; font-size: 13px; color: #7d8d7f; }
+input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 28px; margin: 0; background: transparent; touch-action: pan-y; --fill: 100%; }
+input[type=range]::-webkit-slider-runnable-track { height: 8px; border-radius: 4px; background: linear-gradient(90deg, #5bb8ad var(--fill), #dfe6da var(--fill)); }
+input[type=range]::-moz-range-track { height: 8px; border-radius: 4px; background: linear-gradient(90deg, #5bb8ad var(--fill), #dfe6da var(--fill)); }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 26px; height: 26px; margin-top: -9px; border-radius: 50%; background: #fffdf6; border: 0; box-shadow: 0 2px 0 #c9bf9f, 0 3px 10px #1d4f4a40; }
+input[type=range]::-moz-range-thumb { width: 26px; height: 26px; border-radius: 50%; background: #fffdf6; border: 0; box-shadow: 0 2px 0 #c9bf9f, 0 3px 10px #1d4f4a40; }
+.settings-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 28px; padding-top: 22px; border-top: 1px solid #dce3d7; }
+.settings-actions button, .modal-actions .danger-button { min-height: 48px; font-size: 14px; font-weight: 600; }
+.danger-button { min-height: 45px; border-radius: 5px; padding: 10px 17px; display: flex; gap: 10px; align-items: center; justify-content: center; font-size: 12px; color: #a3442e; background: #f6e2d9; }
+.danger-button svg, .secondary-button svg { width: 17px; height: 17px; }
+.modal-actions .danger-button { color: #fdf3ec; background: #b5573f; }
+.modal-actions:has(.danger-button) > * { flex: 1; min-height: 48px; font-size: 14px; font-weight: 600; }
 .rule { display: flex; gap: 16px; margin: 25px 0; }
 .rule-icon { flex-shrink: 0; width: 33px; height: 33px; border-radius: 50%; background: #e6eddf; display: grid; place-items: center; color: #6d9176; }
 .rule-icon svg { width: 18px; height: 18px; }
@@ -128,6 +154,7 @@ h2 { font: 400 42px/1.08 'DM Serif Display', Georgia, serif; margin: 0 0 24px; }
   .icon-button { width: 33px; height: 33px; }
   .icon-button svg { width: 17px; height: 17px; }
   dialog { padding: 34px 26px; }
+  .modal-close { top: -22px; width: 36px; height: 36px; margin: -22px -14px -36px auto; }
   h2 { font-size: 36px; }
 }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition: none !important; } }
@@ -387,11 +414,8 @@ dialog { color: #27433a; }
   .pill-dot, #time { display: none; }
 }
 
-/* Music has its own switch; switched off, its note gets a soft slash through it. */
+/* The map's tools on the right of its bar. */
 .map-tools { display: flex; gap: 10px; }
-.music-toggle { position: relative; }
-.music-toggle.off::after { content: ''; position: absolute; left: 50%; top: 50%; width: 24px; height: 2.5px; border-radius: 2px; background: currentColor; translate: -50% -50%; rotate: -45deg; box-shadow: 0 0 0 1.5px #fffaf0; }
-.music-toggle.off svg { opacity: .55; }
 
 /* The title: a sunny little seascape, with a happy island bobbing in the middle. */
 .title-screen { position: absolute; inset: 0; z-index: 10; overflow: hidden; background: #c3eaf2; opacity: 0; visibility: hidden; transition: opacity .5s ease, visibility 0s .5s; }

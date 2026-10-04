@@ -7,13 +7,16 @@ import { chromium } from '@playwright/test'
 
 const svg = readFileSync(new URL('./icon.svg', import.meta.url), 'utf8')
 // The maskable icon keeps its art inside the middle 80%, the safe zone launchers never crop.
-const maskable = svg.replace('<g id="art">', '<g id="art" transform="translate(102.4 102.4) scale(.8)">')
+// The sky and the sea run to the edges either way; only the sun and the island shrink.
+const maskable = svg.replaceAll('<g class="art">', '<g class="art" transform="translate(102.4 102.4) scale(.8)">')
+// Browser tabs are tiny, so the favicons crop in close around the island and the sun.
+const tab = svg.replace('viewBox="0 0 1024 1024"', 'viewBox="142 250 740 740"')
 const sizes = [
   ['apple-touch-icon.png', 180, svg],
   ['icon-192.png', 192, svg],
   ['icon-512.png', 512, svg],
   ['icon-maskable-512.png', 512, maskable],
-  ['favicon-32.png', 32, svg],
+  ['favicon-32.png', 32, tab],
 ]
 
 const browser = await chromium.launch(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {})
@@ -25,6 +28,6 @@ for (const [file, size, art] of sizes) {
   console.log(file, size)
 }
 await browser.close()
-// The SVG favicon is the icon itself, with rounded corners for browser tabs.
-writeFileSync(new URL('../public/favicon.svg', import.meta.url), svg.replace('<rect width="1024" height="1024" fill="url(#sky)"/>', '<rect width="1024" height="1024" rx="230" fill="url(#sky)"/>').replace('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">', '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024"><clipPath id="round"><rect width="1024" height="1024" rx="230"/></clipPath><g clip-path="url(#round)">').replace('</svg>', '</g></svg>'))
+// The SVG favicon is the close crop, with rounded corners for browser tabs.
+writeFileSync(new URL('../public/favicon.svg', import.meta.url), tab.replace(/<!--[\s\S]*?-->\n\s*/, '').replace('<svg xmlns="http://www.w3.org/2000/svg" viewBox="142 250 740 740">', '<svg xmlns="http://www.w3.org/2000/svg" viewBox="142 250 740 740"><clipPath id="round"><rect x="142" y="250" width="740" height="740" rx="166"/></clipPath><g clip-path="url(#round)">').replace('</svg>', '</g></svg>'))
 console.log('favicon.svg')
