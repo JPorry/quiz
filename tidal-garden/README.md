@@ -31,9 +31,17 @@ Screenshots and canvas diagnostics are written to `test-results/`.
 The game has three screens, each a step in the browser's history, so a phone's
 back button walks back through them.
 
-- **Title:** a big Tidal Garden logo and a Play button over the player's current
-  garden, softly blurred behind. It shows how many gardens are in balance, with
-  buttons for music, sound effects, and the rules.
+- **Title:** a sunny little seascape, drawn in SVG and animated with CSS
+  (`src/titleArt.js`). A happy island with a smiling face bobs on three bands of
+  rolling waves, with a straw hut puffing smoke, a blossom tree swaying, and a
+  lighthouse whose lamp glows and fades; a tiny ferry chugs back and forth
+  behind it, a fish leaps with a splash, sparkles twinkle on the water, clouds
+  and gulls drift across a pastel sky, petals float down, and a smiling sun
+  peeks in from the corner. The logo is a bubbly "Tidal Garden" whose letters
+  bob one after another, above a big Play button and the number of gardens in
+  balance, with buttons for music, sound effects, and the rules. Tall screens
+  crop the picture's sides to fill; wide ones fit it whole. The 3D garden
+  rests while the title is up.
 - **Map:** one long winding path of stepping-stone islands, from garden 1 at
   the bottom to garden 210 at the top, through a sea of its own color for each
   chapter. A ribbon names each chapter, little illustrations drift beside the
@@ -56,6 +64,16 @@ back button walks back through them.
 
 Every visit opens on the title. Add `?play` to the URL to go straight into the
 current garden, as the visual tests do. The map's layout lives in `src/map.js`.
+
+## Install as an app
+
+Tidal Garden can be added to a phone's home screen and opens full screen like an
+app, with its own icon: on iOS, Share → Add to Home Screen; on Android, Install
+app from the browser's menu. `index.html` carries the home-screen icon, title,
+and status bar settings for iOS, and `public/manifest.webmanifest` describes the
+app for other browsers. The icon, the happy island under a smiling sun, is drawn
+in `scripts/icon.svg`; `node scripts/render-icons.mjs` renders it into the
+favicons, the iOS icon, and the manifest's icons, including a maskable one.
 
 ## Music and sound
 

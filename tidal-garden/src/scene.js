@@ -749,8 +749,9 @@ export class GardenScene {
   }
 
   animate(time) {
-    // While the map covers the garden, nothing needs drawing.
-    if (this.paused) { this.lastFrame = NaN; return }
+    // While the title or the map covers the garden, nothing needs drawing.
+    // (It still draws its very first frame, so the garden is ready the moment it's shown.)
+    if (this.paused && this.renderedFrames) { this.lastFrame = NaN; return }
     if (!frameIsDue(time, this.lastFrame, this.profile.maxFps, document.hidden)) return
     const delta = Math.min(0.1, (time - (Number.isFinite(this.lastFrame) ? this.lastFrame : time)) / 1000)
     this.lastFrame = scheduledFrameTime(time, this.lastFrame, this.profile.maxFps)
