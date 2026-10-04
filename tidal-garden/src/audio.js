@@ -30,9 +30,18 @@ export class GardenAudio {
     this.base = base
     this.music = true
     this.effects = true
+    // How loud each one plays, from 0 to 1, set in Settings.
+    this.musicVolume = 1
+    this.effectsVolume = 1
+    const level = (value) => (Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 1)
     try {
       const saved = JSON.parse(storage?.getItem(PREFERENCES) ?? 'null')
-      if (saved) { this.music = saved.music !== false; this.effects = saved.effects !== false }
+      if (saved) {
+        this.music = saved.music !== false
+        this.effects = saved.effects !== false
+        this.musicVolume = level(saved.musicVolume)
+        this.effectsVolume = level(saved.effectsVolume)
+      }
     } catch { /* Preferences are a nicety. */ }
     this.mood = 'title'
     this.buffers = new Map()
@@ -41,8 +50,11 @@ export class GardenAudio {
   }
 
   save() {
-    try { this.storage?.setItem(PREFERENCES, JSON.stringify({ music: this.music, effects: this.effects })) } catch { /* Fine without. */ }
+    try { this.storage?.setItem(PREFERENCES, JSON.stringify({ music: this.music, effects: this.effects, musicVolume: this.musicVolume, effectsVolume: this.effectsVolume })) } catch { /* Fine without. */ }
   }
+
+  // The music's loudness for a mood, with the player's volume and the music switch.
+  musicGain(mood = this.mood) { return this.music ? MOODS[mood].level * this.musicVolume : 0 }
 
   // The first tap or key wakes everything up: the mixer, the effects, and the music decks.
   unlock() {
@@ -59,10 +71,10 @@ export class GardenAudio {
     compressor.ratio.value = 3
     compressor.connect(c.destination)
     this.musicLevel = c.createGain()
-    this.musicLevel.gain.value = this.music ? MOODS[this.mood].level : 0
+    this.musicLevel.gain.value = this.musicGain()
     this.musicLevel.connect(compressor)
     this.fxLevel = c.createGain()
-    this.fxLevel.gain.value = 0.9
+    this.fxLevel.gain.value = 0.9 * this.effectsVolume
     this.fxLevel.connect(compressor)
     // Two decks, each a streaming audio element, both started inside this tap so that iOS lets
     // them play later on their own.
@@ -145,15 +157,16 @@ export class GardenAudio {
     const before = MOODS[this.mood]
     this.mood = name
     if (!this.context) return
-    this.musicLevel.gain.setTargetAtTime(this.music ? MOODS[name].level : 0, this.context.currentTime, 1)
+    this.musicLevel.gain.setTargetAtTime(this.musicGain(name), this.context.currentTime, 1)
     if (this.music && this.playing && MOODS[name].tracks !== before.tracks) this.crossfade(this.nextTrack(name), 3)
   }
 
   setMusic(on) {
     this.music = on
+    if (on && !this.musicVolume) this.musicVolume = 0.8
     this.save()
     if (!this.context) return
-    this.musicLevel.gain.setTargetAtTime(on ? MOODS[this.mood].level : 0, this.context.currentTime, 0.5)
+    this.musicLevel.gain.setTargetAtTime(this.musicGain(), this.context.currentTime, 0.5)
     if (on && !this.playing) this.startMusic()
     if (!on) {
       // Fade out, then rest the decks.
@@ -169,7 +182,28 @@ export class GardenAudio {
 
   setEffects(on) {
     this.effects = on
+    if (on && !this.effectsVolume) {
+      this.effectsVolume = 0.8
+      if (this.context) this.fxLevel.gain.setTargetAtTime(0.9 * this.effectsVolume, this.context.currentTime, 0.05)
+    }
     this.save()
+  }
+
+  // The Settings sliders. Sliding to nothing switches that sound off; sliding up switches it on.
+  setMusicVolume(volume) {
+    this.musicVolume = Math.min(1, Math.max(0, volume))
+    if ((this.musicVolume > 0) !== this.music) this.setMusic(this.musicVolume > 0)
+    else {
+      this.save()
+      if (this.context) this.musicLevel.gain.setTargetAtTime(this.musicGain(), this.context.currentTime, 0.1)
+    }
+  }
+
+  setEffectsVolume(volume) {
+    this.effectsVolume = Math.min(1, Math.max(0, volume))
+    this.effects = this.effectsVolume > 0
+    this.save()
+    if (this.context) this.fxLevel.gain.setTargetAtTime(0.9 * this.effectsVolume, this.context.currentTime, 0.05)
   }
 
   // Plays a named effect now, or `at` seconds from now.

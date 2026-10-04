@@ -222,6 +222,14 @@ export class GardenGame {
     this.save()
   }
 
+  // Clears every garden: nothing finished, no tiles, no times, back to the first garden.
+  resetAll() {
+    this.completed = []
+    this.grids = {}
+    this.selected = 0
+    this.load(0)
+  }
+
   save() {
     this.grids[this.level] = { grid: this.grid, history: this.history, seconds: this.seconds }
     try {

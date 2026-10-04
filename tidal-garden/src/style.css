@@ -112,6 +112,24 @@ h2 { font: 400 42px/1.08 'DM Serif Display', Georgia, serif; margin: 0 0 24px; }
 .primary-button:hover { background: #325440; }
 .primary-button svg { width: 16px; height: 16px; }
 .secondary-button { background: #e7ecdf; }
+/* Settings: a row per setting, with a slider or a picker, then the two fresh starts. */
+.setting { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px 14px; margin: 18px 0; }
+.setting label { display: flex; align-items: center; gap: 12px; font-size: 15px; font-weight: 600; }
+.setting input[type=range] { grid-column: 1 / -1; grid-row: 2; }
+.setting output { font-size: 13px; font-weight: 600; color: #6d8a7c; font-variant-numeric: tabular-nums; }
+.setting select { min-height: 40px; padding: 0 34px 0 14px; border: 1px solid #d6dfd2; border-radius: 10px; font: 600 14px 'DM Sans', sans-serif; color: #27433a; background: #fffdf6 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%236d8a7c' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 12px center; appearance: none; -webkit-appearance: none; }
+.setting-note { margin: -8px 0 0; font-size: 13px; color: #7d8d7f; }
+input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 28px; margin: 0; background: transparent; touch-action: pan-y; --fill: 100%; }
+input[type=range]::-webkit-slider-runnable-track { height: 8px; border-radius: 4px; background: linear-gradient(90deg, #5bb8ad var(--fill), #dfe6da var(--fill)); }
+input[type=range]::-moz-range-track { height: 8px; border-radius: 4px; background: linear-gradient(90deg, #5bb8ad var(--fill), #dfe6da var(--fill)); }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 26px; height: 26px; margin-top: -9px; border-radius: 50%; background: #fffdf6; border: 0; box-shadow: 0 2px 0 #c9bf9f, 0 3px 10px #1d4f4a40; }
+input[type=range]::-moz-range-thumb { width: 26px; height: 26px; border-radius: 50%; background: #fffdf6; border: 0; box-shadow: 0 2px 0 #c9bf9f, 0 3px 10px #1d4f4a40; }
+.settings-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 28px; padding-top: 22px; border-top: 1px solid #dce3d7; }
+.settings-actions button, .modal-actions .danger-button { min-height: 48px; font-size: 14px; font-weight: 600; }
+.danger-button { min-height: 45px; border-radius: 5px; padding: 10px 17px; display: flex; gap: 10px; align-items: center; justify-content: center; font-size: 12px; color: #a3442e; background: #f6e2d9; }
+.danger-button svg, .secondary-button svg { width: 17px; height: 17px; }
+.modal-actions .danger-button { color: #fdf3ec; background: #b5573f; }
+.modal-actions:has(.danger-button) > * { flex: 1; min-height: 48px; font-size: 14px; font-weight: 600; }
 .rule { display: flex; gap: 16px; margin: 25px 0; }
 .rule-icon { flex-shrink: 0; width: 33px; height: 33px; border-radius: 50%; background: #e6eddf; display: grid; place-items: center; color: #6d9176; }
 .rule-icon svg { width: 18px; height: 18px; }
