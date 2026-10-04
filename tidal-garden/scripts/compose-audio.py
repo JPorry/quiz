@@ -442,11 +442,15 @@ def effects():
     sfx['land'] = (mix(tone(midi_hz(65), midi_hz(65) * 1.12, 0.16, 0.5, attack=0.008), tone(midi_hz(72), midi_hz(72) * 1.08, 0.2, 0.45, attack=0.008),
                        notes_sfx([(0.0, 0.6, 0, 77, 56)], {0: KALIMBA}), at=[0, 0.09, 0.1]), 0.5)
     sfx['erase'] = (hush(0.45, 2500, 9000, 1.0, attack=0.06, rng=rng), 0.32)
-    # Placing tiles: a droplet or a soft thump of earth, with a note pitched by where the tile lands.
+    # Placing tiles: a bloop of water or a soft thump of earth, with a note pitched by where the tile
+    # lands.
     for i in range(7):
-        drop = tone(midi_hz(PENTA_SFX[3 + i]) * 2, midi_hz(PENTA_SFX[3 + i]), 0.22, 0.55)
-        splash = hush(0.22, 1200, 5000, 0.25, attack=0.004, rng=rng)
-        sfx[f'place-water-{i}'] = (mix(drop, splash, notes_sfx([(0.0, 0.5, 0, PENTA_SFX[3 + i], 60)], {0: KALIMBA}), at=[0, 0.03, 0.02]), 0.6)
+        # Water: a round, low bloop that rises like a real droplet, a small bubble after it, and a
+        # soft kalimba note. Only pure tones that sweep gently upwards, so nothing cracks or whips.
+        f = midi_hz(PENTA_SFX[3 + i])
+        bloop = tone(f * 0.5, f * 0.5 * 1.5, 0.09, 0.55, attack=0.008)
+        after = bubble(f * 0.75, 0.07, 0.22)
+        sfx[f'place-water-{i}'] = (mix(bloop, after, notes_sfx([(0.0, 0.6, 0, PENTA_SFX[3 + i], 56)], {0: KALIMBA}), at=[0, 0.075, 0.015]), 0.55)
         # A soft, low thump of earth and a small round pop, with the marimba note on top.
         thump = tone(160, 80, 0.2, 0.75, attack=0.008)
         pop = tone(midi_hz(PENTA_SFX[i] + 12) * 0.9, midi_hz(PENTA_SFX[i] + 12), 0.12, 0.2, attack=0.006)
