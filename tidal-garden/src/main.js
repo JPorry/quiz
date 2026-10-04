@@ -1,4 +1,4 @@
-import { createIcons, Music, Map as MapIcon, Lock, Play, Footprints, Ship, Sun, House, ArrowRight, Check, ChevronDown, CircleHelp, Clock3, Fingerprint, Grid3x3, Lightbulb, MoonStar, Move3d, RotateCcw, Scale, Sprout, Undo2, Volume2, VolumeX, X } from 'lucide'
+import { createIcons, Music, Map as MapIcon, Lock, Play, Footprints, Ship, Sun, House, ArrowRight, Check, ChevronDown, CircleHelp, Clock3, Fingerprint, Grid3x3, Lightbulb, MoonStar, Move3d, RotateCcw, Scale, Sprout, Undo2, Volume2, VolumeX, X, Settings as SettingsIcon, Languages, GraduationCap, Trash2 } from 'lucide'
 import { GardenGame, GARDENS, GARDEN_NAMES, CHAPTERS, chapterOf, findViolations, findHint } from './game.js'
 import { GardenScene } from './scene.js'
 import { mapLayout, mapMarkup, MAP_ART } from './map.js'
@@ -94,6 +94,7 @@ app.innerHTML = `
       <div class="title-tools">
         <button class="round-button music-toggle" aria-label="Turn the music off" aria-pressed="false" title="Music">${icon('music')}</button>
         <button class="round-button sound-toggle" aria-label="Turn sound effects off" aria-pressed="false" title="Sound effects">${icon('volume-x')}</button>
+        <button class="round-button open-settings" aria-label="Settings" title="Settings">${icon('settings')}</button>
         <button class="round-button" id="title-help" aria-label="Garden rules" title="Garden rules">${icon('circle-help')}</button>
       </div>
     </section>
@@ -105,6 +106,7 @@ app.innerHTML = `
         <div class="map-tools">
           <button class="round-button music-toggle" aria-label="Turn the music off" aria-pressed="false" title="Music">${icon('music')}</button>
           <button class="round-button sound-toggle" aria-label="Turn sound effects off" aria-pressed="false" title="Sound effects">${icon('volume-x')}</button>
+          <button class="round-button open-settings" aria-label="Settings" title="Settings">${icon('settings')}</button>
         </div>
       </header>
       <p class="map-toast" id="map-toast" role="status"></p>
@@ -122,7 +124,7 @@ app.innerHTML = `
 `
 
 const $ = (selector) => document.querySelector(selector)
-const refreshIcons = () => createIcons({ icons: { Music, Map: MapIcon, Lock, Play, Footprints, Ship, Sun, House, ArrowRight, Check, ChevronDown, CircleHelp, Clock3, Fingerprint, Grid3x3, Lightbulb, MoonStar, Move3d, RotateCcw, Scale, Sprout, Undo2, Volume2, VolumeX, X }, attrs: { 'stroke-width': 1.6 } })
+const refreshIcons = () => createIcons({ icons: { Music, Map: MapIcon, Lock, Play, Footprints, Ship, Sun, House, ArrowRight, Check, ChevronDown, CircleHelp, Clock3, Fingerprint, Grid3x3, Lightbulb, MoonStar, Move3d, RotateCcw, Scale, Sprout, Undo2, Volume2, VolumeX, X, Settings: SettingsIcon, Languages, GraduationCap, Trash2 }, attrs: { 'stroke-width': 1.6 } })
 refreshIcons()
 
 const access = $('.board-access')
@@ -204,6 +206,7 @@ const pieceFor = (value) => document.querySelector(`.piece[data-value="${value =
 
 function render() {
   const invalid = findViolations(game.grid, game.puzzle)
+  const coach = tutorial.card(game.level, game.grid, game.selected, game.complete, game.puzzle)
   scene?.update(game.grid, game.puzzle.puzzle, invalid, game.complete, game.puzzle)
   $('#caption-chapter').textContent = chapterOf(game.level).name
   $('#chapter-number').textContent = game.level + 1
@@ -220,7 +223,7 @@ function render() {
   if (finale && !game.complete) endFinale()
   // The raised piece already shows the selection, so the status line only speaks up when it matters.
   // The first garden of a chapter explains what is new until the first tile goes down.
-  const introducing = !game.history.length && CHAPTERS.find((chapter) => chapter.start === game.level && chapter.intro)
+  const introducing = !coach && !game.history.length && CHAPTERS.find((chapter) => chapter.start === game.level && chapter.intro)
   const status = game.complete ? 'A world in balance' : invalid.size ? 'A little out of balance' : hintCell ? hintText(hintCell)
     : introducing ? introducing.intro : ''
   $('#placement-status p').textContent = status
@@ -232,18 +235,17 @@ function render() {
   })
   if (shownSelection !== undefined && shownSelection !== game.selected) burst(pieceFor(game.selected))
   shownSelection = game.selected
-  renderCoach()
+  renderCoach(coach)
 }
 
-// The guided first garden: a card above the board says what to do, the piece to pick bounces, and
+// The guided gardens: a card above the board says what to do, the piece to pick bounces, and
 // the tile to place glows on the board, with soft rings on the tiles that decide it.
-function renderCoach() {
-  const card = tutorial.card(game.level, game.grid, game.selected, game.complete)
+function renderCoach(card) {
   const app = document.querySelector('.garden-app')
   const was = app.classList.contains('coaching')
   app.classList.toggle('coaching', !!card)
   $('#coach').hidden = !card
-  scene?.showGuide(card?.target ? card : null)
+  scene?.showGuide(card?.target || card?.because?.length ? card : null)
   document.querySelectorAll('.piece').forEach((button) => button.classList.toggle('coach-pick', card?.pick !== undefined && card?.pick !== null && button.dataset.value === String(card.pick)))
   // The card takes a row of its own, so the board makes room for it, and takes the room back after.
   if (was !== !!card) scene?.resize()
@@ -387,7 +389,10 @@ function openModal(content) {
   modal.showModal()
 }
 $('.modal-close').addEventListener('click', () => modal.close())
+// Only a click on the backdrop closes it: a button that swaps the content would otherwise count
+// as outside once the dialog shrinks around its new content.
 modal.addEventListener('click', (event) => {
+  if (event.target !== modal) return
   const rect = modal.getBoundingClientRect()
   if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) modal.close()
 })
@@ -401,7 +406,71 @@ $('#reset').addEventListener('click', () => {
 
 function openHelp() {
   audio.play('open')
-  openModal(`<p class="eyebrow">The art of balance</p><h2>A little land.<br>A little water.</h2><div class="rule"><span class="rule-icon">${icon('scale')}</span><div><h3>Equal measure</h3><p>Every row and column contains five water tiles and five land tiles.</p></div></div><div class="rule"><span class="rule-icon">${icon('grid-3x3')}</span><div><h3>Keep the rhythm</h3><p>Three water tiles or three land tiles may never appear consecutively, horizontally or vertically.</p></div></div><div class="rule"><span class="rule-icon">${icon('fingerprint')}</span><div><h3>Every line is its own</h3><p>No two completed rows or columns can have the same terrain pattern.</p></div></div><div class="rule"><span class="rule-icon">${icon('house')}</span><div><h3>Village signs</h3><p>In later gardens, a wooden sign counts the land tiles of its island. Each new tile you join to it raises a little hut, and the village comes to life when the island is closed in at its number.</p></div></div><div class="rule"><span class="rule-icon">${icon('sun')}</span><div><h3>Lighthouses</h3><p>A lighthouse counts the water tiles its light reaches straight up, down, left and right before land or the edge stops it. Glowing dots show what it already sees, and it lights up when every beam ends at its number.</p></div></div><div class="rule"><span class="rule-icon">${icon('ship')}</span><div><h3>Ferries</h3><p>Docks with matching roofs must be joined by water, moving up, down, left and right, so their little ferry can sail from one to the other.</p></div></div><div class="rule"><span class="rule-icon">${icon('footprints')}</span><div><h3>Pilgrims</h3><p>Shrines with matching lanterns must stand on the same island, joined by land up, down, left and right, so their little pilgrim can walk from one to the other.</p></div></div><p class="given-note"><b></b> Stone-rimmed land with a little landmark, and deeper pools of water, mark the terrain already in place.</p>`)
+  openModal(`<p class="eyebrow">The art of balance</p><h2>A little land.<br>A little water.</h2><div class="rule"><span class="rule-icon">${icon('scale')}</span><div><h3>Equal measure</h3><p>Every row and column contains five water tiles and five land tiles.</p></div></div><div class="rule"><span class="rule-icon">${icon('grid-3x3')}</span><div><h3>Keep the rhythm</h3><p>Three water tiles or three land tiles may never appear consecutively, horizontally or vertically.</p></div></div><div class="rule"><span class="rule-icon">${icon('fingerprint')}</span><div><h3>Every line is its own</h3><p>No two completed rows or columns can have the same terrain pattern.</p></div></div><div class="rule"><span class="rule-icon">${icon('house')}</span><div><h3>Village signs</h3><p>In later gardens, a wooden sign counts the land tiles of its island. Each new tile you join to it raises a little hut, and the village comes to life when the island is closed in at its number.</p></div></div><div class="rule"><span class="rule-icon">${icon('sun')}</span><div><h3>Lighthouses</h3><p>A lighthouse counts the water tiles its light reaches straight up, down, left and right before land or the edge stops it. Glowing dots show what it already sees, and it lights up when every beam ends at its number.</p></div></div><div class="rule"><span class="rule-icon">${icon('ship')}</span><div><h3>Ferries</h3><p>Docks with matching roofs must be joined by water, moving up, down, left and right, so their little ferry can sail from one to the other.</p></div></div><div class="rule"><span class="rule-icon">${icon('footprints')}</span><div><h3>Pilgrims</h3><p>Shrines with matching lanterns must stand on the same island, joined by land up, down, left and right, so their little pilgrim can walk from one to the other.</p></div></div><p class="given-note"><b></b> Stone-rimmed land with a little landmark, and deeper pools of water, mark the terrain already in place.</p><div class="modal-actions"><button class="secondary-button" id="help-settings">${icon('settings')} Settings</button></div>`)
+  $('#help-settings').addEventListener('click', openSettings)
+}
+
+// Settings: how loud the music and the effects are, the language, and two fresh starts: the
+// tutorial again, or every garden from the beginning.
+const percent = (value) => Math.round(value * 100)
+function openSettings() {
+  audio.play('open')
+  openModal(`<p class="eyebrow">Settings</p><h2>Make it yours</h2>
+    <div class="setting"><label for="music-volume"><span class="rule-icon">${icon('music')}</span>Music</label><input type="range" id="music-volume" min="0" max="100" step="5" value="${audio.music ? percent(audio.musicVolume) : 0}"><output id="music-volume-value"></output></div>
+    <div class="setting"><label for="effects-volume"><span class="rule-icon">${icon('volume-2')}</span>Sound effects</label><input type="range" id="effects-volume" min="0" max="100" step="5" value="${audio.effects ? percent(audio.effectsVolume) : 0}"><output id="effects-volume-value"></output></div>
+    <div class="setting"><label for="language"><span class="rule-icon">${icon('languages')}</span>Language</label><select id="language"><option value="en" selected>English</option></select></div>
+    <p class="setting-note">More languages are on their way.</p>
+    <div class="settings-actions">
+      <button class="secondary-button" id="replay-tutorial">${icon('graduation-cap')} Replay the tutorial</button>
+      <button class="danger-button" id="reset-progress">${icon('trash-2')} Reset all progress</button>
+    </div>`)
+  const show = () => {
+    $('#music-volume-value').textContent = `${$('#music-volume').value}%`
+    $('#effects-volume-value').textContent = `${$('#effects-volume').value}%`
+    for (const id of ['#music-volume', '#effects-volume']) $(id).style.setProperty('--fill', `${$(id).value}%`)
+  }
+  show()
+  $('#music-volume').addEventListener('input', (event) => { audio.unlock(); audio.setMusicVolume(event.target.value / 100); showAudio(); show() })
+  $('#effects-volume').addEventListener('input', (event) => { audio.setEffectsVolume(event.target.value / 100); showAudio(); show() })
+  // Letting go of the effects slider plays a little tap at the new loudness.
+  $('#effects-volume').addEventListener('change', () => audio.play('tap'))
+  $('#replay-tutorial').addEventListener('click', replayTutorial)
+  $('#reset-progress').addEventListener('click', confirmResetAll)
+}
+document.querySelectorAll('.open-settings').forEach((button) => button.addEventListener('click', openSettings))
+
+// The tutorial plays again in the first garden, cleared for it (a finished garden stays finished),
+// and every chapter's guide comes back too.
+function replayTutorial() {
+  audio.play('start')
+  modal.close()
+  tutorial.restart()
+  closeCard()
+  game.load(0)
+  game.reset()
+  scene?.resetPresentation()
+  hintCell = null
+  if (screen === 'play') { endFinale(); render() } else showScreen('play')
+}
+
+function confirmResetAll() {
+  audio.play('oops')
+  const done = game.completed.length
+  openModal(`<p class="eyebrow">A fresh start</p><h2>Clear every garden?</h2><p class="modal-description">${done ? `All ${done} finished garden${done === 1 ? '' : 's'}, ` : 'All '}your tiles and your times will be cleared, and the tutorial will start again. This can\u2019t be undone.</p><div class="modal-actions"><button class="secondary-button" id="keep-progress">Keep my gardens</button><button class="danger-button" id="confirm-reset-all">${icon('trash-2')} Clear everything</button></div>`)
+  $('#keep-progress').addEventListener('click', () => { audio.play('back'); openSettings() })
+  $('#confirm-reset-all').addEventListener('click', () => {
+    audio.play('restart')
+    game.resetAll()
+    tutorial.restart()
+    shownFrontier = game.frontier
+    scene?.resetPresentation()
+    hintCell = null
+    endFinale()
+    modal.close()
+    render()
+    if (screen === 'title') updateTitle()
+    else showScreen('title')
+  })
 }
 $('#help').addEventListener('click', openHelp)
 $('#title-help').addEventListener('click', openHelp)
@@ -486,6 +555,11 @@ const mapCanvas = $('#map-canvas')
 const mapCard = $('#map-card')
 let cardLevel = null
 
+function updateTitle() {
+  const done = game.completed.length
+  $('#title-progress').textContent = done ? `${done} of ${GARDEN_NAMES.length} gardens in balance` : `${GARDEN_NAMES.length} little gardens to grow`
+}
+
 function showScreen(name, { push = true, offer = false } = {}) {
   if (name === screen) return
   if (screen === 'play') { endFinale(); scene?.showHover(null) }
@@ -498,10 +572,7 @@ function showScreen(name, { push = true, offer = false } = {}) {
   mapScreen.inert = name !== 'map'
   // The title and the map cover the whole garden, so the scene rests while they're open.
   if (scene) scene.paused = name !== 'play'
-  if (name === 'title') {
-    const done = game.completed.length
-    $('#title-progress').textContent = done ? `${done} of ${GARDEN_NAMES.length} gardens in balance` : `${GARDEN_NAMES.length} little gardens to grow`
-  }
+  if (name === 'title') updateTitle()
   if (name === 'map') openMap({ offer })
   else closeCard()
   if (name === 'play') {

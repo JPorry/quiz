@@ -31,17 +31,15 @@ Screenshots and canvas diagnostics are written to `test-results/`.
 The game has three screens, each a step in the browser's history, so a phone's
 back button walks back through them.
 
-- **Title:** a sunny little seascape, drawn in SVG and animated with CSS
-  (`src/titleArt.js`). A happy island with a smiling face bobs on three bands of
-  rolling waves, with a straw hut puffing smoke, a blossom tree swaying, and a
-  lighthouse whose lamp glows and fades; a tiny ferry chugs back and forth
-  behind it, a fish leaps with a splash, sparkles twinkle on the water, clouds
-  and gulls drift across a pastel sky, petals float down, and a smiling sun
-  peeks in from the corner. The logo is a bubbly "Tidal Garden" whose letters
-  bob one after another, above a big Play button and the number of gardens in
-  balance, with buttons for music, sound effects, and the rules. Tall screens
-  crop the picture's sides to fill; wide ones fit it whole. The 3D garden
-  rests while the title is up.
+- **Title:** a soft dawn over a calm sea, drawn in SVG and animated with CSS
+  (`src/titleArt.js`). The sun glows low behind a little island with a
+  thatched hut, a blossom tree, and a lighthouse; a ferry crosses behind it,
+  distant isles sit on the horizon, and long clouds, gulls, smoke, petals,
+  and the waves all drift on the same left-to-right breeze, while a fish
+  leaps nose first now and then. The logo is set in Fraunces, above a Play
+  button and the number of gardens in balance, with buttons for music, sound
+  effects, settings, and the rules. Tall screens crop the picture's sides to
+  fill; wide ones fit it whole. The 3D garden rests while the title is up.
 - **Map:** one long winding path of stepping-stone islands, from garden 1 at
   the bottom to garden 210 at the top, through a sea of its own color for each
   chapter. A ribbon names each chapter, little illustrations drift beside the
@@ -61,6 +59,33 @@ back button walks back through them.
   and short landscape phones a compact, icon-only dock. Finishing a
   garden plays the finale; Onward returns to the map, where the marker hops
   along to the garden that just opened and its card comes up.
+
+## Guided gardens
+
+The first garden teaches the rules on the player's own board (`src/tutorial.js`).
+A coach card above the board takes one rule at a time (never three in a row,
+mind the gap, five and five), each on a real tile it decides, chosen near the
+front of the board. The piece to pick bounces, the tile to place pulses gold,
+and the tiles that decide it wear golden rings; a wrong tile there asks for
+Undo. It ends with the last rule and where Hint is. The first garden of every
+later chapter has a short guide of its own: it introduces the new clue
+(villages, lighthouses, ferries, pilgrims, crossings, the archipelago), then
+shows it deciding a tile, using the solver's simplest clue move. When the clue
+can't decide anything yet, the coach rings those clues and the player plays on
+until one does. Each guide can be skipped, ends when its garden is finished,
+and is remembered once done.
+
+## Settings
+
+The gear on the title and the map (and a button in the rules) opens Settings:
+sliders for the music and sound-effect volumes (sliding to nothing switches
+one off), the language (English for now), Replay the tutorial (the first
+garden is cleared for it, and every chapter guide returns), and Reset all
+progress, which asks for confirmation before clearing every garden, time, and
+guide.
+
+For development, tapping the map's garden count seven times within three
+seconds opens every garden (and again closes them).
 
 Every visit opens on the title. Add `?play` to the URL to go straight into the
 current garden, as the visual tests do. The map's layout lives in `src/map.js`.

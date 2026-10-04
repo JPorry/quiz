@@ -668,13 +668,13 @@ export class GardenScene {
   }
 
   // The tutorial's marks: the tile to place pulses gold, and the tiles that decide it wear soft
-  // cream rings. Null clears them.
+  // golden-cream rings. Null clears them.
   showGuide(guide) {
     if (!this.guideMarks) {
       this.guideMarks = new THREE.Group()
       this.scene.add(this.guideMarks)
       this.guideGold = new THREE.MeshBasicMaterial({ color: 0xffc94d, transparent: true, opacity: 1, depthTest: false })
-      this.guideCream = new THREE.MeshBasicMaterial({ color: 0xfff6dc, transparent: true, opacity: 0.85, depthTest: false })
+      this.guideCream = new THREE.MeshBasicMaterial({ color: 0xffeab0, transparent: true, opacity: 0.95, depthTest: false })
       this.guideGlow = new THREE.MeshBasicMaterial({ color: 0xffd36e, transparent: true, opacity: 0.35, depthTest: false, depthWrite: false })
     }
     const key = guide ? JSON.stringify([guide.target, guide.because]) : ''
@@ -691,7 +691,7 @@ export class GardenScene {
       this.guideMarks.add(mark)
       this.guideCells.push({ mark, cell: this.cells[row * 10 + col], pulse })
     }
-    for (const cell of guide.because ?? []) add(cell, { material: this.guideCream, size: 0.7, thickness: 0.035 }, false)
+    for (const cell of guide.because ?? []) add(cell, { material: this.guideCream, size: 0.8, thickness: 0.05 }, false)
     if (guide.target) {
       add([guide.target.row, guide.target.col], { material: this.guideGold, size: 0.94, thickness: 0.07 }, true)
       const glow = new THREE.Mesh(new THREE.PlaneGeometry(0.88, 0.88), this.guideGlow)
