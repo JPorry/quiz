@@ -374,7 +374,8 @@ along both.
 
 On phones the garden leans very slightly with the device, as if the diorama were
 sitting in it: dipping the right edge lowers the board's east side and raising
-the top edge lifts its north side, by up to eight degrees.
+the top edge lifts its north side, by up to three and a half degrees, reached
+only at a full 30-degree turn of the phone, and followed smoothly.
 Only movement counts: "level" slowly settles to however the phone is held, so
 any comfortable reading angle is neutral. Android browsers share motion freely,
 so tilting starts on; iOS needs a tap on each visit: the first one prompts and
