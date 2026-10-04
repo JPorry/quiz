@@ -99,9 +99,12 @@ h1 em { font-weight: 400; color: #557b61; }
 .board-access { position: absolute; inset: 0; pointer-events: none; }
 .cell-access { position: absolute; transform: translate(-50%, -50%); opacity: 0; pointer-events: none; background: transparent; border-radius: 5px; }
 .cell-access:focus-visible { opacity: 1; outline: 2px solid #f9ce83; outline-offset: 0; box-shadow: 0 0 0 3px #ffffff50; }
-dialog { padding: 42px; width: min(490px, calc(100% - 32px)); border: 1px solid #e2e9dd; border-radius: 8px; color: var(--ink); background: #f5f7ef; box-shadow: 0 20px 100px #223c3930; max-height: calc(100svh - 40px); overflow-y: auto; }
+/* Dialogs sit between the status bar and the home indicator, and a long one scrolls inside, with
+   its close button pinned to the top corner so it can always be reached. */
+dialog { padding: 42px; width: min(490px, calc(100% - 32px)); border: 1px solid #e2e9dd; border-radius: 8px; color: var(--ink); background: #f5f7ef; box-shadow: 0 20px 100px #223c3930;
+  top: var(--inset-top); bottom: var(--inset-bottom); max-height: calc(100svh - var(--inset-top) - var(--inset-bottom) - 24px); overflow-y: auto; overscroll-behavior: contain; }
 dialog::backdrop { background: #29453940; backdrop-filter: blur(7px); }
-.modal-close { position: absolute; top: 15px; right: 15px; width: 30px; height: 30px; }
+.modal-close { position: sticky; top: -27px; z-index: 2; display: grid; width: 36px; height: 36px; margin: -27px -27px -36px auto; background: #f5f7ef; box-shadow: 0 0 0 4px #f5f7ef; }
 .modal-close svg { width: 17px; height: 17px; }
 dialog .eyebrow { margin: 7px 0 18px; }
 h2 { font: 400 42px/1.08 'DM Serif Display', Georgia, serif; margin: 0 0 24px; }
@@ -146,6 +149,7 @@ input[type=range]::-moz-range-thumb { width: 26px; height: 26px; border-radius: 
   .icon-button { width: 33px; height: 33px; }
   .icon-button svg { width: 17px; height: 17px; }
   dialog { padding: 34px 26px; }
+  .modal-close { top: -22px; width: 36px; height: 36px; margin: -22px -14px -36px auto; }
   h2 { font-size: 36px; }
 }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition: none !important; } }
