@@ -64,10 +64,6 @@ export const EN = {
   'title.fresh': '{total} little gardens to grow',
   'audio.music': 'Music',
   'audio.effects': 'Sound effects',
-  'audio.musicOff': 'Turn the music off',
-  'audio.musicOn': 'Turn the music on',
-  'audio.effectsOff': 'Turn sound effects off',
-  'audio.effectsOn': 'Turn sound effects on',
   'settings': 'Settings',
 
   // The map.

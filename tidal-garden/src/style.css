@@ -414,11 +414,8 @@ dialog { color: #27433a; }
   .pill-dot, #time { display: none; }
 }
 
-/* Music has its own switch; switched off, its note gets a soft slash through it. */
+/* The map's tools on the right of its bar. */
 .map-tools { display: flex; gap: 10px; }
-.music-toggle { position: relative; }
-.music-toggle.off::after { content: ''; position: absolute; left: 50%; top: 50%; width: 24px; height: 2.5px; border-radius: 2px; background: currentColor; translate: -50% -50%; rotate: -45deg; box-shadow: 0 0 0 1.5px #fffaf0; }
-.music-toggle.off svg { opacity: .55; }
 
 /* The title: a sunny little seascape, with a happy island bobbing in the middle. */
 .title-screen { position: absolute; inset: 0; z-index: 10; overflow: hidden; background: #c3eaf2; opacity: 0; visibility: hidden; transition: opacity .5s ease, visibility 0s .5s; }
