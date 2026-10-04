@@ -1,109 +1,95 @@
-// Small, soft sounds made on the fly: wooden plinks and bubbly pops in C major
-// pentatonic, so nothing ever clashes.
-const NOTE = (semitones) => 523.25 * 2 ** (semitones / 12)
-const PENTATONIC = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21]
+// Small, soft sounds made on the fly, all in one pentatonic key so nothing clashes:
+// wooden plinks, bubbly pops, and crunchy little digs.
+const NOTES = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24]
 
 export class Sounds {
   constructor() {
     this.enabled = true
-    this.context = null
-    this.step = 0
+    this.ctx = null
   }
 
   unlock() {
-    if (this.context) {
-      if (this.context.state === 'suspended') this.context.resume()
+    if (this.ctx) {
+      if (this.ctx.state === 'suspended') this.ctx.resume()
       return
     }
-    const Context = window.AudioContext ?? window.webkitAudioContext
-    if (!Context) return
-    this.context = new Context()
-    this.master = this.context.createGain()
-    this.master.gain.value = 0.32
-    this.master.connect(this.context.destination)
+    const Ctx = window.AudioContext || window.webkitAudioContext
+    if (!Ctx) return
+    this.ctx = new Ctx()
+    this.master = this.ctx.createGain()
+    this.master.gain.value = 0.35
+    this.master.connect(this.ctx.destination)
   }
 
-  // A marimba-ish plink: a sine with a quick, rounded decay and a faint overtone.
-  pluck(frequency, { at = 0, length = 0.5, volume = 0.5, overtone = 4 } = {}) {
-    const c = this.context
-    const t = c.currentTime + at
-    const gain = c.createGain()
-    gain.gain.setValueAtTime(0, t)
-    gain.gain.linearRampToValueAtTime(volume, t + 0.008)
-    gain.gain.exponentialRampToValueAtTime(0.0008, t + length)
-    gain.connect(this.master)
-    for (const [ratio, level] of [[1, 1], [overtone, 0.18]]) {
-      const osc = c.createOscillator()
-      const g = c.createGain()
-      osc.type = 'sine'
-      osc.frequency.value = frequency * ratio
-      g.gain.value = level
-      osc.connect(g).connect(gain)
-      osc.start(t)
-      osc.stop(t + length + 0.05)
+  note(n) {
+    return 523.25 * 2 ** (NOTES[Math.max(0, Math.min(NOTES.length - 1, n))] / 12)
+  }
+
+  pluck(freq, { at = 0, len = 0.45, vol = 0.45, ot = 4 } = {}) {
+    if (!this.enabled || !this.ctx) return
+    const t = this.ctx.currentTime + at
+    const g = this.ctx.createGain()
+    g.gain.setValueAtTime(0, t)
+    g.gain.linearRampToValueAtTime(vol, t + 0.008)
+    g.gain.exponentialRampToValueAtTime(0.0008, t + len)
+    g.connect(this.master)
+    for (const [r, l] of [[1, 1], [ot, 0.16]]) {
+      const o = this.ctx.createOscillator(), og = this.ctx.createGain()
+      o.frequency.value = freq * r
+      og.gain.value = l
+      o.connect(og).connect(g)
+      o.start(t)
+      o.stop(t + len + 0.05)
     }
   }
 
-  // A rising bubble pop.
-  pop(from, to, { at = 0, length = 0.12, volume = 0.35 } = {}) {
-    const c = this.context
-    const t = c.currentTime + at
-    const osc = c.createOscillator()
-    const gain = c.createGain()
-    osc.type = 'sine'
-    osc.frequency.setValueAtTime(from, t)
-    osc.frequency.exponentialRampToValueAtTime(to, t + length)
-    gain.gain.setValueAtTime(volume, t)
-    gain.gain.exponentialRampToValueAtTime(0.0008, t + length + 0.04)
-    osc.connect(gain).connect(this.master)
-    osc.start(t)
-    osc.stop(t + length + 0.06)
+  pop(f1, f2, { at = 0, len = 0.1, vol = 0.25 } = {}) {
+    if (!this.enabled || !this.ctx) return
+    const t = this.ctx.currentTime + at
+    const o = this.ctx.createOscillator(), g = this.ctx.createGain()
+    o.frequency.setValueAtTime(f1, t)
+    o.frequency.exponentialRampToValueAtTime(f2, t + len)
+    g.gain.setValueAtTime(vol, t)
+    g.gain.exponentialRampToValueAtTime(0.0008, t + len + 0.04)
+    o.connect(g).connect(this.master)
+    o.start(t)
+    o.stop(t + len + 0.06)
   }
 
-  play(name, at = 0) {
-    if (!this.enabled || !this.context) return
-    const p = (i) => NOTE(PENTATONIC[i % PENTATONIC.length] + 12 * Math.floor(i / PENTATONIC.length))
-    switch (name) {
-      case 'tap':
-        this.pop(700, 1100, { at, volume: 0.18, length: 0.07 })
-        break
-      case 'place':
-        this.step = (this.step + 1) % 6
-        this.pluck(p(this.step + 1), { at, length: 0.45, volume: 0.45 })
-        this.pop(420, 760, { at: at + 0.02, volume: 0.15 })
-        break
-      case 'double':
-        this.pluck(p(this.step + 3), { at, length: 0.4, volume: 0.4 })
-        this.pluck(p(this.step + 5), { at: at + 0.07, length: 0.45, volume: 0.35 })
-        break
-      case 'remove':
-        this.pop(600, 300, { at, volume: 0.22, length: 0.14 })
-        break
-      case 'undo':
-        this.pluck(p(4), { at, length: 0.3, volume: 0.3 })
-        this.pluck(p(2), { at: at + 0.07, length: 0.35, volume: 0.28 })
-        break
-      case 'carrots':
-        for (let i = 0; i < 3; i++) this.pop(500 + i * 160, 900 + i * 200, { at: at + i * 0.08, volume: 0.14 })
-        break
-      case 'hint':
-        this.pluck(p(7), { at, length: 0.6, volume: 0.25, overtone: 3 })
-        this.pluck(p(9), { at: at + 0.12, length: 0.8, volume: 0.22, overtone: 3 })
-        break
-      case 'bonk':
-        this.pluck(180, { at, length: 0.2, volume: 0.4, overtone: 2.7 })
-        break
-      case 'oops':
-        this.pluck(p(2), { at, length: 0.3, volume: 0.22 })
-        this.pluck(p(0) * 0.94, { at: at + 0.1, length: 0.4, volume: 0.22 })
-        break
-      case 'start':
-        ;[0, 2, 4, 5].forEach((n, i) => this.pluck(p(n), { at: at + i * 0.07, length: 0.5, volume: 0.32 }))
-        break
-      case 'win':
-        ;[0, 2, 4, 5, 7, 9].forEach((n, i) => this.pluck(p(n), { at: at + i * 0.09, length: 0.9, volume: 0.36 }))
-        this.pluck(p(10), { at: at + 0.6, length: 1.6, volume: 0.3, overtone: 3 })
-        break
-    }
+  // a short burst of filtered noise, like a paw scooping soil
+  crunch(vol = 0.06) {
+    if (!this.enabled || !this.ctx) return
+    const len = 0.05
+    const buf = this.ctx.createBuffer(1, Math.floor(this.ctx.sampleRate * len), this.ctx.sampleRate)
+    const d = buf.getChannelData(0)
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length) ** 2
+    const s = this.ctx.createBufferSource(), f = this.ctx.createBiquadFilter(), g = this.ctx.createGain()
+    s.buffer = buf
+    f.type = 'bandpass'
+    f.frequency.value = 900 + Math.random() * 600
+    f.Q.value = 0.8
+    g.gain.value = vol
+    s.connect(f).connect(g).connect(this.master)
+    s.start()
+  }
+
+  dig(step) {
+    this.pluck(this.note(step % 8 + 1))
+    this.pluck(this.note(step % 8 + 3), { at: 0.06, vol: 0.25 })
+  }
+  fill() { this.pop(520, 260, { len: 0.14 }) }
+  snap() { this.pluck(this.note(6), { len: 0.18, vol: 0.2 }) }
+  press() { this.pop(500, 700, { len: 0.05, vol: 0.12 }) }
+  bonk() { this.pluck(170, { len: 0.25, vol: 0.4, ot: 2.7 }) }
+  munch(i) {
+    this.pop(700, 1300, { len: 0.08, vol: 0.18 })
+    this.pluck(this.note(5 + (i % 4)), { vol: 0.22, len: 0.3 })
+  }
+  undo() {
+    this.pluck(this.note(3), { len: 0.25, vol: 0.25 })
+    this.pluck(this.note(1), { at: 0.07, len: 0.3, vol: 0.22 })
+  }
+  win() {
+    ;[0, 2, 4, 5, 7, 9].forEach((n, k) => this.pluck(this.note(n), { at: k * 0.09, len: 0.9, vol: 0.32 }))
   }
 }

@@ -21,79 +21,57 @@ Add `?play` to the URL to skip the title, `?unlock` to open every level, and
 dev server and use `?zoom=`, `?elev=`, `?yaw=`, `?pan=`, `?moods=` and
 `?binky=1` to look at them up close.
 
+## The warren
+
+The game is a slab of soil seen from the front, like an ant farm, rendered with
+Three.js in `src/scene.js`. The meadow and a raised carrot patch sit on top; a
+shaft runs from the patch down into the pantry room below it. Every room is
+carved into the face as the back half of a sphere with a flat floor, a rug and
+a hanging lamp, and every tunnel as the back half of a tube. The holes in the
+soil face are cut with the stencil buffer, so a tunnel opens up live while the
+player drags it.
+
 ## Rules
 
-- Each burrow has baskets. Lay exactly one path per basket.
-- One or two paths can join two burrows. They run straight, only to the nearest
-  burrow in that direction, and never cross.
-- Grandma's carrots travel along the paths, so every burrow must be joined to
-  Grandma's.
+- Each room is home to a family: a single bunny, a couple, or parents with
+  babies. Every bunny needs its own tunnel, so a family of four needs four.
+- One or two tunnels can join two rooms. They run straight, only to the nearest
+  room in that direction, and never cross.
+- Carrots come down from the patch and travel along the tunnels, so every room
+  must be joined to the patch.
 
-## How the rules show up
-
-One object carries both of the puzzle's checks: the woven basket.
-
-- **Waiting:** empty baskets sit in a ring on the mound's top. Their number is
-  how many paths the burrow still needs, so the mound reads like a clue without
-  printing one. (The Numbers chip adds small number badges for anyone who
-  prefers them.)
-- **Set out:** laying a path takes a basket off the mound and puts it beside the
-  path's mouth, on the side the path leaves from. Double paths set out two.
-- **Filled:** carrots only arrive along paths from Grandma's, so a burrow's
-  set-out baskets fill, the round door swings open on a warm glow, and its
-  bunny wakes up once it is joined to her. Baskets fill in waves outward from
-  Grandma, nearest first, and a courier bunny with a basket hops the route to
-  the farthest burrow that just joined. A group that closes itself off shows
-  every basket set out and empty, with sleepy bunnies.
-- **Too many paths:** an extra path arrives with no basket left, carrots spill
-  on the grass, the mound shakes, and the bunny frets with a bead of sweat.
+Each bunny shows its own state: asleep with a "z" while it has no tunnel,
+bouncing eagerly once its tunnel is dug, and hugging its own carrot with happy
+^ ^ eyes when the carrots arrive. A room joined to the patch lights its lamp
+and its tunnels get fairy lights. Too many tunnels spill carrots on the floor
+and the family's ears droop with a bead of sweat.
 
 ## Bunnies
 
-The bunnies are built from primitives in `src/bunny.js`, in their own units and
-scaled into the meadow. Each has a turned pear-shaped body with a lighter belly,
-big hind feet and front paws, a pompom tail, puffy cheeks, a muzzle with a nose
-that wiggles, a ω mouth, blush, whiskers, and glossy eyes with two highlights.
-Ears hang from pivots so they can perk, twitch, droop, and trail behind a hop;
-some bunnies are lop-eared. Fur uses a soft rim light so it reads as fluffy.
-Coats come in snow, cream, caramel, cocoa, and smoke, with bows, scarves, or
-flowers. Grandma wears round spectacles, a polka-dot headscarf, and a knitted
-shawl with a brooch, and her burrow has a smoking chimney, carrot rows, and a
-heart sign.
-
-They are always alive: breathing, blinking (sometimes twice), looking around,
-twitching ears, wiggling noses, wagging tails, and tipping their faces up toward
-the player. Moods change with the puzzle: sleepy (slow breaths, closed eyes,
-relaxed ears) until the carrots arrive, content when fed, happy when their
-burrow is complete, and worried when it has too many paths. Hops use
-anticipation, squash and stretch, and ears that lag behind; a happy bunny does a
-binky, a twisting leap with ^ ^ eyes and an open smile. Finishing a level sends
-binkies rippling out from Grandma with floating hearts.
-
-## Levels
-
-Thirty levels in one meadow, from 4 burrows on a 5×5 field to 17 on 8×9.
-`scripts/generate-levels.mjs` grows each warren path by path from one burrow,
-keeping burrows from crowding each other, adds a few loops, and keeps it only if
-it has exactly one solution and a player can finish it by always taking the
-easiest step. Grandma moves into the busiest burrow near the middle. The levels
-are written to `src/levels.js` with their solutions, which the hints use;
-regenerate them with `npm run generate:levels`.
-
-The solver in `src/logic.js` works on a range of path counts for every possible
-path and knows four steps, easiest first: crossing (a path can't be laid across
-an existing one), capacity (a burrow's baskets must be shared among the paths it
-can still take), isolation (never close a group off from Grandma), and trial
-(try one end of a range and see if the easy steps fall apart). The same steps
-rate difficulty, check uniqueness, and drive the hints: a hint points out a
-wrong path first, otherwise the easiest path the player can be sure of, and says
-why.
+`src/bunny.js` builds chibi bunnies from primitives: a big round head with
+cheek fluff and a tuft on a little body, stubby feet with toe beans, paws, a
+pompom tail, glossy eyes set wide and low, blush, a tiny nose and ω mouth, and
+thick rounded ears that always sit behind the head. Toon shading with a warm
+rim light and an inverted-hull outline keep them reading like stickers. Coats
+(snow, cream, caramel, cocoa, silver, charcoal, ginger), ears (up, lop, one
+floppy), markings (Dutch, blaze, patch, spots) and treasures (bows, flower
+crowns, scarves, a little hat, spectacles, a leaf sprout) are mixed per bunny,
+and babies take after their parents. In bigger families the grown-ups sit on a
+cushioned bench behind the little ones. `dev/bunnies.html` shows a lineup.
 
 ## Controls
 
-Drag from a burrow toward a neighbour, or tap two burrows, to lay a path; doing
-it again doubles it, and a third time takes it away. Tapping a path does the
-same. A path that would cross another gives a little wobble instead. Undo,
-Hint, Numbers, and Restart (tap twice) sit in the dock; Ctrl/Cmd+Z undoes.
-Progress, each level's paths, and the sound and number settings are saved in
-the browser.
+Drag from a room toward a neighbour to dig: the tunnel follows the finger with a
+little paw at its tip and crumbs flying, and past halfway it snaps through with
+a pluck. Drag again for a double tunnel, and a third time to fill it in.
+Tapping a tunnel, or two rooms in turn, does the same. A tunnel that would
+cross another stops short and the one in the way shakes. Undo and Restart (tap
+twice) sit below the warren.
+
+## Levels
+
+Thirty levels, from 4 rooms on a 5×5 field to 17 on 8×9, generated by
+`scripts/generate-levels.mjs` so each has exactly one solution that a player can
+reach by always taking the easiest step. Empty rows above the first room are
+dropped when a level loads, and the carrot patch grows above the busiest room in
+the top row. Rows stretch to fill tall phone screens.

@@ -1,698 +1,367 @@
 import * as THREE from 'three'
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 
-// A bunny is built in its own units (sitting, about one unit tall to the top of the
-// head, facing +z) and scaled into the meadow. Every part that moves hangs from its
-// own pivot so the animation layer can breathe, blink, twitch, hop, and binky.
+// A chibi bunny: big round head on a little body, stubby feet with toe beans, thick
+// rounded ears, glossy eyes set wide and low, blush, a tuft of fur and a pompom tail.
+// Toon shading and a soft outline keep it reading like a sticker even when small.
+// Built in its own units (about 1.5 tall with ears), facing +z, feet on y = 0.
 
-export const COATS = {
-  snow: { fur: 0xfdf8f1, belly: 0xffffff, muzzle: 0xffffff, ear: 0xffb6c4, tail: 0xffffff, nose: 0xff9fb0 },
-  cream: { fur: 0xf5e4c8, belly: 0xfffaf0, muzzle: 0xfffaf2, ear: 0xffbcc4, tail: 0xfffaf2, nose: 0xf59aa8 },
-  caramel: { fur: 0xe3ae7c, belly: 0xfbeedc, muzzle: 0xfdf3e6, ear: 0xf7b3b3, tail: 0xfff6ea, nose: 0xe88d95 },
-  cocoa: { fur: 0xb4896a, belly: 0xf2dfc8, muzzle: 0xf6e8d6, ear: 0xeaa8a8, tail: 0xfaf0e2, nose: 0xd98390 },
-  smoke: { fur: 0xc9c4c2, belly: 0xf5f2ee, muzzle: 0xf8f6f2, ear: 0xf3b4c0, tail: 0xffffff, nose: 0xe995a6 },
-  silver: { fur: 0xe7e3df, belly: 0xffffff, muzzle: 0xffffff, ear: 0xf6c0cb, tail: 0xffffff, nose: 0xeb9cac },
+export const FUR = {
+  snow: [0xfffcf8, 0xc9a99e], cream: [0xfff1dc, 0xc99c78], caramel: [0xf6c28e, 0xa8673a],
+  cocoa: [0xcf9e7c, 0x7a4f36], silver: [0xeeeaf1, 0x9a8a95], charcoal: [0x8b8492, 0x463e4c], ginger: [0xffcf9a, 0xc06e30],
 }
-export const COAT_NAMES = ['snow', 'cream', 'caramel', 'cocoa', 'smoke']
-const ACCENTS = [0xff8fab, 0x8fc7ff, 0xffc75f, 0xa6e3a1, 0xc6a8ff, 0xff9f7a]
-
-const EYE = 0x2b1d1a
-const MOUTH = 0x6b4436
+const PASTELS = [0xff8fab, 0x8fc9ff, 0xffd166, 0xa8e6a1, 0xc9a8ff, 0xffb38a]
+const WHITE = 0xfffaf5
+const PINK = 0xffb8c9
+const INK = 0x3a221a
 
 /* ---------- materials ---------- */
 
-const materialCache = new Map()
-// Lambert shading plus a warm rim of light around the silhouette, so fur reads as soft.
-function fur(color, rim = 0.32) {
-  const key = `fur-${color}-${rim}`
-  if (materialCache.has(key)) return materialCache.get(key)
-  const material = new THREE.MeshLambertMaterial({ color })
-  material.onBeforeCompile = (shader) => {
-    shader.uniforms.uRim = { value: rim }
-    shader.uniforms.uRimColor = { value: new THREE.Color(0xfff3e2) }
-    shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform float uRim;\nuniform vec3 uRimColor;')
-      .replace(
-        '#include <opaque_fragment>',
-        `vec3 rimView = isOrthographic ? vec3(0.0, 0.0, 1.0) : normalize(vViewPosition);
-        float rimAmount = pow(1.0 - clamp(dot(normalize(normal), rimView), 0.0, 1.0), 2.4);
-        outgoingLight += uRimColor * rimAmount * uRim;
-        #include <opaque_fragment>`,
-      )
-  }
-  material.customProgramCacheKey = () => key
-  materialCache.set(key, material)
-  return material
-}
-function plain(color, options = {}) {
-  const key = `plain-${color}-${JSON.stringify(options)}`
-  if (!materialCache.has(key)) materialCache.set(key, new THREE.MeshLambertMaterial({ color, ...options }))
-  return materialCache.get(key)
-}
-function basic(color, options = {}) {
-  const key = `basic-${color}-${JSON.stringify(options)}`
-  if (!materialCache.has(key)) materialCache.set(key, new THREE.MeshBasicMaterial({ color, ...options }))
-  return materialCache.get(key)
-}
-const eyeMaterial = new THREE.MeshPhongMaterial({ color: EYE, specular: 0x8a7a70, shininess: 90 })
-
-const polkaTexture = (() => {
-  if (typeof document === 'undefined') return null
-  const canvas = document.createElement('canvas')
-  canvas.width = canvas.height = 128
-  const g = canvas.getContext('2d')
-  g.fillStyle = '#e8605a'
-  g.fillRect(0, 0, 128, 128)
-  g.fillStyle = '#fff6ec'
-  for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) {
-    g.beginPath()
-    g.arc(x * 32 + (y % 2) * 16 + 8, y * 32 + 16, 5.5, 0, Math.PI * 2)
-    g.fill()
-  }
-  const texture = new THREE.CanvasTexture(canvas)
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping
-  texture.repeat.set(3, 2)
-  texture.colorSpace = THREE.SRGBColorSpace
-  return texture
+const gradient = (() => {
+  const data = new Uint8Array([150, 205, 238, 255])
+  const t = new THREE.DataTexture(data, 4, 1, THREE.RedFormat)
+  t.minFilter = t.magFilter = THREE.NearestFilter
+  t.needsUpdate = true
+  return t
 })()
-
-const knitTexture = (() => {
-  if (typeof document === 'undefined') return null
-  const canvas = document.createElement('canvas')
-  canvas.width = canvas.height = 64
-  const g = canvas.getContext('2d')
-  g.fillStyle = '#b69ad8'
-  g.fillRect(0, 0, 64, 64)
-  g.strokeStyle = '#9a7cc4'
-  g.lineWidth = 3
-  for (let x = 0; x < 64; x += 8) {
-    g.beginPath()
-    g.moveTo(x, 0)
-    for (let y = 0; y <= 64; y += 8) g.lineTo(x + ((y / 8) % 2 ? 4 : 0), y)
-    g.stroke()
+// Soft toon shading plus a warm rim of light, so fur looks fluffy and round.
+const toonCache = new Map()
+export function toon(color = 0xffffff, { vertexColors = false, rim = 0.28, emissive = 0 } = {}) {
+  const key = `${color}-${vertexColors}-${rim}-${emissive}`
+  if (toonCache.has(key)) return toonCache.get(key)
+  const m = new THREE.MeshToonMaterial({ color, gradientMap: gradient, vertexColors, emissive })
+  m.onBeforeCompile = (shader) => {
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <opaque_fragment>',
+      `vec3 rimV = isOrthographic ? vec3(0.0, 0.0, 1.0) : normalize(vViewPosition);
+      float rimA = pow(1.0 - clamp(dot(normalize(normal), rimV), 0.0, 1.0), 2.6);
+      outgoingLight += vec3(1.0, 0.95, 0.88) * rimA * ${rim.toFixed(2)};
+      #include <opaque_fragment>`,
+    )
   }
-  const texture = new THREE.CanvasTexture(canvas)
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping
-  texture.repeat.set(10, 1)
-  texture.colorSpace = THREE.SRGBColorSpace
-  return texture
-})()
-
-/* ---------- shared geometry ---------- */
-
-const lathe = (points, segments = 28, samples = 28) => {
-  const curve = new THREE.SplineCurve(points.map(([x, y]) => new THREE.Vector2(x, y)))
-  const profile = curve.getSpacedPoints(samples).map((p) => new THREE.Vector2(Math.max(0.001, p.x), p.y))
-  profile[0].x = 0.001
-  profile[profile.length - 1].x = 0.001
-  return new THREE.LatheGeometry(profile, segments)
+  m.customProgramCacheKey = () => key
+  toonCache.set(key, m)
+  return m
 }
-const G = {
-  body: lathe([[0, 0], [0.32, 0.005], [0.45, 0.07], [0.495, 0.19], [0.475, 0.33], [0.41, 0.47], [0.31, 0.585], [0.17, 0.67], [0, 0.7]], 48, 36),
-  ear: lathe([[0, 0], [0.07, 0.03], [0.105, 0.15], [0.112, 0.31], [0.094, 0.47], [0.055, 0.6], [0, 0.645]], 24, 24),
-  sphere: new THREE.SphereGeometry(1, 28, 20),
-  smallSphere: new THREE.SphereGeometry(1, 14, 10),
-  arc: new THREE.TorusGeometry(1, 0.26, 8, 20, Math.PI),
-  disc: new THREE.CircleGeometry(1, 20),
-  whisker: new THREE.CylinderGeometry(0.004, 0.006, 1, 4).translate(0, 0.5, 0).rotateZ(-Math.PI / 2),
-  ring: new THREE.TorusGeometry(1, 0.16, 8, 24),
-  cone: new THREE.ConeGeometry(1, 1, 12),
-  drop: new THREE.SphereGeometry(1, 12, 10),
-  scarf: new THREE.SphereGeometry(1, 28, 14, 0, Math.PI * 2, 0, Math.PI * 0.42),
+const outlineCache = new Map()
+// Inverted hull: the same shape, pushed out along its normals and drawn from behind.
+function outlineMaterial(color, width) {
+  const key = `${color}-${width}`
+  if (outlineCache.has(key)) return outlineCache.get(key)
+  const m = new THREE.MeshBasicMaterial({ color, side: THREE.BackSide })
+  m.onBeforeCompile = (shader) => {
+    shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', `vec3 transformed = position + normal * ${width.toFixed(4)};`)
+  }
+  m.customProgramCacheKey = () => `outline-${key}`
+  outlineCache.set(key, m)
+  return m
+}
+const basic = (color, extra = {}) => new THREE.MeshBasicMaterial({ color, ...extra })
+
+/* ---------- geometry helpers ---------- */
+
+const SPHERE = new THREE.SphereGeometry(1, 28, 20)
+const SMALL = new THREE.SphereGeometry(1, 14, 10)
+// a part: geometry placed by position, scale and rotation, painted one colour
+function P(geometry, color, [x, y, z] = [0, 0, 0], [sx, sy, sz] = [1, 1, 1], [rx, ry, rz] = [0, 0, 0]) {
+  const g = geometry.clone().toNonIndexed()
+  g.deleteAttribute('uv')
+  const m = new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, rz)), new THREE.Vector3(sx, sy, sz))
+  g.applyMatrix4(m)
+  const c = new THREE.Color(color)
+  const colors = new Float32Array(g.attributes.position.count * 3)
+  for (let i = 0; i < colors.length; i += 3) { colors[i] = c.r; colors[i + 1] = c.g; colors[i + 2] = c.b }
+  g.setAttribute('color', new THREE.BufferAttribute(colors, 3))
+  return g
+}
+const merge = (parts) => mergeGeometries(parts.filter(Boolean))
+function mesh(geometry, material, parent, { cast = false } = {}) {
+  const m = new THREE.Mesh(geometry, material)
+  m.castShadow = cast
+  m.receiveShadow = false
+  parent.add(m)
+  return m
+}
+// A mesh with its outline, grouped so they always scale and move together.
+function withOutline(geometry, material, parent, line, width = 0.022, opts) {
+  const group = new THREE.Group()
+  parent.add(group)
+  mesh(geometry, material, group, opts)
+  group.add(new THREE.Mesh(geometry, outlineMaterial(line, width)))
+  return group
 }
 
-function part(parent, geometry, material, [x, y, z] = [0, 0, 0], [sx, sy, sz] = [1, 1, 1], { shadow = false } = {}) {
-  const mesh = new THREE.Mesh(geometry, material)
-  mesh.position.set(x, y, z)
-  mesh.scale.set(sx, sy, sz)
-  mesh.castShadow = shadow
-  parent.add(mesh)
-  return mesh
+// A rounded ear: a lathe that is fat in the middle and pinched at the base.
+function earGeometry(length, width) {
+  const pts = [[0, 0], [0.45, 0.05], [0.8, 0.22], [1, 0.48], [0.92, 0.72], [0.62, 0.92], [0, 1]]
+  const curve = new THREE.SplineCurve(pts.map(([x, y]) => new THREE.Vector2(x * width, y * length)))
+  const profile = curve.getSpacedPoints(24).map((p) => new THREE.Vector2(Math.max(0.0005, p.x), p.y))
+  profile[0].x = profile[profile.length - 1].x = 0.0005
+  return new THREE.LatheGeometry(profile, 20)
 }
-const ball = (parent, material, position, radius, stretch = [1, 1, 1], options) =>
-  part(parent, G.sphere, material, position, stretch.map((s) => s * radius), options)
+const arc = (r, tube, a = Math.PI) => new THREE.TorusGeometry(r, tube, 8, 20, a)
+export function carrotGeometry() {
+  return merge([
+    P(new THREE.ConeGeometry(0.12, 0.5, 12), 0xff8a2e, [0, -0.25, 0], [1, 1, 1], [Math.PI, 0, 0]),
+    P(new THREE.SphereGeometry(0.12, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), 0xff9a40, [0, 0, 0], [1, 0.4, 1]),
+    ...[-0.5, 0, 0.5].map((a) => P(new THREE.ConeGeometry(0.035, 0.24, 6), 0x55b45a, [Math.sin(a) * 0.06, 0.13, 0], [1, 1, 1], [0, 0, a])),
+  ])
+}
+const CARROT = carrotGeometry()
 
-/* ---------- easing ---------- */
+/* ---------- the look ---------- */
 
-const clamp = THREE.MathUtils.clamp
-const lerp = THREE.MathUtils.lerp
-const smooth = (t) => t * t * (3 - 2 * t)
-const damp = (current, target, rate, dt) => lerp(current, target, 1 - Math.exp(-rate * dt))
-const bump = (t) => Math.sin(clamp(t, 0, 1) * Math.PI)
+let seed = 1
+export function seedLooks(n) { seed = n }
+const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647)
+const pick = (list) => list[Math.floor(rnd() * list.length)]
+export function lookFor(baby, parents) {
+  const fur = parents && rnd() < 0.8 ? pick(parents) : pick(Object.keys(FUR))
+  const light = ['snow', 'cream', 'silver'].includes(fur)
+  return {
+    fur, baby,
+    ears: baby ? (rnd() < 0.25 ? 'lop' : 'up') : pick(['up', 'up', 'up', 'lop', 'flop']),
+    mark: fur === 'charcoal' ? 'dutch' : light ? pick(['none', 'none', 'patch', 'spots']) : pick(['none', 'blaze', 'dutch', 'patch']),
+    acc: baby ? pick(['none', 'none', 'bow', 'sprout']) : pick(['none', 'bow', 'crown', 'scarf', 'hat', 'glasses', 'none']),
+    accent: pick(PASTELS),
+    phase: rnd() * 10,
+  }
+}
+export const randomFur = () => pick(Object.keys(FUR))
+
+/* ---------- the bunny ---------- */
 
 export class Bunny {
-  constructor({ coat = 'snow', lop = false, accessory = null, accent = null, grandma = false, seed = 1 } = {}) {
-    this.seed = seed
-    this.random = () => ((this.seed = (this.seed * 16807) % 2147483647) / 2147483647)
-    this.coat = COATS[coat] ?? COATS.snow
-    this.grandma = grandma
-    this.lop = lop
-    this.mood = 'content'
-    this.time = this.random() * 10
-    this.actions = []
-    this.look = { yaw: 0, pitch: 0, roll: 0, targetYaw: 0, targetPitch: 0, targetRoll: 0, next: 1 + this.random() * 2 }
-    this.blink = { next: 1 + this.random() * 3, t: -1, double: false }
-    this.twitch = { next: 2 + this.random() * 4, t: -1, side: 0 }
-    this.wiggle = { next: 1 + this.random() * 3, t: -1 }
-    this.tailWag = { next: 3 + this.random() * 5, t: -1 }
-    this.earDroop = 0
-    this.sleepiness = 0
-    this.happyFace = 0
-    this.shiver = 0
-    // how far the bunny tips its face up toward the player looking down on the meadow
-    this.gazeUp = 0
-    this.build(accessory, accent ?? ACCENTS[Math.floor(this.random() * ACCENTS.length)])
+  constructor(look) {
+    this.look = look
+    this.state = 'sleep'
+    this.t = look.phase
+    this.blinkAt = 1 + rnd() * 3
+    this.twitchAt = 2 + rnd() * 4
+    this.hopT = -1
+    this.build()
+    this.setState('sleep', true)
   }
 
-  build(accessory, accent) {
-    const c = this.coat
-    const furMat = fur(c.fur)
-    const bellyMat = fur(c.belly, 0.2)
-    const muzzleMat = fur(c.muzzle, 0.15)
-    // root sits on the ground; rig carries hops; squash scales from the feet.
+  build() {
+    const { look } = this
+    const [furColor, lineColor] = FUR[look.fur]
+    const b = look.baby
+    const fur = toon(0xffffff, { vertexColors: true })
+    const lineW = b ? 0.026 : 0.022
     this.root = new THREE.Group()
-    this.rig = new THREE.Group()
-    this.root.add(this.rig)
-    this.squash = new THREE.Group()
-    this.rig.add(this.squash)
+    this.lift = new THREE.Group() // hops
+    this.root.add(this.lift)
+    this.squash = new THREE.Group() // squash and stretch from the feet
+    this.lift.add(this.squash)
 
-    // Body
-    this.torso = new THREE.Group()
-    this.squash.add(this.torso)
-    const body = part(this.torso, G.body, furMat, [0, 0, 0], [1, 1, 1.12], { shadow: true })
-    body.rotation.x = -0.06
-    ball(this.torso, bellyMat, [0, 0.3, 0.37], 0.3, [0.82, 1.02, 0.45])
-    // Hind feet, big and flat, peeking out at the sides
-    for (const side of [-1, 1]) {
-      const foot = ball(this.torso, furMat, [side * 0.29, 0.06, 0.2], 0.14, [0.75, 0.45, 1.7], { shadow: true })
-      foot.rotation.y = side * -0.18
-    }
-    // Front paws
-    this.paws = [-1, 1].map((side) => {
-      const pivot = new THREE.Group()
-      pivot.position.set(side * 0.13, 0.32, 0.36)
-      this.torso.add(pivot)
-      ball(pivot, furMat, [0, -0.255, 0.07], 0.08, [0.95, 0.7, 1.45])
-      return pivot
-    })
-    // Pompom tail
-    this.tail = new THREE.Group()
-    this.tail.position.set(0, 0.17, -0.5)
-    this.torso.add(this.tail)
-    const tailMat = fur(c.tail, 0.45)
-    ball(this.tail, tailMat, [0, 0, 0], 0.12, [1, 1, 1], { shadow: true })
-    for (let i = 0; i < 6; i++) {
-      const a = (i / 6) * Math.PI * 2
-      ball(this.tail, tailMat, [Math.cos(a) * 0.075, Math.sin(a) * 0.075, -0.03], 0.075)
-    }
+    // body, feet, tail and markings move together
+    const hr = b ? 0.46 : 0.42 // head radius
+    const bodyR = b ? 0.25 : 0.3
+    const body = [
+      P(SPHERE, furColor, [0, bodyR * 0.95, 0], [bodyR, bodyR * 0.88, bodyR * 0.92]),
+      ...[-1, 1].map((s) => P(SPHERE, furColor, [s * bodyR * 0.55, 0.06, 0.12], [0.11, 0.065, 0.15])),
+      ...[-1, 1].map((s) => P(SMALL, PINK, [s * bodyR * 0.55, 0.06, 0.26], [0.04, 0.035, 0.02])),
+      P(SPHERE, WHITE, [0, bodyR * 0.7, -bodyR * 0.95], [0.12, 0.12, 0.11]),
+    ]
+    if (look.mark === 'dutch') body.push(P(SPHERE, WHITE, [0, bodyR * 0.85, bodyR * 0.55], [bodyR * 0.62, bodyR * 0.62, bodyR * 0.45]))
+    if (look.mark === 'spots') for (const [x, y] of [[-0.14, 0.32], [0.16, 0.22]]) body.push(P(SPHERE, lineColor, [x, y, bodyR * 0.72], [0.06, 0.05, 0.03]))
+    this.body = withOutline(merge(body), fur, this.squash, lineColor, lineW, { cast: true })
 
-    // Head
-    this.neck = new THREE.Group()
-    this.neck.position.set(0, 0.62, 0.06)
-    this.torso.add(this.neck)
+    // paws: resting on the tummy, or hugging a carrot
+    this.paws = new THREE.Group()
+    this.squash.add(this.paws)
+    withOutline(merge([-1, 1].map((s) => P(SPHERE, furColor, [s * 0.085, bodyR * 1.0, bodyR * 0.82], [0.075, 0.06, 0.07]))), fur, this.paws, lineColor, lineW * 0.8)
+    this.hug = new THREE.Group()
+    this.squash.add(this.hug)
+    const carrot = mesh(CARROT, toon(0xffffff, { vertexColors: true, rim: 0.2 }), this.hug)
+    carrot.position.set(0.02, bodyR * 1.15, bodyR * 0.95)
+    carrot.rotation.set(0.25, 0, -0.55)
+    carrot.scale.setScalar(b ? 0.62 : 0.7)
+    this.carrot = carrot
+    withOutline(merge([-1, 1].map((s) => P(SPHERE, furColor, [s * 0.07, bodyR * 1.12, bodyR * 1.0], [0.07, 0.06, 0.065]))), fur, this.hug, lineColor, lineW * 0.8)
+
+    // head: one big round shape with cheek fluff, a tuft and the face
     this.head = new THREE.Group()
-    this.head.position.set(0, 0.25, 0.05)
-    this.neck.add(this.head)
-    const h = this.head
-    ball(h, furMat, [0, 0, 0], 0.4, [1.1, 0.95, 0.98], { shadow: true })
-    for (const side of [-1, 1]) ball(h, furMat, [side * 0.17, -0.15, 0.13], 0.22, [1, 0.9, 1])
-    this.muzzle = new THREE.Group()
-    this.muzzle.position.set(0, -0.12, 0.33)
-    h.add(this.muzzle)
-    for (const side of [-1, 1]) ball(this.muzzle, muzzleMat, [side * 0.068, 0, 0], 0.095, [1, 0.88, 0.85])
-    this.nose = ball(this.muzzle, plain(c.nose), [0, 0.07, 0.065], 0.048, [1.35, 0.85, 0.85])
-    ball(this.nose, basic(0xffffff, { transparent: true, opacity: 0.7 }), [-0.25, 0.35, 0.75], 0.28)
-    // the little ω mouth
-    const mouthMat = plain(MOUTH)
-    for (const side of [-1, 1]) {
-      const curve = part(this.muzzle, G.arc, mouthMat, [side * 0.034, -0.085, 0.07], [0.034, 0.034, 0.034])
-      curve.rotation.z = Math.PI
+    this.head.position.set(0, bodyR * 1.55 + hr * 0.7, 0.02)
+    this.squash.add(this.head)
+    const headParts = [
+      P(SPHERE, furColor, [0, 0, 0], [hr * 1.08, hr * 0.92, hr * 0.94]),
+      ...[-1, 1].map((s) => P(SPHERE, furColor, [s * hr * 0.55, -hr * 0.3, hr * 0.28], [hr * 0.5, hr * 0.42, hr * 0.5])),
+      // tuft of fur on top
+      ...[[-0.035, 0.35, 0.05], [0.025, -0.15, 0.06]].map(([x, rz, r]) => P(new THREE.ConeGeometry(r * 0.75, r * 2.2, 10), furColor, [x, hr * 0.92, 0.04], [1, 1, 0.8], [-0.25, 0, rz])),
+    ]
+    if (look.mark === 'dutch') {
+      headParts.push(P(SPHERE, WHITE, [0, -hr * 0.42, hr * 0.42], [hr * 0.62, hr * 0.42, hr * 0.5]))
+      headParts.push(P(SPHERE, WHITE, [0, hr * 0.3, hr * 0.62], [hr * 0.09, hr * 0.42, hr * 0.3]))
     }
-    this.mouthOpen = ball(this.muzzle, plain(0xd9707e), [0, -0.1, 0.07], 0.03, [1, 0.8, 0.5])
-    this.mouthOpen.visible = false
-    // whiskers
-    const whiskerMat = basic(0xd8cfc6, { transparent: true, opacity: 0.85 })
-    for (const side of [-1, 1]) {
-      for (const [tilt, len] of [[0.12, 0.26], [-0.02, 0.29], [-0.16, 0.25]]) {
-        const w = part(this.muzzle, G.whisker, whiskerMat, [side * 0.1, 0.0, 0.05], [len, 1, 1])
-        w.rotation.set(0, side < 0 ? Math.PI - 0.35 : 0.35, tilt * side)
-        if (side < 0) w.rotation.z = -tilt
-      }
-    }
+    if (look.mark === 'blaze') headParts.push(P(SPHERE, WHITE, [0, hr * 0.25, hr * 0.66], [hr * 0.1, hr * 0.48, hr * 0.3]))
+    if (look.mark === 'patch') headParts.push(P(SPHERE, lineColor, [hr * 0.4, -hr * 0.02, hr * 0.62], [hr * 0.3, hr * 0.28, hr * 0.28]))
+    withOutline(merge(headParts), fur, this.head, lineColor, lineW, { cast: true })
+    // shine
+    const shine = mesh(SMALL, basic(0xffffff, { transparent: true, opacity: 0.55, depthWrite: false }), this.head)
+    shine.position.set(-hr * 0.42, hr * 0.5, hr * 0.62)
+    shine.scale.set(hr * 0.22, hr * 0.1, 0.02)
+    shine.rotation.z = 0.35
 
-    // Eyes: glossy, big, with two highlights; they blink by squashing their pivot.
-    this.eyes = []
-    this.happyEyes = []
+    // face, all just in front of the head's surface
+    const fz = hr * 0.9
+    const ex = hr * (b ? 0.4 : 0.42), ey = -hr * (b ? 0.1 : 0.05)
+    const eyeR = b ? 0.072 : 0.06
+    this.eyes = new THREE.Group()
+    this.head.add(this.eyes)
+    this.eyes.position.set(0, ey, 0)
+    this.eyes.add(new THREE.Mesh(merge([-1, 1].flatMap((s) => [
+      P(SPHERE, INK, [s * ex, 0, fz - 0.03], [eyeR, eyeR * 1.2, eyeR * 0.6], [0, s * 0.35, 0]),
+      P(SMALL, 0xffffff, [s * ex + eyeR * 0.38, eyeR * 0.45, fz + 0.012], [eyeR * 0.42, eyeR * 0.42, 0.01]),
+      P(SMALL, 0xffffff, [s * ex - eyeR * 0.4, -eyeR * 0.5, fz + 0.012], [eyeR * 0.18, eyeR * 0.18, 0.01]),
+    ])), new THREE.MeshBasicMaterial({ vertexColors: true })))
+    const lid = (up) => new THREE.Mesh(merge([-1, 1].map((s) => P(arc(eyeR * 0.95, 0.014), INK, [s * ex, ey + (up ? -0.005 : 0.01), fz + 0.005], [1, up ? 1 : 0.8, 1], [0, 0, up ? 0 : Math.PI]))), basic(INK))
+    this.shut = lid(false)
+    this.happy = lid(true)
+    this.head.add(this.shut, this.happy)
+    // blush, nose and ω mouth
+    this.head.add(new THREE.Mesh(merge([
+      ...[-1, 1].map((s) => P(new THREE.CircleGeometry(1, 20), 0xff9db6, [s * (ex + 0.1), ey - 0.08, fz - 0.02], [0.07, 0.042, 1], [0, s * 0.45, 0])),
+      P(SMALL, 0xff7f9c, [0, ey - 0.045, fz + 0.01], [0.028, 0.02, 0.018]),
+      ...[-1, 1].map((s) => P(arc(0.022, 0.008), INK, [s * 0.021, ey - 0.085, fz + 0.002], [1, 1, 1], [0, 0, Math.PI])),
+    ]), new THREE.MeshBasicMaterial({ vertexColors: true })))
+    this.mouthO = mesh(SMALL, basic(0xd9647e), this.head)
+    this.mouthO.position.set(0, ey - 0.13, fz - 0.005)
+    this.mouthO.scale.set(0.022, 0.028, 0.01)
+
+    // ears always sit behind the head
+    this.ears = []
+    const earLen = b ? 0.42 : 0.6, earW = b ? 0.11 : 0.13
+    const earGeo = earGeometry(earLen, earW)
+    const innerGeo = earGeometry(earLen * 0.78, earW * 0.55)
+    const style = (side) => (look.ears === 'lop' || (look.ears === 'flop' && side < 0) ? 'lop' : 'up')
     for (const side of [-1, 1]) {
       const pivot = new THREE.Group()
-      pivot.position.set(side * 0.18, -0.005, 0.318)
-      pivot.rotation.y = side * 0.38
-      pivot.rotation.x = -0.05
-      h.add(pivot)
-      const open = new THREE.Group()
-      pivot.add(open)
-      part(open, G.sphere, eyeMaterial, [0, 0, 0], [0.082, 0.1, 0.058])
-      ball(open, basic(0xffffff), [side * -0.018 + 0.012, 0.032, 0.045], 0.026)
-      ball(open, basic(0xffffff), [side * 0.012 - 0.008, -0.03, 0.048], 0.012)
-      // closed "^ ^" for happiness, "u u" for sleep share the same arc
-      const closed = part(pivot, G.arc, plain(EYE), [0, -0.01, 0.04], [0.06, 0.06, 0.06])
-      closed.visible = false
-      this.eyes.push(open)
-      this.happyEyes.push(closed)
-    }
-    // Blush
-    for (const side of [-1, 1]) {
-      // sits on the cheek's surface, facing out along its normal
-      const normal = new THREE.Vector3(side * 0.56, 0.17, 0.81).normalize()
-      const cheek = new THREE.Vector3(side * 0.17, -0.15, 0.13)
-      const blush = part(h, G.disc, basic(0xff9fb2, { transparent: true, opacity: 0.7, depthWrite: false }), cheek.clone().addScaledVector(normal, 0.222).toArray(), [0.075, 0.055, 1])
-      blush.lookAt(cheek.clone().addScaledVector(normal, 2))
+      const lop = style(side) === 'lop'
+      pivot.position.set(side * hr * (lop ? 0.92 : 0.42), hr * (lop ? 0.42 : 0.72), -hr * (lop ? 0.12 : 0.3))
+      pivot.userData.base = lop ? new THREE.Euler(0.1, 0, -side * 2.62) : new THREE.Euler(-0.18, 0, -side * 0.16)
+      pivot.rotation.copy(pivot.userData.base)
+      this.head.add(pivot)
+      withOutline(earGeo, toon(furColor), pivot, lineColor, lineW * 0.9, { cast: true }).scale.z = 0.5
+      const inner = mesh(innerGeo, toon(PINK, { rim: 0.1 }), pivot)
+      inner.position.set(0, earLen * 0.12, earW * 0.42)
+      inner.scale.z = 0.3
+      this.ears.push({ pivot, side, lop })
     }
 
-    // Ears hang from pivots so they can perk, twitch, droop, and trail behind hops.
-    this.ears = [-1, 1].map((side) => {
-      const pivot = new THREE.Group()
-      pivot.position.set(side * 0.13, 0.27, -0.06)
-      h.add(pivot)
-      const tilt = new THREE.Group()
-      pivot.add(tilt)
-      part(tilt, G.ear, furMat, [0, 0, 0], [1, 1, 0.42], { shadow: true })
-      const inner = part(tilt, G.ear, plain(c.ear, { emissive: c.ear, emissiveIntensity: 0.18 }), [0, 0.06, 0.03], [0.66, 0.82, 0.22])
-      inner.renderOrder = 1
-      return { pivot, tilt, side }
-    })
-
-    // Accessories
-    if (this.grandma) this.dressGrandma()
-    else if (accessory === 'bow') this.addBow(accent)
-    else if (accessory === 'scarf') this.addScarf(accent)
-    else if (accessory === 'flower') this.addFlower(accent)
-
-    this.sweat = ball(h, basic(0x9fd8ff, { transparent: true, opacity: 0.85 }), [0.36, 0.2, 0.15], 0.045, [0.8, 1.2, 0.8])
-    this.sweat.visible = false
-    this.zzz = null
-    this.restPose()
-  }
-
-  addBow(color) {
-    const ear = this.ears[this.random() < 0.5 ? 0 : 1]
-    const bow = new THREE.Group()
-    bow.position.set(0, 0.08, 0.05)
-    ear.tilt.add(bow)
-    const mat = plain(color)
-    for (const side of [-1, 1]) {
-      const loop = part(bow, G.cone, mat, [side * 0.07, 0, 0], [0.055, 0.12, 0.03])
-      loop.rotation.z = side * Math.PI / 2
+    // accessories
+    const a = look.accent
+    const acc = []
+    if (look.acc === 'bow') {
+      const x = -hr * 0.55, y = hr * 0.7, z = hr * 0.55
+      acc.push(...[-1, 1].map((d) => P(SPHERE, a, [x + d * 0.07, y + 0.005, z], [0.075, 0.05, 0.04], [0, 0, d * 0.35])), P(SMALL, a, [x, y, z + 0.02], [0.04, 0.04, 0.04]))
     }
-    ball(bow, mat, [0, 0, 0.01], 0.032)
-  }
-
-  addScarf(color) {
-    const scarf = part(this.neck, G.ring, plain(color), [0, -0.08, 0], [0.3, 0.3, 0.3])
-    scarf.rotation.x = Math.PI / 2 - 0.12
-    scarf.scale.set(0.31, 0.33, 0.6)
-    const tail = part(this.neck, G.sphere, plain(color), [0.13, -0.17, 0.27], [0.05, 0.11, 0.03])
-    tail.rotation.z = 0.3
-  }
-
-  addFlower(color) {
-    const flower = new THREE.Group()
-    flower.position.set(-0.22, 0.28, 0.12)
-    this.head.add(flower)
-    for (let i = 0; i < 5; i++) {
-      const a = (i / 5) * Math.PI * 2
-      ball(flower, plain(color), [Math.cos(a) * 0.045, Math.sin(a) * 0.045, 0], 0.035, [1, 1, 0.5])
+    if (look.acc === 'crown') for (let k = 0; k < 5; k++) {
+      const ang = (k - 2) * 0.42
+      const x = Math.sin(ang) * hr * 0.75, y = hr * 0.78 - Math.abs(ang) * 0.06, z = Math.cos(ang) * hr * 0.4
+      acc.push(...[0, 1, 2, 3, 4].map((p) => P(SMALL, PASTELS[(k + 2) % PASTELS.length], [x + Math.cos(p * 1.256) * 0.05, y + Math.sin(p * 1.256) * 0.05, z], [0.04, 0.04, 0.025])), P(SMALL, 0xffe27a, [x, y, z + 0.015], [0.028, 0.028, 0.018]))
     }
-    ball(flower, plain(0xffe07a), [0, 0, 0.015], 0.03, [1, 1, 0.6])
-    flower.rotation.set(-0.3, -0.4, 0)
-  }
-
-  dressGrandma() {
-    // Round spectacles
-    const gold = plain(0xd9a441)
-    for (const side of [-1, 1]) {
-      const lens = part(this.head, G.ring, gold, [side * 0.165, 0.025, 0.37], [0.085, 0.085, 0.085])
-      lens.rotation.y = side * 0.32
-      part(this.head, G.disc, basic(0xffffff, { transparent: true, opacity: 0.12, depthWrite: false }), [side * 0.165, 0.025, 0.375], [0.08, 0.08, 1]).rotation.y = side * 0.32
+    if (look.acc === 'hat') {
+      acc.push(P(new THREE.CylinderGeometry(0.17, 0.17, 0.025, 20), 0x8a6a9c, [hr * 0.15, hr * 0.92, 0], [1, 1, 1], [0, 0, -0.25]))
+      acc.push(P(new THREE.CylinderGeometry(0.1, 0.11, 0.13, 20), 0xa585b8, [hr * 0.17, hr * 0.92 + 0.07, 0], [1, 1, 1], [0, 0, -0.25]))
+      acc.push(P(new THREE.CylinderGeometry(0.112, 0.112, 0.03, 20), a, [hr * 0.16, hr * 0.92 + 0.03, 0], [1, 1, 1], [0, 0, -0.25]))
     }
-    part(this.head, G.whisker, gold, [-0.06, 0.03, 0.4], [0.12, 1.4, 1.4])
-    // Polka-dot headscarf over the crown, ears poking through
-    const scarf = part(this.head, G.scarf, new THREE.MeshLambertMaterial({ map: polkaTexture }), [0, 0.0, -0.02], [0.455, 0.42, 0.44])
-    scarf.rotation.x = -0.55
-    const knot = new THREE.Group()
-    knot.position.set(0, -0.08, -0.38)
-    this.head.add(knot)
-    for (const side of [-1, 1]) {
-      const tie = part(knot, G.cone, plain(0xe8605a), [side * 0.05, -0.02, 0], [0.04, 0.12, 0.03])
-      tie.rotation.z = side * 2.4
+    if (look.acc === 'glasses') {
+      acc.push(...[-1, 1].map((s) => P(new THREE.TorusGeometry(eyeR * 1.7, 0.009, 6, 24), 0xd0a040, [s * ex, ey, fz + 0.02], [1, 1, 1], [0, s * 0.3, 0])))
+      acc.push(P(new THREE.CylinderGeometry(0.008, 0.008, ex * 2 - eyeR * 3.4, 6), 0xd0a040, [0, ey + 0.01, fz + 0.04], [1, 1, 1], [0, 0, Math.PI / 2]))
     }
-    // Knitted shawl around the shoulders
-    const shawl = part(this.neck, G.ring, new THREE.MeshLambertMaterial({ map: knitTexture }), [0, -0.1, -0.03], [0.4, 0.4, 0.4])
-    shawl.rotation.x = Math.PI / 2 - 0.12
-    shawl.scale.set(0.4, 0.4, 0.62)
-    const brooch = ball(this.neck, plain(0xffd36b, { emissive: 0x7a5a10, emissiveIntensity: 0.3 }), [0, -0.12, 0.42], 0.035, [1, 1, 0.6])
-    brooch.castShadow = false
-  }
-
-  restPose() {
-    for (const ear of this.ears) {
-      if (this.lop) {
-        ear.pivot.rotation.set(0.35, 0, -ear.side * 2.75)
-        ear.pivot.position.set(ear.side * 0.3, 0.2, -0.04)
-      } else {
-        ear.pivot.rotation.set(-0.22, 0, -ear.side * 0.2)
-      }
+    if (look.acc === 'sprout') {
+      acc.push(P(new THREE.CylinderGeometry(0.008, 0.01, 0.1, 6), 0x5fae55, [0, hr * 0.95 + 0.05, 0.02]))
+      acc.push(...[-1, 1].map((s) => P(SMALL, 0x7fd36e, [s * 0.05, hr * 0.95 + 0.1, 0.02], [0.055, 0.025, 0.03], [0, 0, s * 0.4])))
     }
-  }
-
-  /* ---------- moods and actions ---------- */
-
-  setMood(mood) {
-    this.mood = mood
-  }
-
-  get busy() {
-    return this.actions.length > 0
-  }
-
-  // Queue an action; each is a function of elapsed time that returns true when done.
-  queue(duration, step, onDone) {
-    return new Promise((resolve) => {
-      this.actions.push({ t: 0, duration, step, done: () => { onDone?.(); resolve() } })
-    })
-  }
-
-  face(angle, duration = 0.25) {
-    const from = this.root.rotation.y
-    let delta = THREE.MathUtils.euclideanModulo(angle - from + Math.PI, Math.PI * 2) - Math.PI
-    return this.queue(duration, (t) => {
-      this.root.rotation.y = from + delta * smooth(t)
-    })
-  }
-
-  // One squash-and-stretch hop from where the bunny is to target (x, z on the ground).
-  hop(target, { height = 0.35, duration = 0.42, groundY = 0 } = {}) {
-    const start = this.root.position.clone()
-    const end = new THREE.Vector3(target.x, groundY, target.z)
-    return this.queue(duration, (t) => {
-      // anticipation 0-0.18, flight 0.18-0.85, landing 0.85-1
-      if (t < 0.18) {
-        const k = bump(t / 0.36)
-        this.squash.scale.set(1 + 0.12 * k, 1 - 0.16 * k, 1 + 0.12 * k)
-        this.earLag = -0.2 * k
-      } else if (t < 0.85) {
-        const f = (t - 0.18) / 0.67
-        this.root.position.lerpVectors(start, end, smooth(f))
-        this.rig.position.y = Math.sin(f * Math.PI) * height
-        const s = Math.sin(f * Math.PI)
-        this.squash.scale.set(1 - 0.06 * s, 1 + 0.12 * s, 1 - 0.06 * s)
-        this.rig.rotation.x = lerp(-0.25, 0.2, f) * s
-        this.earLag = lerp(0.65, -0.35, f)
-      } else {
-        const k = bump((t - 0.85) / 0.3)
-        this.rig.position.y = 0
-        this.rig.rotation.x = 0
-        this.root.position.copy(end)
-        this.squash.scale.set(1 + 0.14 * k, 1 - 0.18 * k, 1 + 0.14 * k)
-        this.earLag = -0.45 * k
-      }
-    }, () => {
-      this.squash.scale.set(1, 1, 1)
-      this.rig.position.y = 0
-      this.rig.rotation.x = 0
-      this.earLag = 0
-    })
-  }
-
-  // Bunnies show pure joy with a binky: a leap with a twist and a kick.
-  binky({ height = 0.55, duration = 0.7 } = {}) {
-    const spin = this.random() < 0.5 ? -1 : 1
-    return this.queue(duration, (t) => {
-      if (t < 0.15) {
-        const k = bump(t / 0.3)
-        this.squash.scale.set(1 + 0.14 * k, 1 - 0.2 * k, 1 + 0.14 * k)
-      } else if (t < 0.88) {
-        const f = (t - 0.15) / 0.73
-        const s = Math.sin(f * Math.PI)
-        this.rig.position.y = s * height
-        this.rig.rotation.y = Math.sin(f * Math.PI * 2) * 0.6 * spin
-        this.rig.rotation.z = Math.sin(f * Math.PI * 2) * 0.25 * spin
-        this.squash.scale.set(1 - 0.05 * s, 1 + 0.14 * s, 1 - 0.05 * s)
-        this.earLag = Math.sin(f * Math.PI * 3) * 0.6
-        this.happyFace = 1
-      } else {
-        const k = bump((t - 0.88) / 0.24)
-        this.rig.position.y = 0
-        this.rig.rotation.set(0, 0, 0)
-        this.squash.scale.set(1 + 0.15 * k, 1 - 0.18 * k, 1 + 0.15 * k)
-        this.earLag = -0.4 * k
-      }
-    }, () => {
-      this.rig.position.y = 0
-      this.rig.rotation.set(0, 0, 0)
-      this.squash.scale.set(1, 1, 1)
-      this.earLag = 0
-      this.happyHold = 0.8
-    })
-  }
-
-  // A little wave of one front paw.
-  wave(duration = 1.1) {
-    return this.queue(duration, (t) => {
-      const k = bump(t)
-      this.paws[1].rotation.x = -1.9 * smooth(Math.min(1, k * 1.6))
-      this.paws[1].rotation.z = Math.sin(t * Math.PI * 6) * 0.35 * k
-      this.happyFace = Math.max(this.happyFace, k)
-    }, () => this.paws[1].rotation.set(0, 0, 0))
-  }
-
-  // A small shake, for when something has gone wrong.
-  fret(duration = 0.5) {
-    return this.queue(duration, (t) => {
-      this.rig.rotation.z = Math.sin(t * Math.PI * 8) * 0.08 * (1 - t)
-    }, () => (this.rig.rotation.z = 0))
-  }
-
-  lookAt(point) {
-    const local = this.root.worldToLocal(point.clone())
-    this.look.targetYaw = clamp(Math.atan2(local.x, local.z), -0.9, 0.9)
-    this.look.targetPitch = clamp(-Math.atan2(local.y - 0.9, Math.hypot(local.x, local.z)) * 0.5, -0.35, 0.35)
-    this.look.next = 1.5 + this.random() * 2
-  }
-
-  /* ---------- per-frame life ---------- */
-
-  update(dt) {
-    this.time += dt
-    const t = this.time
-    const r = this.random
-
-    // queued actions
-    const action = this.actions[0]
-    if (action) {
-      action.t += dt
-      const progress = Math.min(1, action.t / action.duration)
-      action.step(progress)
-      if (progress >= 1) {
-        this.actions.shift()
-        action.done()
-      }
+    if (acc.length) mesh(merge(acc), toon(0xffffff, { vertexColors: true, rim: 0.15 }), this.head)
+    if (look.acc === 'scarf') {
+      const scarf = mesh(merge([P(new THREE.TorusGeometry(bodyR * 0.82, 0.05, 10, 28), a, [0, 0, 0], [1, 1, 0.9], [Math.PI / 2, 0, 0]), P(SPHERE, a, [bodyR * 0.45, -0.08, bodyR * 0.65], [0.05, 0.1, 0.03], [0, 0, 0.3])]), toon(0xffffff, { vertexColors: true }), this.squash)
+      scarf.position.y = bodyR * 1.6
     }
 
-    const sleepy = this.mood === 'sleepy'
-    const worried = this.mood === 'worried'
-    const happy = this.mood === 'happy'
-    this.sleepiness = damp(this.sleepiness, sleepy ? 1 : 0, 2, dt)
-    this.earDroop = damp(this.earDroop, worried ? 1 : sleepy ? 0.45 : 0, 4, dt)
-    this.shiver = damp(this.shiver, worried ? 1 : 0, 5, dt)
-    if (this.happyHold > 0) this.happyHold -= dt
-    const wantHappy = this.happyHold > 0 || (happy && Math.sin(t * 0.7 + this.seed) > 0.75)
-    this.happyFace = damp(this.happyFace, wantHappy ? 1 : 0, 10, dt)
+    // little extras that come and go
+    this.sweat = mesh(SMALL, basic(0x9fd8ff, { transparent: true, opacity: 0.9 }), this.head)
+    this.sweat.position.set(hr * 0.95, hr * 0.35, hr * 0.3)
+    this.sweat.scale.set(0.035, 0.05, 0.03)
+    this.root.scale.setScalar(1)
+  }
 
-    // breathing: slow and deep when sleepy
-    const breathRate = sleepy ? 1.3 : 2.3
-    const breath = Math.sin(t * breathRate) * (sleepy ? 0.03 : 0.018)
-    this.torso.scale.set(1 - breath * 0.5, 1 + breath, 1 - breath * 0.5)
+  setState(state, instant = false) {
+    if (this.state === state && !instant) return
+    const was = this.state
+    this.state = state
+    if (!instant && state === 'fed') this.hop(0.28)
+    if (!instant && state === 'wait' && was === 'sleep') this.hop(0.16)
+  }
 
-    // looking around
-    const look = this.look
-    look.next -= dt
-    if (look.next < 0 && !this.busy) {
-      look.next = 1.8 + r() * 3
-      look.targetYaw = (r() - 0.5) * (sleepy ? 0.3 : 1.1)
-      look.targetPitch = sleepy ? 0.25 : (r() - 0.6) * 0.35
-      look.targetRoll = r() < 0.3 ? (r() - 0.5) * 0.5 : 0
+  hop(height = 0.25, duration = 0.5) {
+    this.hopT = 0
+    this.hopH = height
+    this.hopD = duration
+  }
+
+  update(dt, worried = false) {
+    this.t += dt
+    const t = this.t
+    const s = this.state
+    const sleep = s === 'sleep'
+    // breathing
+    const breath = Math.sin(t * (sleep ? 1.4 : 2.4)) * (sleep ? 0.03 : 0.018)
+    this.body.scale.set(1 - breath * 0.4, 1 + breath, 1 - breath * 0.4)
+    // eager little bounce while waiting for carrots
+    let bounce = 0
+    if (s === 'wait') bounce = Math.max(0, Math.sin(t * 7)) * 0.05
+    // hops: anticipation, flight, landing squash
+    if (this.hopT >= 0) {
+      this.hopT += dt / this.hopD
+      const k = this.hopT
+      if (k < 0.2) this.squash.scale.set(1 + k * 0.6, 1 - k * 0.8, 1 + k * 0.6)
+      else if (k < 0.85) {
+        const f = (k - 0.2) / 0.65
+        bounce += Math.sin(f * Math.PI) * this.hopH
+        this.squash.scale.set(0.94, 1.1, 0.94)
+      } else this.squash.scale.set(1.08, 0.9, 1.08)
+      if (k >= 1) { this.hopT = -1; this.squash.scale.set(1, 1, 1) }
     }
-    look.yaw = damp(look.yaw, look.targetYaw, 5, dt)
-    look.pitch = damp(look.pitch, look.targetPitch + this.sleepiness * 0.2 + this.earDroop * 0.12, 5, dt)
-    look.roll = damp(look.roll, look.targetRoll, 4, dt)
-    this.head.rotation.set(look.pitch - this.gazeUp * (1 - this.sleepiness * 0.6), look.yaw, look.roll + Math.sin(t * 38) * 0.03 * this.shiver)
-    this.neck.rotation.y = look.yaw * 0.25
-
-    // blinking
-    const b = this.blink
-    b.next -= dt
-    if (b.next < 0) {
-      b.t = 0
-      b.double = r() < 0.2
-      b.next = 2 + r() * 3.5
-    }
+    this.lift.position.y = bounce
+    // head: sleepy nod, happy sway, curious tilt
+    const sway = s === 'fed' ? Math.sin(t * 2.2) * 0.12 : Math.sin(t * 0.7) * 0.05
+    this.head.rotation.set(sleep ? 0.28 + Math.sin(t * 1.4) * 0.03 : -0.08, sway * 0.6, sway)
+    // eyes: open and blinking, shut while asleep, ^ ^ when fed
+    this.blinkAt -= dt
     let lid = 1
-    if (b.t >= 0) {
-      b.t += dt
-      const length = b.double ? 0.36 : 0.15
-      const phase = b.t / length
-      lid = b.double ? 1 - bump((phase * 2) % 1) * 0.92 : 1 - bump(phase) * 0.92
-      if (phase >= 1) b.t = -1
+    if (this.blinkAt < 0) {
+      lid = Math.abs(Math.sin((this.blinkAt / 0.14) * Math.PI)) < 0.5 ? 0.15 : 1
+      if (this.blinkAt < -0.14) this.blinkAt = 2 + Math.random() * 3.5
     }
-    lid = Math.min(lid, 1 - this.sleepiness * 0.65)
-    const showHappy = this.happyFace > 0.5 || this.sleepiness > 0.85
-    this.eyes.forEach((eye, i) => {
-      eye.visible = !showHappy
-      eye.scale.y = Math.max(0.08, lid)
-      eye.position.y = (1 - lid) * -0.012
-      const closed = this.happyEyes[i]
-      closed.visible = showHappy
-      // happy "^" arcs point up; sleepy "u" arcs hang down
-      closed.rotation.z = this.sleepiness > 0.85 ? Math.PI : 0
-    })
-    this.mouthOpen.visible = this.happyFace > 0.6 && !sleepy
-
-    // nose wiggle in little bursts
-    const w = this.wiggle
-    w.next -= dt
-    if (w.next < 0) {
-      w.t = 0
-      w.next = (sleepy ? 5 : 1.8) + r() * 3
-    }
-    let noseSquish = 0
-    if (w.t >= 0) {
-      w.t += dt
-      noseSquish = Math.sin(w.t * 34) * bump(w.t / 0.9)
-      if (w.t > 0.9) w.t = -1
-    }
-    this.nose.scale.y = 0.048 * 0.85 * (1 + noseSquish * 0.18)
-    this.muzzle.position.y = -0.12 + noseSquish * 0.006
-
-    // ear twitches, droop, and lag behind hops
-    const tw = this.twitch
-    tw.next -= dt
-    if (tw.next < 0) {
-      tw.t = 0
-      tw.side = r() < 0.4 ? -1 : r() < 0.7 ? 1 : 0
-      tw.next = 2.5 + r() * 5
-    }
-    let flick = 0
-    if (tw.t >= 0) {
-      tw.t += dt
-      flick = Math.sin(tw.t * 40) * bump(tw.t / 0.3)
-      if (tw.t > 0.3) tw.t = -1
-    }
-    const lag = this.earLag ?? 0
+    this.eyes.visible = !sleep && s !== 'fed'
+    this.eyes.scale.y = lid
+    this.shut.visible = sleep
+    this.happy.visible = s === 'fed'
+    this.mouthO.visible = s === 'wait'
+    // carrot hug and nibble
+    this.hug.visible = s === 'fed'
+    this.paws.visible = s !== 'fed'
+    if (s === 'fed') this.carrot.rotation.z = -0.55 + Math.sin(t * 9) * 0.08
+    // ears: perk, droop while asleep or worried, wiggle when happy, occasional twitch
+    this.twitchAt -= dt
+    const twitch = this.twitchAt < 0 ? Math.sin(-this.twitchAt * 40) * 0.25 : 0
+    if (this.twitchAt < -0.3) this.twitchAt = 2 + Math.random() * 5
     for (const ear of this.ears) {
-      const twitching = tw.side === 0 || tw.side === ear.side ? flick : 0
-      if (this.lop) {
-        ear.tilt.rotation.set(lag * 0.4 + twitching * 0.15, 0, Math.sin(t * 1.3 + ear.side) * 0.04)
-      } else {
-        const droop = this.earDroop
-        ear.tilt.rotation.set(
-          -lag * 0.8 + twitching * 0.22 - droop * 1.1 + Math.sin(t * 1.1 + ear.side) * 0.03,
-          twitching * 0.1 * ear.side,
-          -ear.side * droop * 0.55,
-        )
-      }
+      const base = ear.pivot.userData.base
+      const droop = ear.lop ? 0 : sleep ? 0.55 : worried ? 0.9 : 0
+      const wiggle = s === 'fed' ? Math.sin(t * 5 + ear.side) * 0.12 : 0
+      ear.pivot.rotation.set(base.x + (ear.lop ? 0 : droop * 0.4), base.y, base.z - ear.side * droop + wiggle + twitch * (ear.side > 0 ? 1 : 0))
     }
-
-    // tail wag
-    const tg = this.tailWag
-    tg.next -= dt
-    if (tg.next < 0) {
-      tg.t = 0
-      tg.next = 3 + r() * 6
-    }
-    if (tg.t >= 0) {
-      tg.t += dt
-      this.tail.rotation.y = Math.sin(tg.t * 30) * 0.4 * bump(tg.t / 0.5)
-      if (tg.t > 0.5) tg.t = -1
-    }
-
-    // worried: a bead of sweat and a tiny shiver
-    this.sweat.visible = this.shiver > 0.3
-    if (this.sweat.visible) this.sweat.position.y = 0.2 - ((t * 0.3) % 0.12)
-    this.squash.position.x = Math.sin(t * 45) * 0.006 * this.shiver
+    this.sweat.visible = worried
+    if (worried) this.sweat.position.y = 0.2 - ((t * 0.25) % 0.12)
   }
 }
 
-/* ---------- baskets and carrots ---------- */
-
-const weaveTexture = (() => {
-  if (typeof document === 'undefined') return null
-  const canvas = document.createElement('canvas')
-  canvas.width = canvas.height = 64
-  const g = canvas.getContext('2d')
-  g.fillStyle = '#c98f52'
-  g.fillRect(0, 0, 64, 64)
-  for (let y = 0; y < 64; y += 8) {
-    for (let x = 0; x < 64; x += 8) {
-      g.fillStyle = (x + y) % 16 ? '#dca66a' : '#b77c43'
-      g.fillRect(x + 1, y + 1, 6, 6)
-    }
-  }
-  const texture = new THREE.CanvasTexture(canvas)
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping
-  texture.repeat.set(4, 1)
-  texture.colorSpace = THREE.SRGBColorSpace
-  return texture
-})()
-const basketMaterial = new THREE.MeshLambertMaterial({ map: weaveTexture, side: THREE.DoubleSide })
-const rimMaterial = new THREE.MeshLambertMaterial({ color: 0xa8713f })
-const carrotMaterial = new THREE.MeshLambertMaterial({ color: 0xf28c38 })
-const carrotTopMaterial = new THREE.MeshLambertMaterial({ color: 0x5cb85c })
-const basketGeometry = new THREE.CylinderGeometry(0.5, 0.36, 0.5, 18, 1, true).translate(0, 0.25, 0)
-const basketBottom = new THREE.CircleGeometry(0.36, 18).rotateX(-Math.PI / 2)
-const rimGeometry = new THREE.TorusGeometry(0.5, 0.06, 6, 22).rotateX(Math.PI / 2)
-const handleGeometry = new THREE.TorusGeometry(0.42, 0.045, 6, 18, Math.PI)
-const carrotGeometry = new THREE.ConeGeometry(0.17, 0.72, 10).rotateX(Math.PI)
-const leafGeometry = new THREE.ConeGeometry(0.06, 0.34, 5)
-
-export function makeCarrot() {
-  const carrot = new THREE.Group()
-  const root = new THREE.Mesh(carrotGeometry, carrotMaterial)
-  root.castShadow = true
-  carrot.add(root)
-  for (const a of [-0.35, 0, 0.35]) {
-    const leaf = new THREE.Mesh(leafGeometry, carrotTopMaterial)
-    leaf.position.set(Math.sin(a) * 0.07, 0.48, 0)
-    leaf.rotation.z = a
-    carrot.add(leaf)
-  }
-  return carrot
-}
-
-// A woven basket, about one unit across; carrots pop in when it fills.
-export function makeBasket() {
-  const basket = new THREE.Group()
-  const body = new THREE.Mesh(basketGeometry, basketMaterial)
-  body.castShadow = true
-  basket.add(body)
-  basket.add(new THREE.Mesh(basketBottom, basketMaterial))
-  const rim = new THREE.Mesh(rimGeometry, rimMaterial)
-  rim.position.y = 0.5
-  basket.add(rim)
-  const handle = new THREE.Mesh(handleGeometry, rimMaterial)
-  handle.position.y = 0.5
-  basket.add(handle)
-  const carrots = new THREE.Group()
-  carrots.position.y = 0.5
-  for (const [x, z, tilt] of [[-0.2, 0.06, 0.4], [0.0, -0.12, -0.05], [0.21, 0.07, -0.42], [0.02, 0.18, 0.12]]) {
-    const carrot = makeCarrot()
-    carrot.position.set(x, 0.06, z)
-    carrot.rotation.z = tilt
-    carrot.rotation.y = x * 3
-    carrots.add(carrot)
-  }
-  carrots.scale.setScalar(0.001)
-  carrots.visible = false
-  basket.add(carrots)
-  basket.userData.carrots = carrots
-  return basket
+export function makeCarrotMesh() {
+  const m = new THREE.Mesh(CARROT, toon(0xffffff, { vertexColors: true, rim: 0.2 }))
+  m.castShadow = true
+  return m
 }
