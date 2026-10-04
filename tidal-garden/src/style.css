@@ -360,3 +360,10 @@ dialog { color: #27433a; }
   .pill-text strong { font-size: 13px; }
   .pill-dot, #time { display: none; }
 }
+
+/* Music has its own switch; switched off, its note gets a soft slash through it. */
+.map-tools { display: flex; gap: 10px; }
+.music-toggle { position: relative; }
+.music-toggle.off::after { content: ''; position: absolute; left: 50%; top: 50%; width: 24px; height: 2.5px; border-radius: 2px; background: currentColor; translate: -50% -50%; rotate: -45deg; box-shadow: 0 0 0 1.5px #fffaf0; }
+.title-tools .music-toggle.off::after { box-shadow: 0 0 0 1.5px #2f7e7a; }
+.music-toggle.off svg { opacity: .55; }

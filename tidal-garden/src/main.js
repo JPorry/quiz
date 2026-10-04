@@ -1,14 +1,14 @@
-import { createIcons, Map as MapIcon, Lock, Play, Footprints, Ship, Sun, House, ArrowRight, Check, ChevronDown, CircleHelp, Clock3, Fingerprint, Grid3x3, Lightbulb, MoonStar, Move3d, RotateCcw, Scale, Sprout, Undo2, Volume2, VolumeX, X } from 'lucide'
+import { createIcons, Music, Map as MapIcon, Lock, Play, Footprints, Ship, Sun, House, ArrowRight, Check, ChevronDown, CircleHelp, Clock3, Fingerprint, Grid3x3, Lightbulb, MoonStar, Move3d, RotateCcw, Scale, Sprout, Undo2, Volume2, VolumeX, X } from 'lucide'
 import { GardenGame, GARDENS, GARDEN_NAMES, CHAPTERS, chapterOf, findViolations, findHint } from './game.js'
 import { GardenScene } from './scene.js'
 import { mapLayout, mapMarkup, MAP_ART } from './map.js'
+import { GardenAudio } from './audio.js'
 import { DeviceTilt } from './tilt.js'
 import './style.css'
 
 const game = new GardenGame()
 let scene
-let soundEnabled = false
-let soundContext
+const audio = new GardenAudio()
 let hintCell = null
 const app = document.querySelector('#app')
 const icon = (name) => `<i data-lucide="${name}" aria-hidden="true"></i>`
@@ -39,7 +39,7 @@ app.innerHTML = `
         </div>
         <div class="bar-tools">
           <button class="round-button" id="tilt" aria-label="Tilt the garden with your phone" aria-pressed="false" title="Tilt with your phone" hidden>${icon('move-3d')}</button>
-          <button class="round-button sound-toggle" id="sound" aria-label="Enable placement sounds" aria-pressed="false" title="Placement sounds">${icon('volume-x')}</button>
+          <button class="round-button sound-toggle" id="sound" data-scope="all" aria-label="Mute music and sounds" aria-pressed="false" title="Music and sounds">${icon('volume-x')}</button>
           <button class="round-button" id="help" aria-label="Garden rules" title="Garden rules">${icon('circle-help')}</button>
         </div>
       </header>
@@ -78,7 +78,8 @@ app.innerHTML = `
         <p class="title-progress" id="title-progress"></p>
       </div>
       <div class="title-tools">
-        <button class="icon-button sound-toggle" aria-label="Enable placement sounds" aria-pressed="false" title="Placement sounds">${icon('volume-x')}</button>
+        <button class="icon-button music-toggle" aria-label="Turn the music off" aria-pressed="false" title="Music">${icon('music')}</button>
+        <button class="icon-button sound-toggle" aria-label="Turn sound effects off" aria-pressed="false" title="Sound effects">${icon('volume-x')}</button>
         <button class="icon-button" id="title-help" aria-label="Garden rules" title="Garden rules">${icon('circle-help')}</button>
       </div>
     </section>
@@ -87,7 +88,10 @@ app.innerHTML = `
       <header class="map-bar">
         <button class="round-button" id="map-home" aria-label="Back to the title">${icon('house')}</button>
         <div class="map-progress" aria-live="polite"><span>${icon('sprout')}</span><b id="map-count">0</b><small>/ ${GARDEN_NAMES.length}</small></div>
-        <button class="round-button sound-toggle" aria-label="Enable placement sounds" aria-pressed="false">${icon('volume-x')}</button>
+        <div class="map-tools">
+          <button class="round-button music-toggle" aria-label="Turn the music off" aria-pressed="false" title="Music">${icon('music')}</button>
+          <button class="round-button sound-toggle" aria-label="Turn sound effects off" aria-pressed="false" title="Sound effects">${icon('volume-x')}</button>
+        </div>
       </header>
       <div class="map-card" id="map-card" role="dialog" aria-labelledby="map-card-title" inert>
         <button class="round-button map-card-close" id="map-card-close" aria-label="Close">${icon('x')}</button>
@@ -103,7 +107,7 @@ app.innerHTML = `
 `
 
 const $ = (selector) => document.querySelector(selector)
-const refreshIcons = () => createIcons({ icons: { Map: MapIcon, Lock, Play, Footprints, Ship, Sun, House, ArrowRight, Check, ChevronDown, CircleHelp, Clock3, Fingerprint, Grid3x3, Lightbulb, MoonStar, Move3d, RotateCcw, Scale, Sprout, Undo2, Volume2, VolumeX, X }, attrs: { 'stroke-width': 1.6 } })
+const refreshIcons = () => createIcons({ icons: { Music, Map: MapIcon, Lock, Play, Footprints, Ship, Sun, House, ArrowRight, Check, ChevronDown, CircleHelp, Clock3, Fingerprint, Grid3x3, Lightbulb, MoonStar, Move3d, RotateCcw, Scale, Sprout, Undo2, Volume2, VolumeX, X }, attrs: { 'stroke-width': 1.6 } })
 refreshIcons()
 
 const access = $('.board-access')
@@ -153,170 +157,21 @@ function finaleSafeArea() {
 }
 
 try {
-  scene = new GardenScene($('#world'), { onCell: placeCell, safeArea: boardSafeArea, finaleArea: finaleSafeArea, onFlourish: playFlourish, onVillage: playVillage, onLighthouse: playLighthouse, onFerry: playFerry, onPilgrim: playPilgrim })
+  scene = new GardenScene($('#world'), { onCell: placeCell, safeArea: boardSafeArea, finaleArea: finaleSafeArea, onFlourish: (lines) => clueSound('flourish', { lines: lines.length }), onVillage: () => clueSound('village'), onLighthouse: () => clueSound('lighthouse'), onFerry: () => clueSound('ferry'), onPilgrim: () => clueSound('pilgrim') })
 } catch (error) {
   $('#world').innerHTML = `<div class="render-error"><p>Your garden needs WebGL to bloom.</p><small>Please open it in a browser with hardware acceleration enabled.</small></div>`
   console.error(error)
-}
-
-function playTone(value) {
-  if (!soundEnabled) return
-  soundContext ??= new AudioContext()
-  soundContext.resume()
-  const now = soundContext.currentTime
-  const oscillator = soundContext.createOscillator()
-  const gain = soundContext.createGain()
-  oscillator.type = 'sine'
-  oscillator.frequency.setValueAtTime(value === 0 ? 520 : 660, now)
-  oscillator.frequency.exponentialRampToValueAtTime(value === 0 ? 220 : 440, now + 0.45)
-  gain.gain.setValueAtTime(0, now)
-  gain.gain.linearRampToValueAtTime(0.045, now + 0.025)
-  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6)
-  oscillator.connect(gain).connect(soundContext.destination)
-  oscillator.start(now)
-  oscillator.stop(now + 0.65)
-}
-
-// A soft whoosh of wind when a row or column clicks into place, a little longer for a pair.
-function playFlourish(lines) {
-  if (!soundEnabled || game.complete) return
-  soundContext ??= new AudioContext()
-  soundContext.resume()
-  const now = soundContext.currentTime
-  const length = lines.length > 1 ? 1.3 : 0.95
-  const noise = soundContext.createBuffer(1, Math.ceil(soundContext.sampleRate * length), soundContext.sampleRate)
-  const samples = noise.getChannelData(0)
-  for (let i = 0; i < samples.length; i++) samples[i] = Math.random() * 2 - 1
-  const source = soundContext.createBufferSource()
-  source.buffer = noise
-  // A band of noise that sweeps up and back down sounds like air rushing past.
-  const filter = soundContext.createBiquadFilter()
-  filter.type = 'bandpass'
-  filter.Q.value = 1.4
-  filter.frequency.setValueAtTime(380, now)
-  filter.frequency.exponentialRampToValueAtTime(1500, now + length * 0.4)
-  filter.frequency.exponentialRampToValueAtTime(500, now + length)
-  const gain = soundContext.createGain()
-  gain.gain.setValueAtTime(0, now)
-  gain.gain.linearRampToValueAtTime(0.05, now + length * 0.3)
-  gain.gain.exponentialRampToValueAtTime(0.001, now + length)
-  source.connect(filter).connect(gain).connect(soundContext.destination)
-  source.start(now)
-  source.stop(now + length)
-}
-
-// A temple bell, round and slow to fade, when two shrines are first joined.
-function playPilgrim() {
-  if (!soundEnabled || game.complete) return
-  soundContext ??= new AudioContext()
-  soundContext.resume()
-  const now = soundContext.currentTime
-  ;[[392, 0.045, 2.6], [392 * 2.76, 0.012, 1.4], [392 * 5.4, 0.006, 0.7], [392 * 0.5, 0.02, 2.2]].forEach(([frequency, level, length]) => {
-    const oscillator = soundContext.createOscillator()
-    const gain = soundContext.createGain()
-    oscillator.type = 'sine'
-    oscillator.frequency.setValueAtTime(frequency, now)
-    gain.gain.setValueAtTime(0, now)
-    gain.gain.linearRampToValueAtTime(level, now + 0.01)
-    gain.gain.exponentialRampToValueAtTime(0.0005, now + length)
-    oscillator.connect(gain).connect(soundContext.destination)
-    oscillator.start(now)
-    oscillator.stop(now + length + 0.05)
-  })
-}
-
-// A soft, cheerful toot-toot when a ferry's crossing first opens.
-function playFerry() {
-  if (!soundEnabled || game.complete) return
-  soundContext ??= new AudioContext()
-  soundContext.resume()
-  const now = soundContext.currentTime
-  ;[[0.05, 0.22], [0.38, 0.42]].forEach(([delay, length]) => {
-    for (const frequency of [293.66, 369.99]) {
-      const oscillator = soundContext.createOscillator()
-      const gain = soundContext.createGain()
-      oscillator.type = 'triangle'
-      oscillator.frequency.setValueAtTime(frequency * 0.97, now + delay)
-      oscillator.frequency.linearRampToValueAtTime(frequency, now + delay + 0.06)
-      gain.gain.setValueAtTime(0, now + delay)
-      gain.gain.linearRampToValueAtTime(0.035, now + delay + 0.04)
-      gain.gain.setValueAtTime(0.035, now + delay + length - 0.06)
-      gain.gain.exponentialRampToValueAtTime(0.001, now + delay + length + 0.12)
-      oscillator.connect(gain).connect(soundContext.destination)
-      oscillator.start(now + delay)
-      oscillator.stop(now + delay + length + 0.15)
-    }
-  })
-}
-
-// A bright little chime, like a bell buoy, when a lighthouse lights.
-function playLighthouse() {
-  if (!soundEnabled || game.complete) return
-  soundContext ??= new AudioContext()
-  soundContext.resume()
-  const now = soundContext.currentTime
-  ;[[783.99, 0.05], [1174.66, 0.2], [1567.98, 0.35]].forEach(([frequency, delay]) => {
-    const oscillator = soundContext.createOscillator()
-    const gain = soundContext.createGain()
-    oscillator.type = 'sine'
-    oscillator.frequency.setValueAtTime(frequency, now + delay)
-    gain.gain.setValueAtTime(0, now + delay)
-    gain.gain.linearRampToValueAtTime(0.03, now + delay + 0.02)
-    gain.gain.exponentialRampToValueAtTime(0.001, now + delay + 1.1)
-    oscillator.connect(gain).connect(soundContext.destination)
-    oscillator.start(now + delay)
-    oscillator.stop(now + delay + 1.2)
-  })
-}
-
-// A warm little two-note welcome when a village comes to life.
-function playVillage() {
-  if (!soundEnabled || game.complete) return
-  soundContext ??= new AudioContext()
-  soundContext.resume()
-  const now = soundContext.currentTime
-  ;[[587.33, 0.1], [880, 0.26]].forEach(([frequency, delay]) => {
-    const oscillator = soundContext.createOscillator()
-    const gain = soundContext.createGain()
-    oscillator.type = 'triangle'
-    oscillator.frequency.setValueAtTime(frequency, now + delay)
-    gain.gain.setValueAtTime(0, now + delay)
-    gain.gain.linearRampToValueAtTime(0.035, now + delay + 0.02)
-    gain.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.9)
-    oscillator.connect(gain).connect(soundContext.destination)
-    oscillator.start(now + delay)
-    oscillator.stop(now + delay + 1)
-  })
-}
-
-// A rising arpeggio for a finished garden.
-function playChime() {
-  if (!soundEnabled) return
-  soundContext ??= new AudioContext()
-  soundContext.resume()
-  const now = soundContext.currentTime
-  ;[523.25, 659.25, 783.99, 1046.5, 1318.5].forEach((frequency, index) => {
-    const oscillator = soundContext.createOscillator()
-    const gain = soundContext.createGain()
-    const start = now + 0.25 + index * 0.16
-    oscillator.type = 'sine'
-    oscillator.frequency.setValueAtTime(frequency, start)
-    gain.gain.setValueAtTime(0, start)
-    gain.gain.linearRampToValueAtTime(0.04, start + 0.03)
-    gain.gain.exponentialRampToValueAtTime(0.001, start + 1.6)
-    oscillator.connect(gain).connect(soundContext.destination)
-    oscillator.start(start)
-    oscillator.stop(start + 1.7)
-  })
 }
 
 function placeCell(row, col) {
   scene?.selectCell({ row, col })
   if (!game.place(row, col)) return
   hintCell = null
-  playTone(game.selected)
+  const before = findViolations(game.grid, game.puzzle).size
+  audio.play(game.selected === 0 ? 'place-water' : game.selected === 1 ? 'place-land' : 'place-erase', { row, col })
   render()
-  if (game.complete) { playChime(); startFinale('celebrate', { row, col }) }
+  if (game.complete) { audio.play('win'); startFinale('celebrate', { row, col }) }
+  else if (findViolations(game.grid, game.puzzle).size > before) audio.play('oops', { at: 0.12 })
 }
 
 // Picking a piece makes it hop up with a burst of splashes, leaves, or mist.
@@ -367,24 +222,52 @@ function render() {
 document.querySelectorAll('[data-value]').forEach((button) => button.addEventListener('click', () => {
   const value = button.dataset.value === 'erase' ? null : Number(button.dataset.value)
   if (value === game.selected) burst(button)
+  audio.play(value === 0 ? 'water' : value === 1 ? 'land' : 'erase')
   game.selected = value
   hintCell = null
   scene?.showHover(null)
   render()
 }))
 
-$('#undo').addEventListener('click', () => { if (game.undo()) { hintCell = null; render() } })
-// Every screen has its own sound button; they all flip the same switch.
-document.querySelectorAll('.sound-toggle').forEach((toggle) => toggle.addEventListener('click', () => {
-  soundEnabled = !soundEnabled
+$('#undo').addEventListener('click', () => { if (game.undo()) { audio.play('undo'); hintCell = null; render() } })
+// Music and sound effects each have their own switch on the title and the map; the garden's own
+// bar has one button that hushes or wakes both together.
+function showAudio() {
+  document.querySelectorAll('.music-toggle').forEach((button) => {
+    button.setAttribute('aria-pressed', String(audio.music))
+    button.setAttribute('aria-label', audio.music ? 'Turn the music off' : 'Turn the music on')
+    button.classList.toggle('off', !audio.music)
+  })
   document.querySelectorAll('.sound-toggle').forEach((button) => {
-    button.setAttribute('aria-pressed', String(soundEnabled))
-    button.setAttribute('aria-label', soundEnabled ? 'Disable placement sounds' : 'Enable placement sounds')
-    button.innerHTML = icon(soundEnabled ? 'volume-2' : 'volume-x')
+    const on = button.dataset.scope === 'all' ? audio.music || audio.effects : audio.effects
+    button.setAttribute('aria-pressed', String(on))
+    button.setAttribute('aria-label', button.dataset.scope === 'all' ? (on ? 'Mute music and sounds' : 'Play music and sounds') : (on ? 'Turn sound effects off' : 'Turn sound effects on'))
+    button.innerHTML = icon(on ? 'volume-2' : 'volume-x')
   })
   refreshIcons()
-  if (soundEnabled) playTone(0)
+}
+document.querySelectorAll('.music-toggle').forEach((button) => button.addEventListener('click', () => { audio.unlock(); audio.setMusic(!audio.music); showAudio() }))
+document.querySelectorAll('.sound-toggle').forEach((button) => button.addEventListener('click', () => {
+  audio.unlock()
+  if (button.dataset.scope === 'all') {
+    const on = !(audio.music || audio.effects)
+    audio.setMusic(on)
+    audio.setEffects(on)
+  } else audio.setEffects(!audio.effects)
+  showAudio()
+  audio.play('tap')
 }))
+showAudio()
+// Browsers only allow sound after a tap or a key, so the first one wakes the music.
+addEventListener('pointerdown', () => audio.unlock(), true)
+addEventListener('keydown', () => audio.unlock(), true)
+document.addEventListener('visibilitychange', () => {
+  if (!audio.context) return
+  if (document.hidden) audio.context.suspend()
+  else audio.context.resume()
+})
+// Clue celebrations stay quiet once the garden is finished, when the finale has its own sound.
+function clueSound(name, options) { if (!game.complete) audio.play(name, options) }
 // On phones the garden leans very slightly with the device. Where the browser shares motion
 // freely it starts on; iOS asks once, on the player's first tap, and the button turns it on or off.
 const tilt = new DeviceTilt({ reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches })
@@ -438,14 +321,17 @@ function hintText({ row, col, value, technique, axis }) {
 $('#hint').addEventListener('click', () => {
   if (game.complete) { startFinale('revisit'); return }
   if (findViolations(game.grid, game.puzzle).size) {
+    audio.play('oops')
     $('#placement-status p').textContent = 'Check the coral-marked tiles first'
     return
   }
   hintCell = findHint(game.grid, game.puzzle.solution, game.puzzle)
   if (!hintCell) {
+    audio.play('oops')
     $('#placement-status p').textContent = 'One of your tiles is out of place'
     return
   }
+  audio.play('hint')
   game.selected = hintCell.value
   render()
   scene?.showHover(null)
@@ -467,18 +353,20 @@ modal.addEventListener('click', (event) => {
 })
 
 $('#reset').addEventListener('click', () => {
+  audio.play('open')
   openModal(`<p class="eyebrow">A fresh beginning</p><h2>Let the tide<br>start again?</h2><p class="modal-description">Your placed terrain in this garden will be cleared.</p><div class="modal-actions"><button class="secondary-button" id="cancel-reset">Keep growing</button><button class="primary-button" id="confirm-reset">Start again ${icon('rotate-ccw')}</button></div>`)
-  $('#cancel-reset').addEventListener('click', () => modal.close())
-  $('#confirm-reset').addEventListener('click', () => { scene?.resetPresentation(); game.reset(); hintCell = null; render(); modal.close() })
+  $('#cancel-reset').addEventListener('click', () => { audio.play('back'); modal.close() })
+  $('#confirm-reset').addEventListener('click', () => { audio.play('restart'); scene?.resetPresentation(); game.reset(); hintCell = null; render(); modal.close() })
 })
 
 function openHelp() {
+  audio.play('open')
   openModal(`<p class="eyebrow">The art of balance</p><h2>A little land.<br>A little water.</h2><div class="rule"><span class="rule-icon">${icon('scale')}</span><div><h3>Equal measure</h3><p>Every row and column contains five water tiles and five land tiles.</p></div></div><div class="rule"><span class="rule-icon">${icon('grid-3x3')}</span><div><h3>Keep the rhythm</h3><p>Three water tiles or three land tiles may never appear consecutively, horizontally or vertically.</p></div></div><div class="rule"><span class="rule-icon">${icon('fingerprint')}</span><div><h3>Every line is its own</h3><p>No two completed rows or columns can have the same terrain pattern.</p></div></div><div class="rule"><span class="rule-icon">${icon('house')}</span><div><h3>Village signs</h3><p>In later gardens, a wooden sign counts the land tiles of its island. Each new tile you join to it raises a little hut, and the village comes to life when the island is closed in at its number.</p></div></div><div class="rule"><span class="rule-icon">${icon('sun')}</span><div><h3>Lighthouses</h3><p>A lighthouse counts the water tiles its light reaches straight up, down, left and right before land or the edge stops it. Glowing dots show what it already sees, and it lights up when every beam ends at its number.</p></div></div><div class="rule"><span class="rule-icon">${icon('ship')}</span><div><h3>Ferries</h3><p>Docks with matching roofs must be joined by water, moving up, down, left and right, so their little ferry can sail from one to the other.</p></div></div><div class="rule"><span class="rule-icon">${icon('footprints')}</span><div><h3>Pilgrims</h3><p>Shrines with matching lanterns must stand on the same island, joined by land up, down, left and right, so their little pilgrim can walk from one to the other.</p></div></div><p class="given-note"><b></b> Stone-rimmed land with a little landmark, and deeper pools of water, mark the terrain already in place.</p>`)
 }
 $('#help').addEventListener('click', openHelp)
 $('#title-help').addEventListener('click', openHelp)
 
-$('#to-map').addEventListener('click', () => showScreen('map'))
+$('#to-map').addEventListener('click', () => { audio.play('back'); showScreen('map') })
 
 // The finale: the interface steps aside while the scene celebrates, then a small card
 // offers the next garden without covering the finished one.
@@ -492,6 +380,8 @@ function startFinale(mode, origin = null) {
   appRoot.classList.add('finale')
   appRoot.classList.toggle('finale-quick', mode !== 'celebrate')
   scene.finale.start(mode, origin)
+  // Evening falls in the music too: the melody settles and crickets come out.
+  audio.setMood('evening')
   $('#finale-number').textContent = String(game.level + 1).padStart(2, '0')
   $('#finale-name').textContent = GARDEN_NAMES[game.level]
   $('#finale-time').textContent = $('#time').textContent
@@ -518,8 +408,9 @@ function endFinale() {
   finale = null
   appRoot.classList.remove('finale', 'finale-quick')
   scene?.finale.stop()
+  audio.setMood(screen)
 }
-$('#finale-stay').addEventListener('click', () => { endFinale(); scene?.clearSelection() })
+$('#finale-stay').addEventListener('click', () => { audio.play('back'); endFinale(); scene?.clearSelection() })
 // Onward leads back to the map, where the marker hops along to the garden that just opened.
 $('#finale-next').addEventListener('click', () => showScreen('map', { offer: true }))
 // A tap during the celebration brings the card forward without cutting the show short.
@@ -558,8 +449,11 @@ let cardLevel = null
 function showScreen(name, { push = true, offer = false } = {}) {
   if (name === screen) return
   if (screen === 'play') { endFinale(); scene?.showHover(null) }
+  // Each move between screens drifts the music into that screen's mood, on a breath of wind.
+  if (screen) audio.play('swoosh')
   screen = name
   appRoot.dataset.screen = name
+  audio.setMood(name)
   $('#title-screen').inert = name !== 'title'
   mapScreen.inert = name !== 'map'
   // The map covers the whole garden, so the scene rests while it's open.
@@ -578,8 +472,8 @@ function showScreen(name, { push = true, offer = false } = {}) {
   if (push) history.pushState({ screen: name }, '', name === 'title' ? location.pathname + location.search : `#${name}`)
 }
 addEventListener('popstate', (event) => showScreen(event.state?.screen ?? 'title', { push: false }))
-$('#title-play').addEventListener('click', () => showScreen('map'))
-$('#map-home').addEventListener('click', () => showScreen('title'))
+$('#title-play').addEventListener('click', () => { audio.unlock(); audio.play('tap'); showScreen('map') })
+$('#map-home').addEventListener('click', () => { audio.play('back'); showScreen('title') })
 
 // Lays out the whole map and scrolls to the newest open garden. When a garden has opened since the
 // map was last seen, the marker hops along to it and, after a win, its card comes up.
@@ -601,6 +495,8 @@ function openMap({ offer = false } = {}) {
     marker.style.left = `${from.x}px`
     marker.style.top = `${from.y}px`
     mapCanvas.querySelector(`.map-node[data-level="${frontier}"]`)?.classList.add('opening')
+    audio.play('hop', { at: 0.1 })
+    audio.play('unlock', { at: 0.7 })
     requestAnimationFrame(() => requestAnimationFrame(() => {
       marker.classList.add('hopping')
       marker.style.left = `${to.x}px`
@@ -616,11 +512,13 @@ mapCanvas.addEventListener('click', (event) => {
   if (!node) return
   const level = Number(node.dataset.level)
   if (!game.isUnlocked(level)) {
+    audio.play('locked')
     node.classList.remove('nudge')
     void node.offsetWidth
     node.classList.add('nudge')
     return
   }
+  audio.play('select', { level })
   openCard(level)
 })
 addEventListener('resize', () => { if (screen === 'map' && Math.min(mapScroll.clientWidth, 560) !== mapWidth) openMap() })
@@ -649,9 +547,10 @@ function closeCard() {
   mapCard.inert = true
   mapCanvas.querySelectorAll('.map-node.chosen').forEach((node) => node.classList.remove('chosen'))
 }
-$('#map-card-close').addEventListener('click', closeCard)
+$('#map-card-close').addEventListener('click', () => { audio.play('back'); closeCard() })
 $('#map-card-play').addEventListener('click', () => {
   if (cardLevel === null) return
+  audio.play('start')
   if (cardLevel !== game.level) {
     game.load(cardLevel)
     scene?.clearSelection()
@@ -679,6 +578,7 @@ if (import.meta.env.DEV) {
         lighthouses: scene && { towers: scene.beacons.towers.size, lit: scene.beacons.litCount, dots: scene.beacons.dotCount },
         villages: scene && { huts: scene.villages.hutCount, alive: scene.villages.aliveCount, signs: scene.villages.signModels.size },
         lean: scene?.lean,
+        audio: { state: audio.context?.state ?? 'none', music: audio.music, effects: audio.effects, mood: audio.mood, playing: !!audio.playing, chords: audio.chordIndex ?? 0 },
         flourishes: scene?.flourish.count,
         rain: scene && { strength: scene.rain.strength, drops: scene.rain.drops.length, marks: scene.rain.marks.length },
         finale: scene && { active: scene.finale.active, mode: scene.finale.mode, ...scene.finale.view, card: !!finale?.card, flock: scene.finale.flock.filter((bird) => bird.root.visible).length, fireflies: scene.finale.fireflies.length, lanterns: scene.finale.lanterns.filter((lantern) => lantern.root.visible).length },
