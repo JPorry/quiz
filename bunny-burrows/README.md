@@ -1,10 +1,10 @@
 # Bunny Burrows
 
-A cozy Three.js take on Hashiwokakero (Bridges), played on a little meadow
-diorama. Burrows are the islands, stepping-stone paths are the bridges, and
-Grandma's burrow is where the carrots come from. Like Tidal Garden, this is a
-standalone project with its own Vite setup, build, and storage namespace, and
-it is published under `/bunny-burrows/` on the same GitHub Pages site.
+A cozy Three.js take on Hashiwokakero (Bridges), played in an underground
+warren. Rooms are the islands, tunnels are the bridges, and carrots come down
+from a patch on the meadow above. Like Tidal Garden, this is a standalone
+project with its own Vite setup, build, and storage namespace, and it is
+published under `/bunny-burrows/` on the same GitHub Pages site.
 
 ## Run
 
