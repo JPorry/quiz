@@ -33,7 +33,7 @@ back button walks back through them.
 
 - **Title:** a big Tidal Garden logo and a Play button over the player's current
   garden, softly blurred behind. It shows how many gardens are in balance, with
-  buttons for sound and the rules.
+  buttons for music, sound effects, and the rules.
 - **Map:** one long winding path of stepping-stone islands, from garden 1 at
   the bottom to garden 210 at the top, through a sea of its own color for each
   chapter. A ribbon names each chapter, little illustrations drift beside the
@@ -56,6 +56,34 @@ back button walks back through them.
 
 Every visit opens on the title. Add `?play` to the URL to go straight into the
 current garden, as the visual tests do. The map's layout lives in `src/map.js`.
+
+## Music and sound
+
+All the music and sound is made in code with the Web Audio API (`src/audio.js`);
+there are no audio files. The music is generative, calm, and never repeats: a
+slow, warm progression in F major (Fmaj7, Am7, B♭maj7, Cadd9, about ten seconds
+each) on a soft pad and a deep bass, with kalimba-like plucks that wander only
+through the F major pentatonic scale in small steps, so nothing can clash.
+Beneath it the sea laps in slow swells, a bird sings now and then, and a wind
+chime stirs in the breeze. Each screen has its own mood: the title and the map
+are a little fuller and full of birdsong, the garden is quieter and sparser so
+it never distracts, and the finale's evening settles the melody and brings out
+crickets. Everything shares a soft room reverb and a gentle compressor.
+
+Sound effects are cute and pitched in the same key, so they sit inside the
+music: bloops for buttons, a breeze between screens, a rising run for Play, a
+marimba note for each garden on the map that climbs with its number, wooden
+knocks for locked gardens, a hop and a shower of pings when a garden opens,
+bubbles, rustles, and mist for the three pieces, a droplet or an earthy thump
+with a marimba note (pitched by where the tile lands) for each placement, a
+rewind for Undo, twinkles for a hint, a soft rounded bonk when something falls
+out of balance, the tide washing out for Restart, and the clue celebrations
+(village, lighthouse, ferry, pilgrim) and finished-garden arpeggio.
+
+Browsers only allow sound after a tap, so the music starts with the player's
+first tap or key. The title and the map have separate switches for music and
+for sound effects; the garden's bar has one speaker that hushes or wakes both.
+The choices are remembered, and sound pauses while the page is hidden.
 
 ## Puzzle
 
