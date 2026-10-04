@@ -63,10 +63,6 @@ export const ES = {
   'title.fresh': '{total} jardincitos por cultivar',
   'audio.music': 'Música',
   'audio.effects': 'Efectos de sonido',
-  'audio.musicOff': 'Apagar la música',
-  'audio.musicOn': 'Encender la música',
-  'audio.effectsOff': 'Apagar los efectos de sonido',
-  'audio.effectsOn': 'Encender los efectos de sonido',
   'settings': 'Ajustes',
 
   // The map.

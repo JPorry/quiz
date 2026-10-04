@@ -94,8 +94,6 @@ app.innerHTML = `
         <p class="title-progress" id="title-progress"></p>
       </div>
       <div class="title-tools">
-        <button class="round-button music-toggle" aria-label="${t('audio.musicOff')}" aria-pressed="false" title="${t('audio.music')}">${icon('music')}</button>
-        <button class="round-button sound-toggle" aria-label="${t('audio.effectsOff')}" aria-pressed="false" title="${t('audio.effects')}">${icon('volume-x')}</button>
         <button class="round-button open-settings" aria-label="${t('settings')}" title="${t('settings')}">${icon('settings')}</button>
         <button class="round-button" id="title-help" aria-label="${t('bar.rules')}" title="${t('bar.rules')}">${icon('circle-help')}</button>
       </div>
@@ -106,8 +104,6 @@ app.innerHTML = `
         <button class="round-button" id="map-home" aria-label="${t('map.home')}">${icon('house')}</button>
         <div class="map-progress" id="map-progress" aria-live="polite"><span>${icon('sprout')}</span><b id="map-count">0</b><small>/ ${GARDEN_NAMES.length}</small></div>
         <div class="map-tools">
-          <button class="round-button music-toggle" aria-label="${t('audio.musicOff')}" aria-pressed="false" title="${t('audio.music')}">${icon('music')}</button>
-          <button class="round-button sound-toggle" aria-label="${t('audio.effectsOff')}" aria-pressed="false" title="${t('audio.effects')}">${icon('volume-x')}</button>
           <button class="round-button open-settings" aria-label="${t('settings')}" title="${t('settings')}">${icon('settings')}</button>
         </div>
       </header>
@@ -274,30 +270,6 @@ document.querySelectorAll('[data-value]').forEach((button) => button.addEventLis
 }))
 
 $('#undo').addEventListener('click', () => { if (game.undo()) { audio.play('undo'); hintCell = null; render() } })
-// Music and sound effects each have their own switch on the title and the map, and a slider in
-// Settings.
-function showAudio() {
-  document.querySelectorAll('.music-toggle').forEach((button) => {
-    button.setAttribute('aria-pressed', String(audio.music))
-    button.setAttribute('aria-label', t(audio.music ? 'audio.musicOff' : 'audio.musicOn'))
-    button.classList.toggle('off', !audio.music)
-  })
-  document.querySelectorAll('.sound-toggle').forEach((button) => {
-    const on = audio.effects
-    button.setAttribute('aria-pressed', String(on))
-    button.setAttribute('aria-label', t(on ? 'audio.effectsOff' : 'audio.effectsOn'))
-    button.innerHTML = icon(on ? 'volume-2' : 'volume-x')
-  })
-  refreshIcons()
-}
-document.querySelectorAll('.music-toggle').forEach((button) => button.addEventListener('click', () => { audio.unlock(); audio.setMusic(!audio.music); showAudio() }))
-document.querySelectorAll('.sound-toggle').forEach((button) => button.addEventListener('click', () => {
-  audio.unlock()
-  audio.setEffects(!audio.effects)
-  showAudio()
-  audio.play('tap')
-}))
-showAudio()
 // Browsers only allow sound after a tap or a key, so the first one wakes the music.
 addEventListener('pointerdown', () => audio.unlock(), true)
 addEventListener('keydown', () => audio.unlock(), true)
@@ -414,8 +386,8 @@ function openSettings() {
     for (const id of ['#music-volume', '#effects-volume']) $(id).style.setProperty('--fill', `${$(id).value}%`)
   }
   show()
-  $('#music-volume').addEventListener('input', (event) => { audio.unlock(); audio.setMusicVolume(event.target.value / 100); showAudio(); show() })
-  $('#effects-volume').addEventListener('input', (event) => { audio.setEffectsVolume(event.target.value / 100); showAudio(); show() })
+  $('#music-volume').addEventListener('input', (event) => { audio.unlock(); audio.setMusicVolume(event.target.value / 100); show() })
+  $('#effects-volume').addEventListener('input', (event) => { audio.setEffectsVolume(event.target.value / 100); show() })
   // Letting go of the effects slider plays a little tap at the new loudness.
   $('#effects-volume').addEventListener('change', () => audio.play('tap'))
   // A new language reloads the game in it, back on the same screen with Settings open.

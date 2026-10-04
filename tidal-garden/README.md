@@ -37,8 +37,8 @@ back button walks back through them.
   distant isles sit on the horizon, and long clouds, gulls, smoke, petals,
   and the waves all drift on the same left-to-right breeze, while a fish
   leaps nose first now and then. The logo is set in Fraunces, above a Play
-  button and the number of gardens in balance, with buttons for music, sound
-  effects, settings, and the rules. Tall screens crop the picture's sides to
+  button and the number of gardens in balance, with buttons for settings and
+  the rules. Tall screens crop the picture's sides to
   fill; wide ones fit it whole. The 3D garden rests while the title is up.
 - **Map:** one long winding path of stepping-stone islands, from garden 1 at
   the bottom to garden 210 at the top, through a sea of its own color for each
@@ -151,9 +151,8 @@ arpeggio with a celesta shimmer for a finished garden. Effects are decoded once
 and play instantly.
 
 Browsers only allow sound after a tap, so the music starts with the player's
-first tap or key (on iOS both music decks are unlocked by that tap). The title
-and the map have separate switches for music and for sound effects, and
-Settings has a volume slider for each. The choices are
+first tap or key (on iOS both music decks are unlocked by that tap). Settings
+has a volume slider each for the music and the sound effects. The choices are
 remembered, and sound pauses while the page is hidden.
 
 ## Puzzle
