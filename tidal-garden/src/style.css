@@ -1,6 +1,17 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;450;500;550;600;650;700&family=DM+Serif+Display:ital@0;1&family=Fredoka:wght@500;600;700&display=swap');
 
 :root { font-family: 'DM Sans', sans-serif; color: #27433a; background: #e9efe9; font-synthesis: none; --ink: #27433a; --muted: #74837b; --water: #368c86; --land: #7f9e63; }
+/* How far the screen's edges keep clear of the phone's status bar and home indicator. Installed on
+   iOS 26, a home-screen app also gets a system blur reaching about 40pt below the status bar (and a
+   tint above the home indicator) that no CSS can turn off, so the controls sit below it. The
+   min(…, inset * 100) adds the extra only where there is a status bar or home indicator at all. */
+:root { --inset-top: env(safe-area-inset-top, 0px); --inset-bottom: env(safe-area-inset-bottom, 0px); }
+@supports (-webkit-touch-callout: none) {
+  @media (display-mode: standalone) {
+    :root { --inset-top: calc(env(safe-area-inset-top, 0px) + min(40px, env(safe-area-inset-top, 0px) * 100));
+      --inset-bottom: calc(env(safe-area-inset-bottom, 0px) + min(10px, env(safe-area-inset-bottom, 0px) * 100)); }
+  }
+}
 * { box-sizing: border-box; }
 body { margin: 0; }
 button, a { -webkit-tap-highlight-color: transparent; }
@@ -166,7 +177,7 @@ dialog { color: #27433a; }
   .finale-card h2 { font-size: 40px; line-height: 1.04; }
 }
 @media (max-width: 700px) {
-  .finale-card { bottom: max(14px, env(safe-area-inset-bottom)); padding: 18px 18px 12px; }
+  .finale-card { bottom: max(14px, var(--inset-bottom)); padding: 18px 18px 12px; }
   .finale-card h2 { font-size: 28px; }
   .finale-actions .primary-button, .finale-actions .secondary-button { padding: 10px 12px; }
 }
@@ -236,14 +247,14 @@ dialog { color: #27433a; }
 @keyframes marker-bob { 50% { transform: translateY(-6px); } }
 @keyframes marker-hop { 50% { transform: translateY(-22px) scale(1.05, .95); } }
 
-.map-bar { position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; padding: max(14px, env(safe-area-inset-top)) 18px 14px; pointer-events: none; }
+.map-bar { position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; padding: max(14px, var(--inset-top)) 18px 14px; pointer-events: none; }
 .map-bar > * { pointer-events: auto; }
 .map-progress { display: flex; align-items: center; gap: 6px; padding: 7px 16px 7px 8px; border-radius: 999px; background: #fffaf0; color: #2c5f5a; box-shadow: 0 4px 0 #d7c9a6, 0 8px 16px #1d4f4a33; font-size: 17px; }
 .map-progress span { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: #e3f2c4; color: #2f7a55; }
 .map-progress span svg { width: 18px; height: 18px; }
 .map-progress small { color: #7d9590; font-size: 13px; }
 
-.map-card { position: absolute; left: 50%; bottom: max(18px, env(safe-area-inset-bottom)); width: min(360px, calc(100% - 32px)); translate: -50% 130%; padding: 26px 24px 24px; border-radius: 22px; text-align: center; color: #27433a; background: #fffaf0; box-shadow: 0 8px 0 #e3d6b6, 0 22px 50px #10303080; transition: translate .4s cubic-bezier(.3, 1.3, .5, 1); }
+.map-card { position: absolute; left: 50%; bottom: max(18px, var(--inset-bottom)); width: min(360px, calc(100% - 32px)); translate: -50% 130%; padding: 26px 24px 24px; border-radius: 22px; text-align: center; color: #27433a; background: #fffaf0; box-shadow: 0 8px 0 #e3d6b6, 0 22px 50px #10303080; transition: translate .4s cubic-bezier(.3, 1.3, .5, 1); }
 .map-card.visible { translate: -50% 0; }
 .map-card-close { position: absolute; top: 12px; right: 12px; width: 36px; height: 36px; box-shadow: 0 3px 0 #e3d6b6; }
 .map-card-chapter { margin: 0 0 6px; font-size: 11px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; color: #6f9a85; }
@@ -257,7 +268,7 @@ dialog { color: #27433a; }
    pieces in a dock. Portrait puts the dock below the board; landscape stands it at the side. */
 .game-layout { position: absolute; inset: 0; z-index: 4; pointer-events: none; display: grid; gap: 8px;
   grid-template: "bar" auto "board" minmax(0, 1fr) "status" 40px "dock" auto / minmax(0, 1fr);
-  padding: max(12px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left)); }
+  padding: max(12px, var(--inset-top)) max(14px, env(safe-area-inset-right)) max(12px, var(--inset-bottom)) max(14px, env(safe-area-inset-left)); }
 .game-layout > :not(.board-slot) { pointer-events: auto; }
 .board-slot { grid-area: board; pointer-events: none; }
 .game-bar { grid-area: bar; display: flex; align-items: center; gap: 10px; }
@@ -301,7 +312,7 @@ dialog { color: #27433a; }
 }
 /* Short landscape screens, like a phone on its side, keep the dock compact. */
 @media (orientation: landscape) and (max-height: 560px) {
-  .game-layout { gap: 4px; padding-top: max(8px, env(safe-area-inset-top)); padding-bottom: max(8px, env(safe-area-inset-bottom)); grid-template-rows: auto minmax(0, 1fr) 34px; }
+  .game-layout { gap: 4px; padding-top: max(8px, var(--inset-top)); padding-bottom: max(8px, var(--inset-bottom)); grid-template-rows: auto minmax(0, 1fr) 34px; }
   .piece-name { display: none; }
   .piece-stage { width: 54px; height: 58px; }
   .piece-tile { width: 48px; height: 48px; border-radius: 13px; margin-bottom: 6px; }
@@ -354,7 +365,7 @@ dialog { color: #27433a; }
 .title-screen { position: absolute; inset: 0; z-index: 10; overflow: hidden; background: #c3eaf2; opacity: 0; visibility: hidden; transition: opacity .5s ease, visibility 0s .5s; }
 .garden-app[data-screen=title] .title-screen { opacity: 1; visibility: visible; transition: opacity .6s ease; }
 .title-art { position: absolute; inset: 0; width: 100%; height: 100%; }
-.title-content { position: absolute; left: 0; right: 0; top: max(7vh, calc(env(safe-area-inset-top) + 56px)); display: flex; flex-direction: column; align-items: center; text-align: center; padding: 0 16px; pointer-events: none; }
+.title-content { position: absolute; left: 0; right: 0; top: max(7vh, calc(var(--inset-top) + 56px)); display: flex; flex-direction: column; align-items: center; text-align: center; padding: 0 16px; pointer-events: none; }
 .title-logo { margin: 0; display: flex; flex-direction: column; align-items: center; font: 700 clamp(58px, min(17vw, 11.5vh), 124px)/.92 'Fredoka', ui-rounded, 'Arial Rounded MT Bold', 'Nunito', sans-serif; letter-spacing: .01em; }
 .logo-line { display: flex; }
 .logo-line + .logo-line { margin-top: -.02em; }
@@ -364,11 +375,11 @@ dialog { color: #27433a; }
 .title-logo .gap { width: .3em; }
 @keyframes logo-bob { 0%, 100% { translate: 0 0; rotate: -2deg; } 50% { translate: 0 -.07em; rotate: 2deg; } }
 .title-tagline { margin: 14px 0 0; padding: 6px 16px; border-radius: 999px; font: 600 15px 'Fredoka', ui-rounded, sans-serif; color: #2c6e6a; background: #ffffffb0; box-shadow: 0 3px 0 #ffffff60; }
-.title-bottom { position: absolute; left: 0; right: 0; bottom: max(6vh, calc(env(safe-area-inset-bottom) + 24px)); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
+.title-bottom { position: absolute; left: 0; right: 0; bottom: max(6vh, calc(var(--inset-bottom) + 24px)); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
 .title-bottom .play-button { min-width: 210px; min-height: 64px; font: 700 24px 'Fredoka', ui-rounded, sans-serif; animation: play-breathe 2.6s ease-in-out infinite; }
 .title-progress { margin: 0; padding: 5px 14px; border-radius: 999px; font: 600 13px 'Fredoka', ui-rounded, sans-serif; color: #fffaf0; background: #1d5f6066; }
 .title-progress:empty { display: none; }
-.title-tools { position: absolute; top: max(14px, env(safe-area-inset-top)); right: 16px; display: flex; gap: 8px; }
+.title-tools { position: absolute; top: max(14px, var(--inset-top)); right: 16px; display: flex; gap: 8px; }
 .title-tools .round-button { width: 44px; height: 44px; }
 @keyframes play-breathe { 50% { scale: 1.05; } }
 
@@ -423,10 +434,10 @@ dialog { color: #27433a; }
 
 /* Short screens, like a phone on its side: one line of logo. */
 @media (max-height: 520px) {
-  .title-content { top: max(10px, env(safe-area-inset-top)); }
+  .title-content { top: max(10px, var(--inset-top)); }
   .title-logo { flex-direction: row; gap: .3em; font-size: 50px; }
   .title-tagline { display: none; }
-  .title-bottom { bottom: max(14px, env(safe-area-inset-bottom)); flex-direction: row; }
+  .title-bottom { bottom: max(14px, var(--inset-bottom)); flex-direction: row; }
   .title-bottom .play-button { min-height: 52px; font-size: 20px; }
 }
 @media (prefers-reduced-motion: reduce) { .title-screen * { animation: none !important; } .title-fish, .title-splash, .title-smoke, .title-puff, .title-petals { display: none; } }
