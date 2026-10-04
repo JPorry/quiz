@@ -1,0 +1,46 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>html,body{margin:0;width:1200px;height:700px;overflow:hidden;background:#f6ecd6}</style>
+<script type="importmap">{ "imports": { "three": "../node_modules/three/build/three.module.js", "three/addons/": "../node_modules/three/examples/jsm/" } }</script>
+</head><body><script type="module">
+import * as THREE from 'three'
+import { Bunny, makeBasket } from '../src/bunny.js'
+const p = new URLSearchParams(location.search)
+const W = 1200, H = 700
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true })
+renderer.setSize(W, H); renderer.setPixelRatio(1.5)
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap
+renderer.outputColorSpace = THREE.SRGBColorSpace
+renderer.setClearColor(0xf6ecd6)
+document.body.append(renderer.domElement)
+const scene = new THREE.Scene()
+scene.add(new THREE.HemisphereLight(0xbcd9ff, 0xc9d8a0, 1.5))
+const sun = new THREE.DirectionalLight(0xfff1d6, 2.4); sun.position.set(-4, 8, 6); sun.castShadow = true
+sun.shadow.mapSize.set(2048, 2048); Object.assign(sun.shadow.camera, { left: -6, right: 6, top: 6, bottom: -6 }); scene.add(sun)
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(30, 30).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0x9edc78 }))
+ground.receiveShadow = true; scene.add(ground)
+const zoom = Number(p.get('zoom') ?? 3.2)
+const pan = Number(p.get('pan') ?? 0); const camera = new THREE.OrthographicCamera(pan - zoom * W / H, pan + zoom * W / H, zoom, -zoom, 0.1, 100)
+const elev = Number(p.get('elev') ?? 22) * Math.PI / 180
+camera.position.set(0, Math.sin(elev) * 20 + 0.8, Math.cos(elev) * 20); camera.lookAt(0, 0.8, 0)
+const configs = [
+  { coat: 'snow', accessory: 'bow' }, { coat: 'caramel', accessory: 'scarf' }, { grandma: true, coat: 'silver' },
+  { coat: 'cocoa', lop: true }, { coat: 'smoke', accessory: 'flower' }, { coat: 'cream', lop: true, accessory: 'bow' },
+]
+const moods = (p.get('moods') ?? 'content,happy,content,sleepy,worried,content').split(',')
+const bunnies = configs.map((c, i) => {
+  const b = new Bunny({ ...c, seed: 11 + i * 7 })
+  b.root.position.set((i - 2.5) * 1.65, 0, 0)
+  b.root.rotation.y = Number(p.get('yaw') ?? 0.25) * (i % 2 ? 1 : -1)
+  b.setMood(moods[i])
+  scene.add(b.root)
+  return b
+})
+const basket = makeBasket(); basket.scale.setScalar(0.35); basket.position.set(-3.3, 0, 1.2); scene.add(basket)
+basket.userData.carrots.visible = true; basket.userData.carrots.scale.setScalar(1)
+const t = Number(p.get('t') ?? 3)
+for (let s = 0; s < t * 60; s++) bunnies.forEach((b) => b.update(1 / 60))
+if (p.get('binky')) { bunnies[1].binky(); for (let s = 0; s < 20; s++) bunnies.forEach((b) => b.update(1 / 60)) }
+scene.traverse((o) => { if (o.isMesh) o.receiveShadow = true })
+renderer.render(scene, camera)
+</script></body></html>

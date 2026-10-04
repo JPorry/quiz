@@ -29,6 +29,7 @@ jobs:
           cache-dependency-path: |
             package-lock.json
             tidal-garden/package-lock.json
+            bunny-burrows/package-lock.json
 
       - name: Set up GitHub Pages
         uses: actions/configure-pages@v6
@@ -49,6 +50,21 @@ jobs:
 
       - name: Publish Tidal Garden under /tidal-garden/
         run: cp -R tidal-garden/dist dist/tidal-garden
+
+      - name: Install Bunny Burrows dependencies
+        working-directory: bunny-burrows
+        run: npm ci --no-audit --no-fund
+
+      - name: Test Bunny Burrows
+        working-directory: bunny-burrows
+        run: npm test
+
+      - name: Build Bunny Burrows
+        working-directory: bunny-burrows
+        run: npm run build
+
+      - name: Publish Bunny Burrows under /bunny-burrows/
+        run: cp -R bunny-burrows/dist dist/bunny-burrows
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5
