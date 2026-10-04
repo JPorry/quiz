@@ -404,10 +404,11 @@ export class GardenScene {
     this.particleColors = { water: new THREE.Color(COLORS.foam), land: new THREE.Color(COLORS.flower) }
   }
 
-  createHover() {
+  createHover({ color = 0xffffff, size = 0.92, thickness = 0.04, material } = {}) {
     const group = new THREE.Group()
-    const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.95, depthTest: false })
-    for (const [w, d, x, z] of [[0.92, 0.04, 0, -0.46], [0.92, 0.04, 0, 0.46], [0.04, 0.92, -0.46, 0], [0.04, 0.92, 0.46, 0]]) {
+    const mat = material ?? new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.95, depthTest: false })
+    const half = size / 2
+    for (const [w, d, x, z] of [[size, thickness, 0, -half], [size, thickness, 0, half], [thickness, size, -half, 0], [thickness, size, half, 0]]) {
       const edge = this.mesh(new THREE.BoxGeometry(w, 0.01, d), mat, group, x, 0, z)
       edge.castShadow = false
       edge.renderOrder = 10
@@ -666,6 +667,40 @@ export class GardenScene {
     this.showHover(this.hoverCell)
   }
 
+  // The tutorial's marks: the tile to place pulses gold, and the tiles that decide it wear soft
+  // cream rings. Null clears them.
+  showGuide(guide) {
+    if (!this.guideMarks) {
+      this.guideMarks = new THREE.Group()
+      this.scene.add(this.guideMarks)
+      this.guideGold = new THREE.MeshBasicMaterial({ color: 0xffc94d, transparent: true, opacity: 1, depthTest: false })
+      this.guideCream = new THREE.MeshBasicMaterial({ color: 0xfff6dc, transparent: true, opacity: 0.85, depthTest: false })
+      this.guideGlow = new THREE.MeshBasicMaterial({ color: 0xffd36e, transparent: true, opacity: 0.35, depthTest: false, depthWrite: false })
+    }
+    const key = guide ? JSON.stringify([guide.target, guide.because]) : ''
+    if (key === this.guideKey) return
+    this.guideKey = key
+    this.guideMarks.traverse((part) => part.geometry?.dispose())
+    this.guideMarks.clear()
+    this.guideCells = []
+    if (!guide) return
+    const add = ([row, col], options, pulse) => {
+      const mark = this.createHover(options)
+      mark.visible = true
+      mark.position.set(col - 4.5, 0, row - 4.5)
+      this.guideMarks.add(mark)
+      this.guideCells.push({ mark, cell: this.cells[row * 10 + col], pulse })
+    }
+    for (const cell of guide.because ?? []) add(cell, { material: this.guideCream, size: 0.7, thickness: 0.035 }, false)
+    if (guide.target) {
+      add([guide.target.row, guide.target.col], { material: this.guideGold, size: 0.94, thickness: 0.07 }, true)
+      const glow = new THREE.Mesh(new THREE.PlaneGeometry(0.88, 0.88), this.guideGlow)
+      glow.rotation.x = -Math.PI / 2
+      glow.renderOrder = 9
+      this.guideCells.at(-1).mark.add(glow)
+    }
+  }
+
   clearSelection() {
     this.selectedCell = null
     this.showHover(null)
@@ -833,6 +868,14 @@ export class GardenScene {
     this.crossTiles.forEach((plane, index) => {
       if (plane.visible) plane.position.y = this.cellHeight(this.cells[index]) + (this.cells[index].value === 1 ? this.cells[index].land.position.y : 0) + 0.02
     })
+    for (const { mark, cell, pulse } of this.guideCells ?? []) {
+      mark.position.y = this.cellHeight(cell) + (cell.value === 1 ? cell.land.position.y : 0) + 0.05
+      if (pulse) mark.scale.setScalar(1 + (this.reducedMotion ? 0 : 0.06 * Math.sin(this.time * 4)))
+    }
+    if (this.guideGold) {
+      this.guideGold.opacity = this.reducedMotion ? 1 : 0.75 + 0.25 * Math.sin(this.time * 4)
+      this.guideGlow.opacity = this.reducedMotion ? 0.35 : 0.25 + 0.15 * Math.sin(this.time * 4)
+    }
     if (this.activeCell) {
       const cell = this.cells[this.activeCell.row * 10 + this.activeCell.col]
       this.hover.position.y = this.cellHeight(cell) + (cell.value === 1 ? cell.land.position.y : 0) + 0.04

@@ -5,9 +5,11 @@ import { mapLayout, mapMarkup, MAP_ART } from './map.js'
 import { GardenAudio } from './audio.js'
 import { TITLE_ART } from './titleArt.js'
 import { DeviceTilt } from './tilt.js'
+import { Tutorial } from './tutorial.js'
 import './style.css'
 
 const game = new GardenGame()
+const tutorial = new Tutorial()
 let scene
 const audio = new GardenAudio()
 let hintCell = null
@@ -44,6 +46,15 @@ app.innerHTML = `
           <button class="round-button" id="help" aria-label="Garden rules" title="Garden rules">${icon('circle-help')}</button>
         </div>
       </header>
+      <section class="coach" id="coach" aria-live="polite" hidden>
+        <p class="coach-title" id="coach-title"></p>
+        <p class="coach-text" id="coach-text"></p>
+        <div class="coach-foot">
+          <p class="coach-instruction" id="coach-instruction"></p>
+          <button class="coach-skip" id="coach-skip">Skip tutorial</button>
+          <button class="coach-next" id="coach-next"></button>
+        </div>
+      </section>
       <div class="board-slot" aria-hidden="true"></div>
       <div class="placement-status" id="placement-status" aria-live="polite"><p></p></div>
       <footer class="game-dock">
@@ -90,12 +101,13 @@ app.innerHTML = `
       <div class="map-scroll" id="map-scroll"><div class="map-canvas" id="map-canvas"></div></div>
       <header class="map-bar">
         <button class="round-button" id="map-home" aria-label="Back to the title">${icon('house')}</button>
-        <div class="map-progress" aria-live="polite"><span>${icon('sprout')}</span><b id="map-count">0</b><small>/ ${GARDEN_NAMES.length}</small></div>
+        <div class="map-progress" id="map-progress" aria-live="polite"><span>${icon('sprout')}</span><b id="map-count">0</b><small>/ ${GARDEN_NAMES.length}</small></div>
         <div class="map-tools">
           <button class="round-button music-toggle" aria-label="Turn the music off" aria-pressed="false" title="Music">${icon('music')}</button>
           <button class="round-button sound-toggle" aria-label="Turn sound effects off" aria-pressed="false" title="Sound effects">${icon('volume-x')}</button>
         </div>
       </header>
+      <p class="map-toast" id="map-toast" role="status"></p>
       <div class="map-card" id="map-card" role="dialog" aria-labelledby="map-card-title" inert>
         <button class="round-button map-card-close" id="map-card-close" aria-label="Close">${icon('x')}</button>
         <p class="map-card-chapter" id="map-card-chapter"></p>
@@ -220,7 +232,32 @@ function render() {
   })
   if (shownSelection !== undefined && shownSelection !== game.selected) burst(pieceFor(game.selected))
   shownSelection = game.selected
+  renderCoach()
 }
+
+// The guided first garden: a card above the board says what to do, the piece to pick bounces, and
+// the tile to place glows on the board, with soft rings on the tiles that decide it.
+function renderCoach() {
+  const card = tutorial.card(game.level, game.grid, game.selected, game.complete)
+  const app = document.querySelector('.garden-app')
+  const was = app.classList.contains('coaching')
+  app.classList.toggle('coaching', !!card)
+  $('#coach').hidden = !card
+  scene?.showGuide(card?.target ? card : null)
+  document.querySelectorAll('.piece').forEach((button) => button.classList.toggle('coach-pick', card?.pick !== undefined && card?.pick !== null && button.dataset.value === String(card.pick)))
+  // The card takes a row of its own, so the board makes room for it, and takes the room back after.
+  if (was !== !!card) scene?.resize()
+  if (!card) return
+  $('#coach').dataset.step = card.step
+  $('#coach-title').textContent = card.title
+  $('#coach-text').textContent = card.text
+  $('#coach-instruction').textContent = card.instruction ?? ''
+  $('#coach-next').textContent = card.action ?? ''
+  $('#coach-next').hidden = !card.action
+  $('#coach-skip').hidden = card.step === 'outro'
+}
+$('#coach-next').addEventListener('click', () => { audio.play(tutorial.step === 'outro' ? 'start' : 'tap'); tutorial.next(); render() })
+$('#coach-skip').addEventListener('click', () => { audio.play('back'); tutorial.finish(); render() })
 
 document.querySelectorAll('[data-value]').forEach((button) => button.addEventListener('click', () => {
   const value = button.dataset.value === 'erase' ? null : Number(button.dataset.value)
@@ -536,6 +573,24 @@ mapCanvas.addEventListener('click', (event) => {
 })
 addEventListener('resize', () => { if (screen === 'map' && Math.min(mapScroll.clientWidth, 560) !== mapWidth) openMap() })
 
+// A hidden developer switch: tapping the garden count seven times in quick succession opens every
+// garden on the map (or closes them again), for trying any level.
+let devTaps = []
+$('#map-progress').addEventListener('click', () => {
+  const now = performance.now()
+  devTaps = [...devTaps.filter((time) => now - time < 3000), now]
+  if (devTaps.length < 7) return
+  devTaps = []
+  game.unlockAll = !game.unlockAll
+  audio.play(game.unlockAll ? 'unlock' : 'locked')
+  const toast = $('#map-toast')
+  toast.textContent = game.unlockAll ? 'Developer mode: every garden is open' : 'Developer mode off'
+  toast.classList.remove('visible')
+  void toast.offsetWidth
+  toast.classList.add('visible')
+  openMap()
+})
+
 const clock = (seconds) => `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`
 // A small card about the garden, with the way in.
 function openCard(level) {
@@ -592,6 +647,7 @@ if (import.meta.env.DEV) {
         villages: scene && { huts: scene.villages.hutCount, alive: scene.villages.aliveCount, signs: scene.villages.signModels.size },
         lean: scene?.lean,
         audio: { state: audio.context?.state ?? 'none', music: audio.music, effects: audio.effects, mood: audio.mood, playing: !!audio.playing, track: audio.decks[audio.live]?.track ?? null, time: audio.decks[audio.live]?.element.currentTime ?? 0, effectsLoaded: audio.buffers.size },
+        coach: { step: tutorial.step, lesson: tutorial.lesson },
         flourishes: scene?.flourish.count,
         rain: scene && { strength: scene.rain.strength, drops: scene.rain.drops.length, marks: scene.rain.marks.length },
         finale: scene && { active: scene.finale.active, mode: scene.finale.mode, ...scene.finale.view, card: !!finale?.card, flock: scene.finale.flock.filter((bird) => bird.root.visible).length, fireflies: scene.finale.fireflies.length, lanterns: scene.finale.lanterns.filter((lantern) => lantern.root.visible).length },

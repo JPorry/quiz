@@ -15,6 +15,7 @@ import { pilgrimViolations, pilgrimsHold } from './pilgrims.js'
 // v3: every chapter was regenerated at thirty gardens, so progress saved for the old ones no
 // longer applies.
 const STORAGE_KEY = 'tidal-garden.v3'
+const DEV_KEY = 'tidal-garden.dev'
 // Thirty names per chapter, in chapter order.
 export const GARDEN_NAMES = [
   // Shallows
@@ -169,14 +170,25 @@ export class GardenGame {
   }
 
   // Gardens open in order: the first is always open, and finishing one opens the next. A garden
-  // already finished, or the one being played, stays open.
-  isUnlocked(level) {
+  // already finished, or the one being played, stays open. A hidden developer switch opens them all.
+  isOpen(level) {
     return level === 0 || level === this.level || this.completed.includes(level) || this.completed.includes(level - 1)
   }
 
-  // The newest garden open to play: the furthest one along the map that isn't finished yet.
+  isUnlocked(level) { return this.unlockAll || this.isOpen(level) }
+
+  get unlockAll() {
+    try { return this.storage?.getItem(DEV_KEY) === 'all' } catch { return false }
+  }
+
+  set unlockAll(on) {
+    try { if (on) this.storage?.setItem(DEV_KEY, 'all'); else this.storage?.removeItem(DEV_KEY) } catch { /* Fine without. */ }
+  }
+
+  // The newest garden open to play the ordinary way: the furthest one along the map that isn't
+  // finished yet. (Gardens opened by the developer switch don't move it.)
   get frontier() {
-    for (let level = GARDENS.length - 1; level >= 0; level--) if (this.isUnlocked(level) && !this.completed.includes(level)) return level
+    for (let level = GARDENS.length - 1; level >= 0; level--) if (this.isOpen(level) && !this.completed.includes(level)) return level
     return GARDENS.length - 1
   }
 

@@ -53,3 +53,15 @@ test('gardens open one after another', () => {
   game.completed = Array.from({ length: GARDENS.length }, (_, i) => i)
   assert.equal(game.frontier, GARDENS.length - 1)
 })
+
+test('the hidden developer switch opens every garden without moving the frontier', () => {
+  const memory = new Map()
+  const storage = { getItem: (key) => memory.get(key) ?? null, setItem: (key, value) => memory.set(key, value), removeItem: (key) => memory.delete(key) }
+  const game = new GardenGame(storage)
+  game.unlockAll = true
+  assert.ok(game.isUnlocked(150))
+  assert.equal(game.frontier, 0)
+  assert.ok(new GardenGame(storage).unlockAll, 'the switch is remembered')
+  game.unlockAll = false
+  assert.ok(!game.isUnlocked(150))
+})
