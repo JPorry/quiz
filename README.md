@@ -94,4 +94,5 @@ The published URL will be shown in the completed deployment job.
 The same deployment builds the standalone Tidal Garden project in
 `tidal-garden/` and publishes it under `/tidal-garden/` on the same site. Bunny Burrows,
 in `bunny-burrows/`, is built (after its tests pass) and published under
-`/bunny-burrows/` the same way.
+`/bunny-burrows/` the same way. Tiny Isles, in `tiny-isles/`, is
+published under `/tiny-isles/` the same way.
