@@ -28,8 +28,16 @@ shows every stage of a city side by side; add `?x=` to pan along the row.
 
 The sea is a tilted diorama seen through a fixed orthographic camera. A small
 shader paints it: shallows and soft white foam rings around every island,
-gentle swells and sparkles. Islands are sandy beaches under a grassy top, a
-little irregular, and bigger numbers make bigger islands.
+gentle swells and sparkles. Islands are soft pudding shapes with a
+frosting-like top that drips over the edge, and bigger numbers make bigger
+islands.
+
+Each island has a personality. It belongs to a biome (meadow with a windmill,
+tropical with a lighthouse, snowy with a snowman, cherry blossom with a pagoda,
+desert with a dome, autumn with a barn) that sets its colours, trees and
+landmark. It also has a face on its front: asleep before any bridge arrives,
+curious while it has some, beaming once it has exactly its number, and worried,
+with a drop of sweat, when it has too many.
 
 Every island's city grows a step with each bridge it gets (`src/city.js`):
 

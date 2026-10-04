@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
-import { City, makeIsland } from './city.js'
+import { City, Island, BIOME_NAMES } from './city.js'
 import { toon, outline, part, merge, canvasTexture, seeded } from './look.js'
 
 // A tilted diorama of a turquoise sea. Islands sit on a grid; bridges are built
@@ -9,7 +9,7 @@ import { toon, outline, part, merge, canvasTexture, seeded } from './look.js'
 
 const CX = 1
 const ELEVATION = 52 * Math.PI / 180
-const DECK_Y = 0.13
+const DECK_Y = 0.2
 const LINE = 0x5e4a58
 const CAR_COLORS = [0xff8fa3, 0x7fc8ff, 0xffd166, 0x8ee39b, 0xc7a3ff, 0xffa96b, 0xffffff]
 const clamp = THREE.MathUtils.clamp
@@ -237,7 +237,7 @@ export class IslandScene {
     this.world = new THREE.Group()
     this.scene.add(this.world)
     this.ray = new THREE.Raycaster()
-    this.plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.1)
+    this.plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.18)
     this.time = 0
     this.dusk = 0
     this.duskTarget = 0
@@ -263,10 +263,13 @@ export class IslandScene {
       const group = new THREE.Group()
       group.position.copy(p)
       this.world.add(group)
-      group.add(makeIsland(r, seed * 13 + b.index * 7))
-      const city = new City(seed * 17 + b.index * 11)
+      // neighbouring islands get different biomes, so each one has its own character
+      const biome = BIOME_NAMES[(b.index * 5 + seed) % BIOME_NAMES.length]
+      const island = new Island(r, seed * 13 + b.index * 7, biome)
+      group.add(island.group)
+      const city = new City(seed * 17 + b.index * 11, biome)
       city.group.scale.setScalar(r)
-      city.group.position.y = 0.105
+      city.group.position.y = 0.205
       group.add(city.group)
       city.setTier(0)
       city.settle()
@@ -276,10 +279,10 @@ export class IslandScene {
       tex.colorSpace = THREE.SRGBColorSpace
       const badge = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }))
       badge.scale.setScalar(0.42)
-      badge.position.set(p.x - r * 0.72, 0.16, p.z + r * 0.95)
+      badge.position.set(p.x + r * 0.95, 0.3, p.z + r * 0.75)
       badge.renderOrder = 10
       this.world.add(badge)
-      const entry = { b, r, group, city, badge, canvas, tex, bounce: -1, key: '' }
+      const entry = { b, r, group, city, island, badge, canvas, tex, bounce: -1, key: '' }
       this.drawBadge(entry, 0, false, false)
       return entry
     })
@@ -356,6 +359,7 @@ export class IslandScene {
     states.forEach((s, i) => {
       const is = this.islands[i]
       if (is.city.setTier(s.tier)) is.bounce = 0
+      is.island.setMood(s.over ? 'worried' : s.done ? 'happy' : s.have ? 'curious' : 'sleep')
       this.drawBadge(is, s.have, s.done, s.over)
     })
   }
@@ -488,6 +492,7 @@ export class IslandScene {
     if (!this.board) return
     for (const is of this.islands) {
       is.city.update(dt)
+      is.island.update(dt)
       if (is.bounce >= 0) {
         is.bounce += dt / 0.45
         const k = Math.min(1, is.bounce)
@@ -495,7 +500,7 @@ export class IslandScene {
         is.group.scale.set(1 + w, 1 - w, 1 + w)
         if (k >= 1) { is.bounce = -1; is.group.scale.set(1, 1, 1) }
       }
-      is.badge.position.y = 0.16 + Math.sin(this.time * 2 + is.b.index) * 0.012
+      is.badge.position.y = 0.3 + Math.sin(this.time * 2 + is.b.index) * 0.012
     }
     for (const br of this.bridges) {
       if (!br) continue
