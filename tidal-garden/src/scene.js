@@ -5,6 +5,7 @@ import { connectedTerrain, landMask, landOutline } from './terrain.js'
 import { createRimField, RIM, waterVertexHead, waterVertexBody, waterFragmentHead, waterFragmentColor } from './ocean.js'
 import { RegionCompletions } from './completions.js'
 import { renderProfile, frameIsDue, scheduledFrameTime } from './renderProfile.js'
+import { t, terrain } from './i18n.js'
 import { WaterRipples } from './waterRipples.js'
 import { WaterLife } from './waterLife.js'
 import { SocketBoard, SOCKET_TOP } from './sockets.js'
@@ -101,7 +102,7 @@ export class GardenScene {
     this.renderer.shadowMap.type = THREE.PCFShadowMap
     this.renderer.shadowMap.autoUpdate = false
     this.renderer.outputColorSpace = THREE.SRGBColorSpace
-    this.renderer.domElement.setAttribute('aria-label', 'A little island diorama seen from above, with interactive land and water puzzle cells')
+    this.renderer.domElement.setAttribute('aria-label', t('board.scene'))
     this.renderer.domElement.setAttribute('role', 'img')
     container.append(this.renderer.domElement)
     this.raycaster = new THREE.Raycaster()
@@ -565,7 +566,7 @@ export class GardenScene {
     if (!overlay) return
     this.cells.forEach((cell, index) => {
       const button = overlay.children[index]
-      button.setAttribute('aria-label', `Row ${cell.row + 1}, column ${cell.col + 1}: ${cell.value === null ? 'undecided' : cell.value === 0 ? 'water' : 'land'}${this.clues[cell.row][cell.col] !== null ? ', fixed' : ''}`)
+      button.setAttribute('aria-label', t('board.cell', { row: cell.row + 1, col: cell.col + 1, state: cell.value === null ? t('board.undecided') : terrain(cell.value), fixed: this.clues[cell.row][cell.col] !== null ? t('board.fixed') : '' }))
       button.disabled = this.clues[cell.row][cell.col] !== null || this.complete
     })
     this.positionAccess()

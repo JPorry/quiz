@@ -4,6 +4,7 @@
 // clue deciding a tile. The coach points at the piece to pick and makes the right tile glow, with
 // soft rings on what decides it, then hands over with where the hint lives.
 import { CHAPTERS } from './game.js'
+import { t, terrain, pieceName } from './i18n.js'
 import { easiestDeductions, VILLAGE_TECHNIQUES, LIGHT_TECHNIQUES, FERRY_TECHNIQUES, PILGRIM_TECHNIQUES } from './solver.js'
 
 export const TUTORIAL_LEVEL = 0
@@ -62,56 +63,25 @@ function lessonsIn(grid, rule, axis, cells) {
   return found
 }
 
-const name = (value) => (value === 0 ? 'water' : 'land')
-const Name = (value) => (value === 0 ? 'Water' : 'Land')
-
-// What the coach says for each rule, about a particular tile.
+// What the coach says for each rule, about a particular tile, in the player's language.
+const kinds = (m) => ({ kind: terrain(m.value), other: terrain(1 - m.value), axis: t(`axis.${m.axis}`) })
 const LESSONS = {
-  pair: (m) => ({ title: 'Never three in a row', text: `Two ${name(1 - m.value)} tiles sit side by side, so the tile next to them must be ${name(m.value)}.` }),
-  gap: (m) => ({ title: 'Mind the gap', text: `A tile between two ${name(1 - m.value)} tiles must be ${name(m.value)}, or there would be three in a row.` }),
-  count: (m) => ({ title: 'Five and five', text: `Every row and column holds five water and five land. This ${m.axis} already has five ${name(1 - m.value)}, so the rest is ${name(m.value)}.` }),
+  pair: (m) => ({ title: t('coach.pair'), text: t('coach.pairText', kinds(m)) }),
+  gap: (m) => ({ title: t('coach.gap'), text: t('coach.gapText', kinds(m)) }),
+  count: (m) => ({ title: t('coach.count'), text: t('coach.countText', kinds(m)) }),
 }
 const BASICS = ['pair', 'gap', 'count']
 
-// Each later chapter's guide: the clues it reads, how the coach introduces them, and how it hands
-// over. The guide's lesson is any move its clues decide, so it always shows the new idea at work.
+// Each later chapter's guide: the clues it reads. How the coach introduces them and hands over is
+// in the dictionary, under the guide's name. The guide's lesson is any move its clues decide, so it
+// always shows the new idea at work.
 export const GUIDES = {
-  villages: {
-    clues: 'signs',
-    techniques: VILLAGE_TECHNIQUES,
-    intro: { title: 'Villages', text: 'A wooden sign counts the land tiles of its island. Each tile you join to it raises a hut, and the village comes alive when its island is closed in by water at exactly its number.' },
-    outro: { title: 'Grow every village', text: 'Every sign must end on an island of exactly its number. Stuck? Tap Hint and a tile will glow, with the reason why.' },
-  },
-  lighthouses: {
-    clues: 'lighthouses',
-    techniques: LIGHT_TECHNIQUES,
-    intro: { title: 'Lighthouses', text: 'A lighthouse counts the water its light reaches up, down, left and right, before land or the edge stops it. Glowing dots show what it already sees.' },
-    outro: { title: 'Light every lighthouse', text: 'Every lighthouse must see exactly its number. Stuck? Tap Hint and a tile will glow, with the reason why.' },
-  },
-  ferries: {
-    clues: 'docks',
-    techniques: FERRY_TECHNIQUES,
-    intro: { title: 'Ferries', text: 'Docks with matching roofs must be joined by water, moving up, down, left and right, so their little ferry can sail from one to the other.' },
-    outro: { title: 'Join every pair of docks', text: 'Every ferry needs a channel of water to its twin. Stuck? Tap Hint and a tile will glow, with the reason why.' },
-  },
-  pilgrims: {
-    clues: 'shrines',
-    techniques: PILGRIM_TECHNIQUES,
-    intro: { title: 'Pilgrims', text: 'Shrines with matching lanterns must stand on the same island, joined by land up, down, left and right, so their pilgrim can walk from one to the other.' },
-    outro: { title: 'Join every pair of shrines', text: 'Every pilgrim needs a trail of land to its twin. Stuck? Tap Hint and a tile will glow, with the reason why.' },
-  },
-  crossings: {
-    clues: 'docks and shrines',
-    techniques: [...FERRY_TECHNIQUES, ...PILGRIM_TECHNIQUES],
-    intro: { title: 'Crossings', text: 'Ferries and pilgrims now share each garden. Docks need water between them and shrines need land, so their paths have to cross with care.' },
-    outro: { title: 'Every path at once', text: 'Every ferry and every pilgrim must reach its twin. Stuck? Tap Hint and a tile will glow, with the reason why.' },
-  },
-  archipelago: {
-    clues: 'clues',
-    techniques: [...VILLAGE_TECHNIQUES, ...LIGHT_TECHNIQUES, ...FERRY_TECHNIQUES, ...PILGRIM_TECHNIQUES],
-    intro: { title: 'The Archipelago', text: 'Villages, lighthouses, ferries and pilgrims, all in one garden. Every clue still holds, and they lean on each other.' },
-    outro: { title: 'All together', text: 'Every clue must hold at the end. Stuck? Tap Hint and a tile will glow, with the reason why.' },
-  },
+  villages: { techniques: VILLAGE_TECHNIQUES },
+  lighthouses: { techniques: LIGHT_TECHNIQUES },
+  ferries: { techniques: FERRY_TECHNIQUES },
+  pilgrims: { techniques: PILGRIM_TECHNIQUES },
+  crossings: { techniques: [...FERRY_TECHNIQUES, ...PILGRIM_TECHNIQUES] },
+  archipelago: { techniques: [...VILLAGE_TECHNIQUES, ...LIGHT_TECHNIQUES, ...FERRY_TECHNIQUES, ...PILGRIM_TECHNIQUES] },
 }
 const CHAPTER_GUIDES = ['villages', 'lighthouses', 'ferries', 'pilgrims', 'crossings', 'archipelago']
 
@@ -123,15 +93,7 @@ export function guideFor(level) {
 }
 
 // What the coach says about each clue deciding a tile.
-const CLUE_LESSONS = {
-  seal: { title: 'Closing a village', text: () => 'This village already has as many tiles as its sign, so it\u2019s closed in by water here.' },
-  grow: { title: 'Growing a village', text: () => 'This village is still short of its number, and this is its only way to grow, so it must be land.' },
-  apart: { title: 'Keeping villages apart', text: () => 'Land here would join islands into a village bigger than its sign, so it must be water.' },
-  block: { title: 'Stopping the light', text: () => 'This lighthouse already sees its number, so land must stop its light here.' },
-  shine: { title: 'Letting the light through', text: () => 'This lighthouse can only reach its number if its light passes here, so it must be water.' },
-  channel: { title: 'Opening a channel', text: () => 'Every way left between these two docks passes here, so their ferry needs this tile to be water.' },
-  trail: { title: 'Laying a trail', text: () => 'Every way left between these two shrines passes here, so their pilgrim needs this tile to be land.' },
-}
+const clueLesson = (technique) => ({ title: t(`lesson.${technique}`), text: t(`lesson.${technique}Text`) })
 
 // The clue tiles behind a move: the nearest sign or lighthouse, or both ends of the nearest ferry
 // or pilgrim route.
@@ -232,8 +194,8 @@ export class Tutorial {
     const state = this.state(id)
     if (state.step === 'welcome') {
       return id === 'basics'
-        ? { step: 'welcome', title: 'Welcome to your first garden', text: 'Every tile becomes water or land, in balance. Let\u2019s place a few together.', action: 'Let\u2019s begin' }
-        : { step: 'welcome', ...guide.intro, action: 'Show me' }
+        ? { step: 'welcome', title: t('coach.welcome'), text: t('coach.welcomeText'), action: t('coach.begin') }
+        : { step: 'welcome', title: t(`guide.${id}`), text: t(`guide.${id}Text`), action: t('coach.showMe') }
     }
     // A lesson ends once its tile holds the right terrain.
     while (steps.includes(state.step)) {
@@ -247,23 +209,23 @@ export class Tutorial {
     }
     if (state.step === 'outro') {
       return id === 'basics'
-        ? { step: 'outro', title: 'One last rule', text: 'No two finished rows, or two finished columns, may match. Stuck? Tap Hint and a tile will glow, with the reason why.', action: 'Got it' }
-        : { step: 'outro', ...guide.outro, action: 'Got it' }
+        ? { step: 'outro', title: t('coach.lastRule'), text: t('coach.lastRuleText'), action: t('coach.gotIt') }
+        : { step: 'outro', title: t(`guide.${id}Outro`), text: `${t(`guide.${id}OutroText`)} ${t('coach.stuck')}`, action: t('coach.gotIt') }
     }
     const m = state.lesson
     // When the board doesn't show the idea yet, the player keeps going until it does.
-    if (!m && id === 'basics') return { step: 'practice', title: 'Keep going', text: 'Fill more tiles with what you\u2019ve learned. There\u2019s one more rule to show you soon.' }
+    if (!m && id === 'basics') return { step: 'practice', title: t('coach.keepGoing'), text: t('coach.keepGoingText') }
     // A chapter's clues may need a few familiar moves first: the coach rings them on the board and
     // the player plays on until one decides a tile.
-    if (!m) return { step: 'practice', title: 'Keep going', text: `Fill tiles the usual way, and keep an eye on the ringed ${guide.clues}. As soon as one decides a tile, it will glow here.`, because: guideClues(guide.techniques, puzzle) }
-    const lesson = id === 'basics' ? LESSONS[state.step](m) : { title: CLUE_LESSONS[m.technique].title, text: CLUE_LESSONS[m.technique].text(m) }
+    if (!m) return { step: 'practice', title: t('coach.keepGoing'), text: t('coach.watchText', { clues: t(`guide.${id}Clues`) }), because: guideClues(guide.techniques, puzzle) }
+    const lesson = id === 'basics' ? LESSONS[state.step](m) : clueLesson(m.technique)
     return { step: state.step, ...lesson, ...this.pointAt(m, grid, selected) }
   }
 
   // The coach's pointing: which piece to pick, the glowing tile, and what decides it.
   pointAt(m, grid, selected) {
     const placedWrong = grid[m.row][m.col] !== null && grid[m.row][m.col] !== m.value
-    const instruction = placedWrong ? 'Not quite. Tap Undo and try again.' : selected !== m.value ? `Pick ${Name(m.value)} below.` : 'Now tap the glowing tile.'
+    const instruction = placedWrong ? t('coach.wrong') : selected !== m.value ? t('coach.pick', { piece: pieceName(m.value) }) : t('coach.tap')
     return { instruction, target: { row: m.row, col: m.col }, pick: selected !== m.value && !placedWrong ? m.value : null, because: m.because }
   }
 }

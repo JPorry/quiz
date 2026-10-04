@@ -79,10 +79,22 @@ and is remembered once done.
 
 The gear on the title and the map (and a button in the rules) opens Settings:
 sliders for the music and sound-effect volumes (sliding to nothing switches
-one off), the language (English for now), Replay the tutorial (the first
+one off), the language (English or Spanish), Replay the tutorial (the first
 garden is cleared for it, and every chapter guide returns), and Reset all
 progress, which asks for confirmation before clearing every garden, time, and
 guide.
+
+## Languages
+
+The game speaks English and Spanish (Spain). Every word the player sees lives
+in a dictionary per language (`src/locales/en.js`, `src/locales/es.js`), read
+through `src/i18n.js`: `t('key', { values })` fills in `{placeholders}`, and the
+garden and chapter names have their own lists. The first visit follows the
+device's language; the picker in Settings changes it and reloads the game on
+the same screen, with Settings open. Anything a language hasn't translated
+falls back to English, and a test checks that every language has every
+string with the same placeholders. To add a language, copy `es.js`, translate
+it, and list it in `LANGUAGES`.
 
 For development, tapping the map's garden count seven times within three
 seconds opens every garden (and again closes them).
