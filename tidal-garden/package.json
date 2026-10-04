@@ -9,6 +9,7 @@
     "preview": "vite preview --host 0.0.0.0",
     "test": "node --test tests/*.test.js",
     "generate:gardens": "node scripts/generate-gardens.mjs --output=src/puzzles.js",
+    "compose:audio": "python3 scripts/compose-audio.py",
     "test:visual": "node tests/visual.mjs",
     "test:wildlife": "node tests/wildlife-visual.mjs",
     "test:rendering": "node tests/rendering-visual.mjs",
