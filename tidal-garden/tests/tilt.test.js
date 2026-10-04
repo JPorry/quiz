@@ -14,7 +14,7 @@ test('the board leans only a little, and never past its limit', () => {
   assert.ok(leanFor(5) > 0 && leanFor(5) < MAX_LEAN)
   assert.ok(Math.abs(leanFor(90) - MAX_LEAN) < 1e-12)
   assert.ok(Math.abs(leanFor(-90) + MAX_LEAN) < 1e-12)
-  assert.ok(MAX_LEAN <= 10 * Math.PI / 180, 'a gentle lean, not a spin')
+  assert.ok(MAX_LEAN <= 4 * Math.PI / 180, 'a gentle lean, not a sway')
 })
 
 test('the board leans as the phone turns, then settles back to level however it is held', () => {
