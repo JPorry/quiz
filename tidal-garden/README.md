@@ -102,9 +102,9 @@ The 43 sound effects are pitched in the same key, so they sit inside the music:
 a marimba tap and a bubble for buttons, a breeze between screens, a kalimba run
 and a celesta sparkle for Play, a marimba note for each garden on the map that
 climbs with its number, a woodblock knock for locked gardens, a pizzicato hop
-and a music-box cascade when a garden opens, bubbles, a leafy rustle, and mist
-for the three pieces, a droplet with a kalimba note or an earthy thump with a
-marimba note for each placement (pitched by where the tile lands, so filling a
+and a music-box cascade when a garden opens, bubbles, soft round boops with a
+kalimba note, and mist for the three pieces, a droplet with a kalimba note or a
+soft thump and pop with a marimba note for each placement (pitched by where the tile lands, so filling a
 row plays a little tune), a kalimba rewind for Undo, a celesta twinkle for a
 hint, a soft marimba bonk when something falls out of balance, the tide
 washing out for Restart, a gust and a harp sweep for a finished row, and the
