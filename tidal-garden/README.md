@@ -43,7 +43,14 @@ back button walks back through them.
   one before is finished. Tapping a garden brings up a card with its chapter,
   name, and progress, and a Play, Continue, or Visit button. The map scrolls
   to the marker when it opens, and the 3D scene rests while it covers it.
-- **Garden:** the game itself, with a map button in the header. Finishing a
+- **Garden:** the game itself, laid out to give the board every pixel it can.
+  A slim bar on top holds a map button, a little pill with the garden's
+  number, chapter, name, time, and a progress bar, and round buttons for
+  tilt, sound, and the rules. Below the board sits a single hint line, then a
+  dock with the three pieces and Undo, Hint, and Restart chips. On wide
+  screens (iPads and desktops held landscape) the dock stands beside the board
+  instead, so the board can use the full height; tablets get bigger pieces,
+  and short landscape phones a compact, icon-only dock. Finishing a
   garden plays the finale; Onward returns to the map, where the marker hops
   along to the garden that just opened and its card comes up.
 
@@ -329,7 +336,7 @@ fit the whole tray at any angle. The sun keeps going past golden hour into a
 low sunset and a blue evening, fireflies come out over the land, paper lanterns
 float up in open water, and a small flock sweeps in, circles the island, and
 flies off. A small card then offers the way onward, back to the map; on wide
-screens it sits where the journal was. Dragging turns the island by hand; tapping or pressing
+screens it sits on the left. Dragging turns the island by hand; tapping or pressing
 a key brings the card forward early. "Stay a little longer" (or Escape) lowers
 the camera back to the board and brings the interface back, and "See it at
 dusk" returns to the evening view. Opening a finished garden goes straight to

@@ -11,56 +11,17 @@ button:focus-visible, a:focus-visible { outline: 2px solid #2b8980; outline-offs
 button { border: 0; }
 svg { display: block; width: 20px; height: 20px; flex-shrink: 0; }
 button svg { pointer-events: none; }
-.garden-app { min-height: 760px; height: 100svh; position: relative; overflow: hidden; }
-.world { position: absolute; left: 300px; right: 0; top: 100px; bottom: 140px; }
+.garden-app { height: 100svh; min-height: 320px; position: relative; overflow: hidden; }
+.world { position: absolute; inset: 0; }
 .world canvas { display: block; width: 100%; height: 100%; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
-.masthead { position: absolute; top: 0; left: 0; right: 0; padding: 29px 42px; display: flex; align-items: center; justify-content: space-between; z-index: 3; }
-.brand { display: flex; align-items: center; gap: 11px; text-decoration: none; color: var(--ink); font-weight: 650; font-size: 18px; }
-.brand-icon { width: 38px; height: 38px; border-radius: 50%; background: #dce6dc; display: grid; place-items: center; border: 1px solid #cbd8cb; }
-.brand-icon svg { width: 21px; height: 21px; }
-.header-tools { display: flex; gap: 8px; }
 .icon-button { height: 39px; width: 39px; display: grid; place-items: center; background: transparent; border: 1px solid #cfdacf; border-radius: 50%; transition: background .2s, transform .2s; }
 .icon-button:hover { background: #dce5dc; transform: translateY(-1px); }
 .icon-button[aria-pressed=true] { background: #d1e0d4; border-color: #7b9a85; }
-.garden-journal { position: absolute; z-index: 2; width: 255px; left: 62px; top: 20%; }
 .eyebrow { margin: 0 0 22px; font-size: 10px; font-weight: 600; letter-spacing: 0; text-transform: uppercase; display: flex; align-items: center; gap: 8px; color: #657c6e; }
 .eyebrow > span { width: 6px; height: 6px; border-radius: 50%; background: #8da080; }
 h1 { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 66px; line-height: .98; margin: 0 0 23px; }
 h1 em { font-weight: 400; color: #557b61; }
-.intro { color: #7b8a7c; font-size: 14px; line-height: 1.7; margin: 0; }
-.journal-divider { height: 1px; background: #d2dcd1; margin: 29px 0 22px; width: 205px; }
-.chapter { padding: 0; width: 100%; display: flex; align-items: center; text-align: left; background: none; gap: 13px; }
-.chapter-number { font-family: 'DM Serif Display', Georgia, serif; font-size: 34px; color: #86a28b; }
-.chapter-text { display: flex; flex-direction: column; gap: 4px; flex: 1; }
-.chapter-text small { color: #7e8b7f; font-size: 10px; }
-.chapter-text strong { font-size: 14px; font-weight: 600; }
-.chapter svg { width: 16px; }
-.progress-block { margin-top: 28px; }
-.progress-heading { display: flex; justify-content: space-between; font-size: 10px; align-items: center; color: #6d8074; }
-.progress-heading strong { color: #476552; font-weight: 600; font-size: 12px; }
-.progress-heading small { font-size: 10px; }
-.progress-track { margin: 11px 0 12px; height: 3px; border-radius: 2px; background: #d2dcd0; overflow: hidden; }
-.progress-track span { height: 100%; display: block; background: #85a390; transition: width .5s; }
-.terrain-counts { display: flex; justify-content: space-between; font-size: 11px; color: #738576; }
-.terrain-counts > span { display: flex; align-items: center; gap: 6px; }
-.terrain-counts strong { font-weight: 550; color: #566f5d; margin-left: 5px; }
-.water-dot, .land-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #69afa7; }
-.land-dot { background: #98b87c; }
-.time-detail { display: flex; align-items: center; gap: 8px; margin-top: 24px; font-size: 10px; color: #869588; }
-.time-detail svg { width: 12px; height: 12px; }
 .time-divider { width: 1px; height: 10px; margin: 0 5px; background: #cfdbd0; }
-.scene-caption { position: absolute; top: 105px; left: calc(300px + (100% - 300px) / 2); transform: translateX(-50%); display: flex; align-items: center; gap: 12px; color: #8d9e90; font-size: 9px; white-space: nowrap; }
-.caption-mark { width: 5px; height: 5px; border: 1px solid #8da694; border-radius: 50%; }
-.caption-line { width: 32px; height: 1px; background: #cbd8cc; }
-.caption-level { font-weight: 500; }
-.game-dock { position: absolute; z-index: 4; bottom: 58px; left: calc(300px + (100% - 300px) / 2); transform: translateX(-50%); width: 450px; }
-.placement-status { display: flex; align-items: center; justify-content: center; gap: 7px; font-size: 10px; color: #829688; margin: 0 0 14px; min-height: 14px; }
-.placement-status p { margin: 0; }
-.placement-status:has(p:empty) > span { visibility: hidden; }
-.game-dock .palette { margin-top: 18px; }
-.placement-status > span { height: 4px; width: 4px; border-radius: 50%; background: #61a599; }
-.placement-status.invalid { color: #ac7364; }
-.placement-status.invalid > span { background: #c98170; }
 /* The terrain picker: three chunky diorama pieces. The chosen one hops up and glows. */
 .palette { display: flex; justify-content: center; gap: 26px; }
 .piece { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 0; background: none; color: #eef6e8; --side: #23889a; --glow: #8fe6ea; --particle: #c9f4f1; }
@@ -122,13 +83,6 @@ h1 em { font-weight: 400; color: #557b61; }
   100% { opacity: 0; transform: rotate(var(--a)) translateY(-40px) scale(2); }
 }
 @media (prefers-reduced-motion: reduce) { .piece, .piece * { animation: none !important; } }
-.action-row { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 16px; }
-.text-tool { background: transparent; display: flex; align-items: center; gap: 7px; font-size: 10px; padding: 5px 0; color: #738a79; }
-.text-tool:hover { color: #294d3d; }
-.text-tool svg { width: 14px; height: 14px; }
-.action-divider { width: 1px; height: 12px; background: #ccd8cc; }
-.quiet-footer { position: absolute; left: 42px; right: 42px; bottom: 24px; display: flex; align-items: center; justify-content: space-between; font-size: 8px; color: #a0afa0; }
-.quiet-footer b { font-weight: 500; }
 .board-access { position: absolute; inset: 0; pointer-events: none; }
 .cell-access { position: absolute; transform: translate(-50%, -50%); opacity: 0; pointer-events: none; background: transparent; border-radius: 5px; }
 .cell-access:focus-visible { opacity: 1; outline: 2px solid #f9ce83; outline-offset: 0; box-shadow: 0 0 0 3px #ffffff50; }
@@ -157,105 +111,24 @@ h2 { font: 400 42px/1.08 'DM Serif Display', Georgia, serif; margin: 0 0 24px; }
 .completion-stay { display: block; background: none; margin: 17px 0 0; font-size: 11px; color: #83927c; }
 .render-error { display: grid; place-content: center; height: 100%; text-align: center; padding: 30px; }
 .render-error small { color: var(--muted); }
-@media (min-width: 1500px) { .garden-journal { left: 6.5%; } .world { left: 360px; } .scene-caption, .game-dock { left: calc(360px + (100% - 360px) / 2); } }
-@media (max-height: 810px) and (min-width: 900px) { .garden-journal { top: 19%; } h1 { font-size: 57px; } .intro { font-size: 12px; } .journal-divider { margin: 20px 0; } .progress-block { margin-top: 22px; } .time-detail { margin-top: 18px; } }
-@media (max-width: 1000px) and (min-width: 701px) { .garden-journal { left: 32px; width: 200px; } h1 { font-size: 53px; } .world { left: 225px; } .scene-caption, .game-dock { left: calc(225px + (100% - 225px) / 2); } .game-dock { width: 410px; } .journal-divider { width: 100%; } }
 @media (max-width: 700px) {
-  .garden-app { min-height: 680px; height: 100svh; }
-  .masthead { padding: 19px 22px; }
-  .brand { font-size: 16px; gap: 9px; }
-  .brand-icon { width: 31px; height: 31px; }
-  .brand-icon svg { width: 18px; height: 18px; }
-  .header-tools { gap: 6px; }
   .icon-button { width: 33px; height: 33px; }
   .icon-button svg { width: 17px; height: 17px; }
-  .garden-journal { top: 89px; left: 24px; right: 24px; width: auto; display: grid; grid-template-columns: 1fr auto; }
-  .garden-journal .eyebrow, .garden-journal h1, .intro, .journal-divider { display: none; }
-  .chapter { width: auto; gap: 12px; grid-row: 1; grid-column: 1; }
-  .chapter-number { font-size: 32px; }
-  .chapter-text small { font-size: 9px; }
-  .chapter-text strong { font-size: 14px; }
-  .chapter svg { width: 12px; margin: 0 5px; }
-  .progress-block { grid-column: 1 / -1; margin-top: 18px; }
-  .progress-heading { font-size: 11px; }
-  .progress-track { margin: 8px 0 9px; }
-  .terrain-counts { font-size: 11px; }
-  .time-detail { margin: 0; justify-self: end; font-size: 10px; grid-row: 1; grid-column: 2; }
-  .time-detail #remaining, .time-divider { display: none; }
-  .world { left: 0; top: 215px; right: 0; bottom: 173px; }
-  .scene-caption { top: 219px; left: 24px; transform: none; font-size: 7px; gap: 6px; }
-  .caption-line { width: 17px; }
-  .game-dock { width: calc(100% - 40px); max-width: 440px; bottom: 49px; left: 50%; }
-  .placement-status { font-size: 9px; margin-bottom: 11px; }
-  .action-row { gap: 13px; margin-top: 14px; }
-  .text-tool { font-size: 11px; gap: 5px; }
-  .text-tool svg { width: 13px; }
-  .quiet-footer { left: 24px; right: 24px; bottom: 19px; font-size: 7px; }
   dialog { padding: 34px 26px; }
   h2 { font-size: 36px; }
 }
-@media (max-width: 360px) { .palette { gap: 18px; } .action-row { gap: 9px; } .text-tool { font-size: 8px; } }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition: none !important; } }
 
-/* The ocean is the stage; the journal sits directly over its quieter shallows. */
+/* The ocean is the stage, and the game's controls float over it. */
 :root { background: #529a96; }
-.world { inset: 0; }
 .garden-app { color: #f0f4de; }
-.masthead .brand { color: #f6f5e2; text-shadow: 0 1px 8px #25676530; }
-.brand-icon { background: #f3f5df18; border-color: #c6ece150; }
-.header-tools .icon-button { color: #ecf5e8; border-color: #bce4dc70; background: #35858130; backdrop-filter: blur(8px); }
-.header-tools .icon-button:hover { background: #a1d0b83b; }
-.garden-journal { text-shadow: 0 1px 12px #1c696231; }
-.garden-journal .eyebrow { color: #d0eadd; }
-.garden-journal .eyebrow > span { background: #e0e8b0; }
 h1 { color: #f7f4db; }
 h1 em { color: #dbeac0; }
-.intro { color: #d1e7de; }
-.journal-divider { background: #d5eddb40; }
-.chapter-number { color: #d3e2b5; }
-.chapter-text small { color: #c7e5d7; }
-.progress-heading, .terrain-counts { color: #d6e8db; }
-.progress-heading strong, .terrain-counts strong { color: #f5f5dc; }
-.progress-track { background: #234e4538; }
-.progress-track span { background: #cee1a8; }
-.water-dot { background: #d2f2e2; }
-.land-dot { background: #cee992; }
-.time-detail { color: #d4e6d8; }
 .time-divider { background: #d3ead64a; }
-.scene-caption { color: #d2e4d8; }
-.caption-mark { border-color: #c7ddc4; }
-.caption-line { background: #bedbce73; }
-.placement-status { color: #e5eddb; text-shadow: 0 1px 6px #2a6f6380; }
-.placement-status > span { background: #d7e7af; }
-.placement-status.invalid { color: #ffe3ba; }
-.placement-status.invalid > span { background: #ffd2a0; }
-.action-row { padding: 7px 12px; background: #2e726a40; border-radius: 5px; backdrop-filter: blur(8px); margin-top: 10px; }
-.text-tool { color: #e0ecd9; }
-.text-tool:hover { color: #fff8dc; }
-.action-divider { background: #cde5d152; }
-.quiet-footer { color: #d1e7d08c; }
 dialog { color: #27433a; }
 .render-error { color: #f2f4df; }
 .render-error small { color: #dceadb; }
-@media (min-width: 1500px) { .world { inset: 0; } }
-@media (max-width: 1000px) and (min-width: 701px) { .world { inset: 0; } }
-@media (max-width: 700px) {
-  .world { inset: 0; }
-  .action-row { padding: 7px 10px; }
-  .scene-caption { top: 219px; }
-  /* Phones give every spare pixel to the board. */
-  .scene-caption, .quiet-footer { display: none; }
-  .garden-app { min-height: 540px; }
-  .masthead { padding: 14px 20px; }
-  .garden-journal { top: 64px; }
-  .progress-block { margin-top: 10px; }
-  .progress-track { margin: 6px 0 7px; }
-  .game-dock { bottom: max(14px, env(safe-area-inset-bottom)); }
-  .placement-status { margin-bottom: 8px; }
-  .action-row { margin-top: 8px; }
-}
 @media (max-width: 700px) and (max-height: 700px) {
-  .terrain-counts { display: none; }
   .piece-stage { width: 58px; height: 66px; }
   .piece-tile { width: 52px; height: 52px; border-radius: 14px; }
 }
@@ -263,12 +136,8 @@ dialog { color: #27433a; }
 /* The finale: the interface steps aside, evening falls, and a small card waits at the bottom. */
 .dusk { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 4.4s ease 1.2s;
   background: radial-gradient(circle at 12% 0%, #f0a17a59, transparent 46%), radial-gradient(ellipse at 50% 45%, #3c7884 0%, #2b5a6e 52%, #1d3e55 100%); }
-.garden-journal, .game-dock, .scene-caption, .quiet-footer { transition: opacity .6s ease, translate .6s ease, visibility 0s; }
 .garden-app.finale .dusk { opacity: 1; }
 .garden-app.finale-quick .dusk { transition-duration: 1.6s; transition-delay: 0s; }
-.garden-app.finale :is(.garden-journal, .game-dock, .scene-caption, .quiet-footer) { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .6s ease, translate .6s ease, visibility 0s .6s; }
-.garden-app.finale :is(.game-dock, .quiet-footer) { translate: 0 24px; }
-.garden-app.finale :is(.garden-journal, .scene-caption) { translate: 0 -14px; }
 .garden-app.finale .world canvas { cursor: grab; }
 .garden-app.finale .world canvas:active { cursor: grabbing; }
 .finale-card { position: absolute; z-index: 5; left: 50%; bottom: 34px; width: min(440px, calc(100% - 32px)); transform: translate(-50%, 18px); opacity: 0; visibility: hidden;
@@ -301,12 +170,9 @@ dialog { color: #27433a; }
   .finale-card h2 { font-size: 28px; }
   .finale-actions .primary-button, .finale-actions .secondary-button { padding: 10px 12px; }
 }
-.header-tools [hidden] { display: none; }
 
 /* Three screens: a title, a map of every garden, and the garden itself. The garden's own interface
    only shows while playing; the scene stays behind the title as a living backdrop. */
-.garden-app:not([data-screen=play]) :is(.masthead, .garden-journal, .scene-caption, .game-dock, .quiet-footer, .finale-card, .board-access) { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .4s ease, visibility 0s .4s; }
-.garden-app[data-screen=play] :is(.masthead, .garden-journal, .scene-caption, .game-dock, .quiet-footer) { transition: opacity .5s ease .15s; }
 .play-button { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-width: 190px; min-height: 58px; padding: 0 30px; border-radius: 999px; font-size: 19px; font-weight: 700; color: #fffaf0; letter-spacing: .01em;
   background: linear-gradient(180deg, #ffb36b 0%, #f08a5d 100%); box-shadow: 0 6px 0 #c9643f, 0 14px 26px #1d4f4a55, inset 0 2px 0 #ffd8a8; transition: transform .15s, box-shadow .15s; }
 .play-button:hover { transform: translateY(-2px); }
@@ -403,3 +269,94 @@ dialog { color: #27433a; }
 .map-card-status { margin: 0 0 20px; font-size: 13px; color: #7b8a7c; }
 .map-card .play-button { width: 100%; }
 @media (prefers-reduced-motion: reduce) { .map-deco, .map-marker span, .map-node.frontier::before, #title-play, .title-mark { animation: none !important; } }
+
+/* The garden screen: a slim bar on top, the board in all the space left, a line for hints, and the
+   pieces in a dock. Portrait puts the dock below the board; landscape stands it at the side. */
+.game-layout { position: absolute; inset: 0; z-index: 4; pointer-events: none; display: grid; gap: 8px;
+  grid-template: "bar" auto "board" minmax(0, 1fr) "status" 40px "dock" auto / minmax(0, 1fr);
+  padding: max(12px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left)); }
+.game-layout > :not(.board-slot) { pointer-events: auto; }
+.board-slot { grid-area: board; pointer-events: none; }
+.game-bar { grid-area: bar; display: flex; align-items: center; gap: 10px; }
+.game-bar .round-button, .bar-tools .round-button { flex-shrink: 0; }
+.bar-tools { display: flex; gap: 8px; margin-left: auto; }
+.bar-tools [hidden] { display: none; }
+.garden-pill { flex: 0 1 auto; min-width: 0; max-width: 360px; display: flex; align-items: center; gap: 10px; padding: 5px 16px 5px 5px; border-radius: 999px; color: #27433a; background: #fffaf0; box-shadow: 0 4px 0 #d7c9a6, 0 8px 16px #1d4f4a33; }
+.pill-number { flex-shrink: 0; min-width: 38px; height: 38px; padding: 0 6px; border-radius: 19px; display: grid; place-items: center; font-weight: 750; font-size: 16px; color: #fffaf0; text-shadow: 0 1px 0 #b8662e99;
+  background: radial-gradient(circle at 38% 30%, #ffd9a0, #f5a35d 70%); box-shadow: inset 0 -3px 0 #dd8445; }
+.pill-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pill-text small { display: flex; align-items: center; gap: 6px; font-size: 9px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: #6f9a85; white-space: nowrap; overflow: hidden; }
+.pill-text small #caption-chapter { overflow: hidden; text-overflow: ellipsis; }
+.pill-dot { width: 3px; height: 3px; border-radius: 50%; background: #b9cdbf; flex-shrink: 0; }
+#time { font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+.pill-text strong { font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pill-progress { display: block; width: 100%; min-width: 90px; height: 5px; margin-top: 2px; border-radius: 3px; background: #ece4cf; overflow: hidden; }
+.pill-progress span { display: block; height: 100%; width: 0; border-radius: 3px; background: linear-gradient(90deg, #6ccfc6, #92d46f); transition: width .5s ease; }
+
+.placement-status { grid-area: status; align-self: center; justify-self: center; max-width: min(560px, 100%); display: flex; align-items: center; padding: 6px 14px; border-radius: 14px; font-size: 12px; line-height: 1.3; text-align: center; color: #f3f7e8; background: #12444466; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); transition: opacity .3s; }
+.placement-status p { margin: 0; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.placement-status:has(p:empty) { opacity: 0; }
+.placement-status.invalid { color: #fff1d6; background: #a5583f8c; }
+
+.game-dock { grid-area: dock; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.palette { display: flex; justify-content: center; gap: 22px; }
+.action-row { display: flex; justify-content: center; gap: 8px; }
+.tool-chip { display: flex; align-items: center; gap: 6px; padding: 8px 14px 8px 11px; border-radius: 999px; font-size: 12px; font-weight: 700; color: #2c5f5a; background: #fffaf0; box-shadow: 0 3px 0 #d7c9a6, 0 6px 12px #1d4f4a2b; transition: transform .15s, box-shadow .15s; }
+.tool-chip:not(:disabled):active { transform: translateY(2px); box-shadow: 0 1px 0 #d7c9a6, 0 3px 8px #1d4f4a2b; }
+.tool-chip svg { width: 15px; height: 15px; }
+.tool-chip:disabled { opacity: .5; }
+@media (max-width: 380px) { .palette { gap: 14px; } .tool-chip { padding: 7px 11px 7px 9px; font-size: 11px; } .bar-tools { gap: 6px; } .game-bar .round-button { width: 40px; height: 40px; } }
+
+/* Wide screens stand the dock beside the board, so the board can use the full height. */
+@media (orientation: landscape) and (min-width: 760px) {
+  .game-layout { column-gap: 22px; grid-template: "bar bar" auto "board dock" minmax(0, 1fr) "status dock" 40px / minmax(0, 1fr) auto; }
+  .game-dock { justify-content: center; gap: 18px; padding-right: 4px; }
+  .palette { flex-direction: column; gap: 4px; }
+  .action-row { flex-direction: column; align-items: stretch; }
+  .garden-pill { max-width: 420px; }
+  .pill-text strong { font-size: 15px; }
+}
+/* Short landscape screens, like a phone on its side, keep the dock compact. */
+@media (orientation: landscape) and (max-height: 560px) {
+  .game-layout { gap: 4px; padding-top: max(8px, env(safe-area-inset-top)); padding-bottom: max(8px, env(safe-area-inset-bottom)); grid-template-rows: auto minmax(0, 1fr) 34px; }
+  .piece-name { display: none; }
+  .piece-stage { width: 54px; height: 58px; }
+  .piece-tile { width: 48px; height: 48px; border-radius: 13px; margin-bottom: 6px; }
+  .game-dock { gap: 8px; }
+  .action-row { flex-direction: row; }
+  .tool-chip span { display: none; }
+  .tool-chip { padding: 9px; }
+}
+
+/* The garden's own interface only shows while playing, and steps aside for the finale. */
+.game-layout > :not(.board-slot) { transition: opacity .6s ease, translate .6s ease, visibility 0s; }
+.garden-app:not([data-screen=play]) :is(.game-bar, .game-dock, .placement-status, .finale-card, .board-access) { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .4s ease, visibility 0s .4s; }
+.garden-app.finale :is(.game-bar, .game-dock, .placement-status) { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .6s ease, translate .6s ease, visibility 0s .6s; }
+.garden-app.finale :is(.game-dock, .placement-status) { translate: 0 24px; }
+.garden-app.finale .game-bar { translate: 0 -14px; }
+/* Tablets and big screens get bigger, easier-to-tap pieces. */
+@media (min-width: 700px) and (min-height: 760px) {
+  .piece-stage { width: 84px; height: 96px; }
+  .piece-shadow { width: 74px; height: 16px; }
+  .piece-ring { width: 78px; height: 20px; }
+  .piece-tile { width: 76px; height: 76px; border-radius: 20px; margin-bottom: 11px; }
+  .piece-name { font-size: 13px; }
+  .tool-chip { font-size: 14px; padding: 10px 18px 10px 14px; }
+  .tool-chip svg { width: 17px; height: 17px; }
+  .game-bar .round-button, .bar-tools .round-button { width: 50px; height: 50px; }
+  .pill-number { min-width: 44px; height: 44px; font-size: 18px; border-radius: 22px; }
+  .pill-text strong { font-size: 17px; }
+  .pill-text small { font-size: 10px; }
+}
+/* On phones the garden's name takes every bit of the bar the buttons leave. */
+@media (max-width: 600px) { .garden-pill { flex: 1 1 auto; max-width: none; } }
+@media (max-width: 430px) {
+  .game-bar { gap: 7px; }
+  .bar-tools { gap: 6px; }
+  .game-bar .round-button, .bar-tools .round-button { width: 40px; height: 40px; }
+  .game-bar .round-button svg { width: 18px; height: 18px; }
+  .garden-pill { gap: 8px; padding-right: 12px; }
+  .pill-number { min-width: 34px; height: 34px; font-size: 15px; }
+  .pill-text strong { font-size: 13px; }
+  .pill-dot, #time { display: none; }
+}

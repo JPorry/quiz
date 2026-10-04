@@ -94,10 +94,10 @@ try {
     await page.reload()
     await page.waitForSelector('#world[data-rendered="true"]')
     assert.equal(await page.evaluate((target) => __tidal.snapshot.grid[target[0]][target[1]], target), 1)
-    await page.getByRole('button', { name: 'Start again', exact: true }).click()
+    await page.getByRole('button', { name: 'Restart', exact: true }).click()
     await page.getByRole('button', { name: 'Keep growing', exact: true }).click()
     assert.equal(await page.evaluate(() => __tidal.snapshot.filled), initial + 1)
-    await page.getByRole('button', { name: 'Start again', exact: true }).click()
+    await page.getByRole('button', { name: 'Restart', exact: true }).click()
     await page.locator('#confirm-reset').click()
     assert.equal(await page.evaluate(() => __tidal.snapshot.filled), initial)
     assert.equal(await page.evaluate(() => __tidal.snapshot.guides.some(Boolean)), false, 'Reset clears selection')
@@ -222,7 +222,7 @@ try {
   await quietPage.waitForSelector('#world[data-rendered="true"]')
   await quietPage.waitForTimeout(200)
   // A canvas locator screenshot also captures overlaid DOM; exclude the live timer's HUD.
-  const stillOptions = { mask: [quietPage.locator('.garden-journal')] }
+  const stillOptions = { mask: [quietPage.locator('.game-bar')] }
   const frozen = await quietPage.locator('canvas').screenshot(stillOptions)
   await quietPage.waitForTimeout(600)
   const later = await quietPage.locator('canvas').screenshot(stillOptions)
