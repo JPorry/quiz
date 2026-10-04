@@ -40,9 +40,7 @@ islands.
 Each island has a personality. It belongs to a biome (meadow with a windmill,
 tropical with a lighthouse, snowy with a snowman, cherry blossom with a pagoda,
 desert with a dome, autumn with a barn) that sets its colours, trees and
-landmark. It also has a face on its front: asleep before any bridge arrives,
-curious while it has some, beaming once it has exactly its number, and worried,
-with a drop of sweat, when it has too many.
+landmark.
 
 Every island's city grows a step with each bridge it gets (`src/city.js`):
 

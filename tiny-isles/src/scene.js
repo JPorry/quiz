@@ -319,7 +319,6 @@ export class IslandScene {
     states.forEach((s, i) => {
       const is = this.islands[i]
       if (is.city.setTier(s.tier)) is.bounce = 0
-      is.island.setMood(s.over ? 'worried' : s.done ? 'happy' : s.have ? 'curious' : 'sleep')
       this.drawBadge(is, s.have, s.done, s.over)
     })
   }
@@ -451,7 +450,6 @@ export class IslandScene {
     if (!this.board) return
     for (const is of this.islands) {
       is.city.update(dt)
-      is.island.update(dt)
       if (is.bounce >= 0) {
         is.bounce += dt / 0.45
         const k = Math.min(1, is.bounce)

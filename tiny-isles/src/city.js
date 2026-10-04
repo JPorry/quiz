@@ -2,10 +2,9 @@ import * as THREE from 'three'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
 import { part, merge, toon, outline, seeded } from './look.js'
 
-// Each island has a personality: a biome with its own colours, trees and landmark,
-// and a face that shows how it feels. Its city grows a step with every bridge: a
-// cottage, a village, a town with shops and a clock tower, apartment blocks,
-// capsule glass towers, skyscrapers, and at the top a futuristic skyline.
+// Each island has a personality: a biome with its own colours, trees and
+// landmark. Its city grows a step with every bridge: a cottage, a village, a
+// town with shops and a clock tower, apartment blocks, capsule glass towers, skyscrapers, and at the top a futuristic skyline.
 // Everything is chunky, rounded and toy-like, built on an island of radius 1.
 
 const LINE = 0x5e4a58
@@ -419,10 +418,9 @@ export class City {
   }
 }
 
-/* ---------- the island itself, with a face ---------- */
+/* ---------- the island itself ---------- */
 
-// A soft pudding-shaped island with "frosting" that drips over its edge, and a
-// little face on the front that shows how it feels.
+// A soft pudding-shaped island with "frosting" that drips over its edge.
 export class Island {
   constructor(radius, seed, biome) {
     const b = BIOMES[biome]
@@ -468,7 +466,7 @@ export class Island {
     dripMesh.receiveShadow = true
     this.group.add(dripMesh)
     // a few rocks along the cliffs for the waves to break around; never where a
-    // bridge leaves (straight up, down, left or right) or over the face
+    // bridge leaves (straight up, down, left or right)
     this.rocks = []
     const rockParts = []
     const angles = [-Math.PI * 0.75, -Math.PI * 0.25, Math.PI * 0.22, Math.PI * 0.78].filter(() => r() < 0.6)
@@ -488,98 +486,5 @@ export class Island {
       rocks.castShadow = rocks.receiveShadow = true
       this.group.add(rocks, new THREE.Mesh(geo, outline(LINE, 0.008)))
     }
-    this.buildFace(radius)
-    this.mood = 'sleep'
-    this.blink = 1 + r() * 3
-    this.t = r() * 10
-  }
-
-  buildFace(radius) {
-    // the face sits on the island's front, the side that faces the viewer
-    const face = new THREE.Group()
-    face.position.set(0, 0.115, radius * 1.13)
-    face.rotation.x = -0.55
-    const s = 1.3 + radius * 1.4
-    face.scale.setScalar(s)
-    this.group.add(face)
-    const ink = new THREE.MeshBasicMaterial({ color: 0x3e2b30 })
-    const eyeGeo = new THREE.SphereGeometry(1, 16, 12)
-    this.eyes = new THREE.Group()
-    for (const x of [-0.1, 0.1]) {
-      const eye = new THREE.Mesh(eyeGeo, ink)
-      eye.scale.set(0.028, 0.036, 0.014)
-      eye.position.set(x, 0.01, 0.01)
-      const shine = new THREE.Mesh(eyeGeo, new THREE.MeshBasicMaterial({ color: 0xffffff }))
-      shine.scale.set(0.011, 0.011, 0.005)
-      shine.position.set(x + 0.009, 0.022, 0.022)
-      this.eyes.add(eye, shine)
-    }
-    face.add(this.eyes)
-    const arc = new THREE.TorusGeometry(0.026, 0.0065, 6, 16, Math.PI)
-    const pair = (flip) => {
-      const g = new THREE.Group()
-      for (const x of [-0.1, 0.1]) {
-        const m = new THREE.Mesh(arc, ink)
-        m.position.set(x, flip ? 0.0 : 0.02, 0.012)
-        m.rotation.z = flip ? Math.PI : 0
-        g.add(m)
-      }
-      face.add(g)
-      return g
-    }
-    this.happyEyes = pair(false)
-    this.sleepyEyes = pair(true)
-    const blushMat = new THREE.MeshBasicMaterial({ color: 0xff9db6, transparent: true, opacity: 0.75 })
-    for (const x of [-0.165, 0.165]) {
-      const blush = new THREE.Mesh(new THREE.CircleGeometry(0.032, 16), blushMat)
-      blush.scale.y = 0.6
-      blush.position.set(x, -0.03, 0.006)
-      face.add(blush)
-    }
-    // mouths
-    this.smile = new THREE.Mesh(new THREE.TorusGeometry(0.03, 0.0065, 6, 16, Math.PI), ink)
-    this.smile.position.set(0, -0.03, 0.012)
-    this.smile.rotation.z = Math.PI
-    this.grin = new THREE.Mesh(new THREE.CircleGeometry(0.038, 18, Math.PI, Math.PI), new THREE.MeshBasicMaterial({ color: 0xd9546e }))
-    this.grin.position.set(0, -0.02, 0.012)
-    this.snore = new THREE.Mesh(new THREE.CircleGeometry(0.014, 14), new THREE.MeshBasicMaterial({ color: 0xd9546e }))
-    this.snore.position.set(0, -0.045, 0.012)
-    this.wobble = new THREE.Mesh(new THREE.TorusGeometry(0.02, 0.006, 6, 16, Math.PI * 1.2), ink)
-    this.wobble.position.set(0, -0.05, 0.012)
-    this.sweat = new THREE.Mesh(eyeGeo, new THREE.MeshBasicMaterial({ color: 0x9fd8ff }))
-    this.sweat.scale.set(0.014, 0.02, 0.008)
-    this.sweat.position.set(0.17, 0.05, 0.012)
-    face.add(this.smile, this.grin, this.snore, this.wobble, this.sweat)
-    this.face = face
-  }
-
-  // sleep (no bridges yet), curious (some), happy (exactly its number), worried (too many)
-  setMood(mood) {
-    this.mood = mood
-  }
-
-  update(dt) {
-    this.t += dt
-    const m = this.mood
-    this.blink -= dt
-    let lid = 1
-    if (this.blink < 0) {
-      lid = 0.15
-      if (this.blink < -0.12) this.blink = 2 + Math.random() * 3
-    }
-    this.eyes.visible = m === 'curious' || m === 'worried'
-    this.eyes.scale.y = lid
-    this.happyEyes.visible = m === 'happy'
-    this.sleepyEyes.visible = m === 'sleep'
-    this.smile.visible = m === 'curious'
-    this.grin.visible = m === 'happy'
-    this.snore.visible = m === 'sleep'
-    this.snore.scale.setScalar(0.8 + Math.sin(this.t * 1.8) * 0.3)
-    this.wobble.visible = m === 'worried'
-    this.sweat.visible = m === 'worried'
-    if (m === 'worried') this.sweat.position.y = 0.05 - ((this.t * 0.06) % 0.04)
-    // happy islands bob a little, sleepy ones breathe slowly
-    const breathe = m === 'sleep' ? Math.sin(this.t * 1.3) * 0.012 : m === 'happy' ? Math.abs(Math.sin(this.t * 2.6)) * 0.02 : 0
-    this.face.position.y = 0.115 + breathe
   }
 }
