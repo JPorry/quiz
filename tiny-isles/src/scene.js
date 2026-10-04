@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
 import { City, Island, BIOME_NAMES } from './city.js'
+import { Sea } from './sea.js'
 import { toon, outline, part, merge, canvasTexture, seeded } from './look.js'
 
 // A tilted diorama of a turquoise sea. Islands sit on a grid; bridges are built
@@ -14,46 +15,6 @@ const LINE = 0x5e4a58
 const CAR_COLORS = [0xff8fa3, 0x7fc8ff, 0xffd166, 0x8ee39b, 0xc7a3ff, 0xffa96b, 0xffffff]
 const clamp = THREE.MathUtils.clamp
 export const islandRadius = (value) => 0.36 + value * 0.038
-
-/* ---------- the sea ---------- */
-
-const MAX_ISLANDS = 24
-function seaMaterial() {
-  return new THREE.ShaderMaterial({
-    uniforms: {
-      uTime: { value: 0 },
-      uIslands: { value: Array.from({ length: MAX_ISLANDS }, () => new THREE.Vector3(999, 999, 0)) },
-      uDeep: { value: new THREE.Color(0x4fc3d6) },
-      uShallow: { value: new THREE.Color(0x9ff0e6) },
-      uFoam: { value: new THREE.Color(0xffffff) },
-      uDusk: { value: 0 },
-    },
-    vertexShader: `varying vec3 vWorld; void main() { vec4 w = modelMatrix * vec4(position, 1.0); vWorld = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
-    fragmentShader: `
-      uniform float uTime; uniform vec3 uIslands[${MAX_ISLANDS}]; uniform vec3 uDeep; uniform vec3 uShallow; uniform vec3 uFoam; uniform float uDusk;
-      varying vec3 vWorld;
-      void main() {
-        vec2 p = vWorld.xz;
-        float d = 99.0;
-        for (int i = 0; i < ${MAX_ISLANDS}; i++) {
-          vec3 is = uIslands[i];
-          d = min(d, length(p - is.xy) - is.z * 1.2);
-        }
-        float shallow = 1.0 - smoothstep(0.0, 0.45, d);
-        vec3 col = mix(uDeep, uShallow, shallow * 0.85);
-        // soft swells and sparkles
-        float w = sin(p.x * 3.1 + uTime * 0.7) * sin(p.y * 2.7 - uTime * 0.6);
-        col += vec3(0.05, 0.07, 0.07) * smoothstep(0.55, 0.95, w);
-        float ripple = sin(d * 28.0 - uTime * 2.2);
-        float ring = smoothstep(0.75, 1.0, ripple) * (1.0 - smoothstep(0.02, 0.32, d));
-        float lip = 1.0 - smoothstep(0.0, 0.05, abs(d - 0.02));
-        col = mix(col, uFoam, clamp(ring * 0.55 + lip * 0.85, 0.0, 1.0));
-        col = mix(col, col * vec3(1.15, 0.78, 0.72) + vec3(0.06, 0.02, 0.05), uDusk);
-        gl_FragColor = vec4(col, 1.0);
-        #include <colorspace_fragment>
-      }`,
-  })
-}
 
 /* ---------- bridges ---------- */
 
@@ -231,9 +192,7 @@ export class IslandScene {
     this.sun.shadow.bias = -0.0005
     this.sun.shadow.normalBias = 0.02
     this.scene.add(this.sky, this.sun, this.sun.target)
-    this.sea = new THREE.Mesh(new THREE.PlaneGeometry(80, 80).rotateX(-Math.PI / 2), seaMaterial())
-    this.sea.position.y = -0.02
-    this.scene.add(this.sea)
+    this.sea = new Sea(this.scene)
     this.world = new THREE.Group()
     this.scene.add(this.world)
     this.ray = new THREE.Raycaster()
@@ -286,16 +245,17 @@ export class IslandScene {
       this.drawBadge(entry, 0, false, false)
       return entry
     })
-    const u = this.sea.material.uniforms.uIslands.value
-    u.forEach((v, i) => {
-      const is = this.islands[i]
-      if (is) v.set(is.group.position.x, is.group.position.z, is.r)
-      else v.set(999, 999, 0)
-    })
     this.bridges = board.edges.map(() => null)
     this.counts = board.edges.map(() => 0)
     this.preview = null
     const reach = Math.max(width, height * this.CZ) + 3
+    const shores = []
+    for (const is of this.islands) {
+      const { x, z } = is.group.position
+      shores.push({ x, z, radius: is.island.shore })
+      for (const rock of is.island.rocks) shores.push({ x: x + rock.x, z: z + rock.z, r: rock.r })
+    }
+    this.sea.setShores(shores, reach)
     Object.assign(this.sun.shadow.camera, { left: -reach, right: reach, top: reach, bottom: -reach, near: 0.5, far: 60 })
     this.sun.shadow.camera.updateProjectionMatrix()
     this.resize()
@@ -484,9 +444,8 @@ export class IslandScene {
 
   update(dt) {
     this.time += dt
-    this.sea.material.uniforms.uTime.value = this.time
     this.dusk = THREE.MathUtils.damp(this.dusk, this.duskTarget, 1.2, dt)
-    this.sea.material.uniforms.uDusk.value = this.dusk * 0.6
+    this.sea.update(dt, this.dusk * 0.6)
     this.sun.color.setHex(0xfff1dc).lerp(new THREE.Color(0xffb27a), this.dusk)
     this.sky.color.setHex(0xf2f8ff).lerp(new THREE.Color(0xffd9c9), this.dusk)
     if (!this.board) return

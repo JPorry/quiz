@@ -26,9 +26,14 @@ shows every stage of a city side by side; add `?x=` to pan along the row.
 
 ## How it looks
 
-The sea is a tilted diorama seen through a fixed orthographic camera. A small
-shader paints it: shallows and soft white foam rings around every island,
-gentle swells and sparkles. Islands are soft pudding shapes with a
+The board is a tilted diorama seen through a fixed orthographic camera. The sea
+(`src/sea.js`) is a cel-shaded moving surface. Gentle swells cross the open water.
+Near every island, waves roll in toward the shore, grow in the shallows, surge
+up the cliffs and break into crisp white foam that slowly dissolves, throwing up
+a few droplets as they hit. Lighting comes in hard bands, and depth shows as flat
+rings of colour. Each level bakes its shorelines (islands and the rocks along
+their cliffs) into a distance-field texture, so the shaders never loop over
+islands. Islands are soft pudding shapes with a
 frosting-like top that drips over the edge, and bigger numbers make bigger
 islands.
 

@@ -15,12 +15,12 @@ const DOOR = 0x9a6648
 const PANE = 0x9fdcff
 
 export const BIOMES = {
-  meadow: { top: 0x9edc78, drip: 0x8bd068, side: 0xf6dfae, walls: [0xfff3e2, 0xffe0d2, 0xe2f4ff, 0xfff4bf], roofs: [0xff8270, 0xff9fb8, 0x6fb4ff], tree: 'round', landmark: 'windmill' },
-  tropical: { top: 0xaee887, drip: 0x96dc6e, side: 0xfcebc0, walls: [0xfff6e6, 0xd9fbff, 0xfff0c2, 0xffe2ec], roofs: [0x3fc7c7, 0xff9f68, 0xffd166], tree: 'palm', landmark: 'lighthouse' },
-  snowy: { top: 0xf4fbff, drip: 0xffffff, side: 0xcdd9ea, walls: [0xffe7d6, 0xd6e9ff, 0xfff4e6, 0xe9e1ff], roofs: [0xd9534f, 0x5a8fd6, 0x7b6aa8], tree: 'pine', landmark: 'snowman' },
-  blossom: { top: 0xc9eda6, drip: 0xffc6d8, side: 0xf3dcc0, walls: [0xfff4ef, 0xffe6ee, 0xfffaf0, 0xf2ecff], roofs: [0xe8506b, 0xff8fb0, 0x8a6aa8], tree: 'cherry', landmark: 'pagoda' },
-  desert: { top: 0xf2d79b, drip: 0xe9c482, side: 0xe7b47c, walls: [0xffe9cc, 0xf6c99a, 0xfff2df, 0xf3b88f], roofs: [0xd9784a, 0x3fb6a8, 0xf2a03d], tree: 'cactus', landmark: 'dome' },
-  autumn: { top: 0xc2d97a, drip: 0xb0cc66, side: 0xe9cfa0, walls: [0xfff1dc, 0xffe2c4, 0xf7efe2, 0xffe9d6], roofs: [0xc8553d, 0x8a5a44, 0xe08a3c], tree: 'autumn', landmark: 'barn' },
+  meadow: { rock: 0xb9b0c9, top: 0x9edc78, drip: 0x8bd068, side: 0xf6dfae, walls: [0xfff3e2, 0xffe0d2, 0xe2f4ff, 0xfff4bf], roofs: [0xff8270, 0xff9fb8, 0x6fb4ff], tree: 'round', landmark: 'windmill' },
+  tropical: { rock: 0xd8c6a8, top: 0xaee887, drip: 0x96dc6e, side: 0xfcebc0, walls: [0xfff6e6, 0xd9fbff, 0xfff0c2, 0xffe2ec], roofs: [0x3fc7c7, 0xff9f68, 0xffd166], tree: 'palm', landmark: 'lighthouse' },
+  snowy: { rock: 0xa9b6cc, snowcap: true, top: 0xf4fbff, drip: 0xffffff, side: 0xcdd9ea, walls: [0xffe7d6, 0xd6e9ff, 0xfff4e6, 0xe9e1ff], roofs: [0xd9534f, 0x5a8fd6, 0x7b6aa8], tree: 'pine', landmark: 'snowman' },
+  blossom: { rock: 0xc2b3c4, top: 0xc9eda6, drip: 0xffc6d8, side: 0xf3dcc0, walls: [0xfff4ef, 0xffe6ee, 0xfffaf0, 0xf2ecff], roofs: [0xe8506b, 0xff8fb0, 0x8a6aa8], tree: 'cherry', landmark: 'pagoda' },
+  desert: { rock: 0xd99b6a, top: 0xf2d79b, drip: 0xe9c482, side: 0xe7b47c, walls: [0xffe9cc, 0xf6c99a, 0xfff2df, 0xf3b88f], roofs: [0xd9784a, 0x3fb6a8, 0xf2a03d], tree: 'cactus', landmark: 'dome' },
+  autumn: { rock: 0xb7a69a, top: 0xc2d97a, drip: 0xb0cc66, side: 0xe9cfa0, walls: [0xfff1dc, 0xffe2c4, 0xf7efe2, 0xffe9d6], roofs: [0xc8553d, 0x8a5a44, 0xe08a3c], tree: 'autumn', landmark: 'barn' },
 }
 export const BIOME_NAMES = Object.keys(BIOMES)
 
@@ -37,6 +37,7 @@ const CAPSULE = new THREE.CapsuleGeometry(1, 1, 6, 16)
 const LOAF = new THREE.CylinderGeometry(0.5, 0.5, 1, 20, 1, false, 0, Math.PI).rotateZ(Math.PI / 2).rotateY(Math.PI / 2) // a rounded roof along x
 const TORUS = new THREE.TorusGeometry(1, 0.22, 8, 24)
 const ARCH = new THREE.CylinderGeometry(1, 1, 1, 16, 1, false, 0, Math.PI).rotateX(Math.PI / 2).rotateZ(Math.PI / 2)
+const ROCK = new THREE.DodecahedronGeometry(1, 1)
 const SAIL = (() => {
   const s = new THREE.Shape()
   s.moveTo(0, 0)
@@ -428,12 +429,14 @@ export class Island {
     const r = seeded(seed)
     this.group = new THREE.Group()
     this.radius = radius
+    const bulge = (a, amount) => 1 + Math.sin(a * 3 + seed) * amount + Math.sin(a * 5 + seed * 2) * amount * 0.6
+    // how far the shore is from the middle at this angle, where the body meets the sea
+    this.shore = (a) => radius * 1.185 * bulge(a, 0.03)
     const wobble = (geo, amount) => {
       const p = geo.attributes.position
       for (let i = 0; i < p.count; i++) {
         const x = p.getX(i), z = p.getZ(i)
-        const a = Math.atan2(z, x)
-        const k = 1 + Math.sin(a * 3 + seed) * amount + Math.sin(a * 5 + seed * 2) * amount * 0.6
+        const k = bulge(Math.atan2(z, x), amount)
         p.setX(i, x * k)
         p.setZ(i, z * k)
       }
@@ -464,6 +467,27 @@ export class Island {
     const dripMesh = new THREE.Mesh(merge(drips), toon(0xffffff, { vertexColors: true, rim: 0.15 }))
     dripMesh.receiveShadow = true
     this.group.add(dripMesh)
+    // a few rocks along the cliffs for the waves to break around; never where a
+    // bridge leaves (straight up, down, left or right) or over the face
+    this.rocks = []
+    const rockParts = []
+    const angles = [-Math.PI * 0.75, -Math.PI * 0.25, Math.PI * 0.22, Math.PI * 0.78].filter(() => r() < 0.6)
+    for (const base of angles) {
+      const a = base + (r() - 0.5) * 0.3
+      const size = 0.06 + r() * 0.05
+      const d = this.shore(a) + size * 0.35
+      const x = Math.cos(a) * d, z = Math.sin(a) * d
+      rockParts.push(part(ROCK, b.rock, [x, 0.0, z], [size, size * 0.85, size * 0.9], [r(), r() * 6, r()]))
+      if (r() < 0.6) rockParts.push(part(ROCK, b.rock, [x + Math.cos(a + 1.4) * size * 1.2, -0.01, z + Math.sin(a + 1.4) * size * 1.2], [size * 0.55, size * 0.5, size * 0.55], [r(), r() * 6, 0]))
+      if (b.snowcap) rockParts.push(part(SPHERE, 0xffffff, [x, size * 0.62, z], [size * 0.75, size * 0.25, size * 0.7]))
+      this.rocks.push({ x, z, r: size * 0.95 })
+    }
+    if (rockParts.length) {
+      const geo = merge(rockParts)
+      const rocks = new THREE.Mesh(geo, toon(0xffffff, { vertexColors: true, rim: 0.15 }))
+      rocks.castShadow = rocks.receiveShadow = true
+      this.group.add(rocks, new THREE.Mesh(geo, outline(LINE, 0.008)))
+    }
     this.buildFace(radius)
     this.mood = 'sleep'
     this.blink = 1 + r() * 3
@@ -473,7 +497,7 @@ export class Island {
   buildFace(radius) {
     // the face sits on the island's front, the side that faces the viewer
     const face = new THREE.Group()
-    face.position.set(0, 0.09, radius * 1.15)
+    face.position.set(0, 0.115, radius * 1.13)
     face.rotation.x = -0.55
     const s = 1.3 + radius * 1.4
     face.scale.setScalar(s)
@@ -556,6 +580,6 @@ export class Island {
     if (m === 'worried') this.sweat.position.y = 0.05 - ((this.t * 0.06) % 0.04)
     // happy islands bob a little, sleepy ones breathe slowly
     const breathe = m === 'sleep' ? Math.sin(this.t * 1.3) * 0.012 : m === 'happy' ? Math.abs(Math.sin(this.t * 2.6)) * 0.02 : 0
-    this.face.position.y = 0.09 + breathe
+    this.face.position.y = 0.115 + breathe
   }
 }
