@@ -26,8 +26,13 @@ export const PIPS = {
   5: [[-D, -D], [D, -D], [0, 0], [-D, D], [D, D]],
   6: [[-0.22, -0.27], [0.22, -0.27], [-0.22, 0], [0.22, 0], [-0.22, 0.27], [0.22, 0.27]],
 }
-// fewer plants grow bigger, so a single flower fills its cell like a big pip
+// fewer sprouts grow bigger, so a single one fills its cell like a big pip
 const SCALE = { 1: 1.55, 2: 1.3, 3: 1.18, 4: 1.12, 5: 1.02, 6: 0.95 }
+// Grown plants are all one size, whatever their number: every flower head
+// reaches HEAD from its middle (in cell widths), and a bud BUD of that.
+const GROWN = 1.15
+const HEAD = 0.165
+const BUD = 0.78
 
 export const COLORS = {
   tulip: { petal: 0xff6f86, inner: 0xff9aab, leaf: 0x6fbf6a, carpet: '#ff8fa0' },
@@ -111,13 +116,13 @@ function head(add, type, y, open, spin) {
       // a posy of three round florets, pink in bud
       for (let f = 0; f < 3; f++) {
         const a = spin + (f / 3) * Math.PI * 2
-        const fx = Math.cos(a) * 0.05, fz = Math.sin(a) * 0.05, fy = y + (f === 0 ? 0.012 : 0)
+        const fx = Math.cos(a) * 0.04, fz = Math.sin(a) * 0.04, fy = y + (f === 0 ? 0.012 : 0)
         if (open < 0.5) { add(PETAL, 0xffb3d1, [fx, fy + 0.01, fz], [0.032, 0.03, 0.032]); continue }
         for (let k = 0; k < 5; k++) {
           const pa = a + (k / 5) * Math.PI * 2
-          add(PETAL, c.petal, [fx + Math.cos(pa) * 0.026, fy, fz + Math.sin(pa) * 0.026], [0.024, 0.012, 0.024])
+          add(PETAL, c.petal, [fx + Math.cos(pa) * 0.027, fy, fz + Math.sin(pa) * 0.027], [0.027, 0.014, 0.027])
         }
-        add(PETAL, c.inner, [fx, fy + 0.008, fz], [0.012, 0.01, 0.012])
+        add(PETAL, c.inner, [fx, fy + 0.009, fz], [0.014, 0.011, 0.014])
       }
       break
     case 'cornflower':
@@ -207,8 +212,10 @@ function grown(add, type, stage, spin, t) {
     add(PETAL, c.leaf, [Math.cos(a) * 0.05 * l, 0.04 * l, Math.sin(a) * 0.05 * l], [0.055 * l, 0.016, 0.036 * l], [0, -a, lerp(1.1, 0.5, g)])
   }
   const open = bloom ? lerp(0.3, 1, ease(t)) : 0.3
-  // the head swells as the bud grows, from a green nub to its colour
-  const h = bloom ? 1 : lerp(0.25, 1, g)
+  // Every kind of flower opens to the same size, big and chunky. A bud is a
+  // little smaller, and swells as it grows from a green nub to its colour.
+  const full = HEAD / (GROWN * spread(type))
+  const h = full * (bloom ? lerp(BUD, 1, ease(t)) : BUD * lerp(0.3, 1, g))
   const headParts = []
   const into = (geometry, color, position, scale, rotation) => headParts.push([geometry, color, position, scale, rotation])
   // a little green cup holds the flower
@@ -220,6 +227,17 @@ function grown(add, type, stage, spin, t) {
     tint.set(color).lerp(new THREE.Color(0x7cc95a), bloom ? 0 : (1 - g) * 0.8)
     add(geometry, tint.getHex(), [x * h, tall + y * h, z * h], [sx * h, sy * h, sz * h], rotation)
   }
+}
+
+// How far a fully open flower of this kind reaches from its middle.
+const spreads = new Map()
+function spread(type) {
+  if (!spreads.has(type)) {
+    let r = 0
+    head((geometry, color, [x, , z], [sx, , sz]) => { r = Math.max(r, Math.hypot(x, z) + Math.max(sx, sz)) }, type, 0, 1, 0)
+    spreads.set(type, r)
+  }
+  return spreads.get(type)
 }
 
 // How many in-between shapes a plant passes through as it grows or opens.
@@ -236,8 +254,7 @@ export function cellGeometry(type, stage, value, wilt = false, step = STEPS) {
   const t = step / STEPS
   const all = []
   const flat = []
-  const grow = stage === 'bloom' ? lerp(1.08, 1.1, t) : stage === 'bud' ? 1.08 : 1
-  const s = SCALE[value] * grow * (type === 'sunflower' && stage !== 'sprout' ? 1.15 : 1)
+  const s = stage === 'sprout' ? SCALE[value] : GROWN
   PIPS[value].forEach(([x, z], k) => {
     const spin = k * 2.4 + value
     const m = new THREE.Matrix4().makeTranslation(x, 0, z)
