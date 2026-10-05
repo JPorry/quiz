@@ -143,7 +143,7 @@ function refresh(quiet = false, origin = null) {
 
 function showProgress() {
   const pool = POOL_NAMES[LEVELS[levelIndex].pool]
-  $('prog').textContent = won ? `${pool} · all ${board.beds.length} beds in bloom` : `${pool} · ${shown} of ${board.beds.length} beds in bud`
+  $('prog').textContent = won ? `${pool} · all ${board.beds.length} beds in bloom` : `${pool} · ${shown} of ${board.beds.length} beds in flower`
 }
 
 // A little flower flies from a bed that has just budded up to the count, which

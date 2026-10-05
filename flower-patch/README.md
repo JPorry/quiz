@@ -27,9 +27,10 @@ hooks for checks: `start(index)`, `solve(leave)` and `advance(seconds)`.
 ## How it looks
 
 The garden is a tilted diorama seen through a fixed orthographic camera. Each
-bed is a raised bed of soil walled in terracotta brick: three courses laid like a
-real wall, each shifted half a brick, with cream mortar between, running from the
-lawn up to just above the soil, with a strip of striped lawn between beds, so the
+bed is a planter: soil sunk inside a terracotta brick wall of four courses laid
+like a real wall, each shifted half a brick, with cream mortar between, running
+from the lawn to a rim well above the soil. Pips sit a little in from each
+plot's edges, so sprouts, buds and labels always stay inside the wall, with a strip of striped lawn between beds, so the
 regions read at a glance. Faint dashed furrows split a bed into its plots, and
 a white picket fence, bushes, mushrooms, and a watering can sit around the edge.
 Rows stretch a little to make up for the tilt, so plots look square and the
@@ -49,39 +50,41 @@ Each sprout is a soft mochi-round seedling with two tiny leaves tucked on top,
 big shiny eyes, rosy cheeks and a little smile, and it breathes gently. Plants grow through three stages and keep the
 pips the whole way:
 
-1. **Sprout:** a round, smiling seedling on a little mound, the same for every bed.
+1. **Sprout:** a round, smiling seedling sitting half buried in the soil, a little
+   ring of loose earth hugging it, the same for every bed.
    It pops up with a squash and stretch when planted.
-2. **Bud:** once a bed holds 1 to N with no clashes, it bursts into bud. A beat
-   after the tap, a wave runs through the bed from the plot just planted, and
-   each sprout *becomes* its bud in one continuous change (sixteen in-between
-   shapes, `morph` in `src/flowers.js`): its body swells, rises and ripens
-   through fresh yellows and peaches into the flower's colour, its two little
-   leaves slide down and wrap round it as the outer petals, it closes its eyes,
-   and the mound sinks away as leaves unfurl from the soil and a green cup grows
-   under the bud. It breathes as it changes and lands with a little boing, a
-   spray of petals and sparkles, a ring in the soil and a note that climbs with
-   the wave. Green spreads across the bed from the plot behind a bright edge,
-   the last pop rings the bed's chime, and a little flower flies up to the count
-   of budding beds, which ticks up with a bounce. A butterfly comes to visit. If
-   the bed is broken again, the buds turn back into sprouts the same way.
-3. **Bloom:** when the garden is solved, the buds unfurl their petals in a wave
-   from the middle, the camera rises to look down on the mosaic, the light turns golden,
+2. **Flower:** once a bed holds 1 to N with no clashes, it bursts into flower. A
+   beat after the tap, a wave runs through the bed from the plot just planted,
+   and each sprout *becomes* an open flower in one continuous change (24
+   in-between shapes). First it grows into a fat bud (`morph` in
+   `src/flowers.js`): its body swells, rises and ripens through fresh yellows and
+   peaches into the flower's colour, its two little leaves slide down and wrap
+   round it as the outer petals, it closes its eyes, and the mound sinks away as
+   leaves unfurl and a green cup grows under it. Then the bud opens (`bloom`): a
+   stem lifts it as the wrapped petals fold back and fade and the flower's own
+   petals unfurl from inside. The flowers stay modest and all one size, so the
+   dice faces still read. It lands with a little boing, a spray of petals and
+   sparkles, a ring in the soil and a note that climbs with the wave. Green
+   spreads across the bed from the plot behind a bright edge, the last pop rings
+   the bed's chime, and a little flower flies up to the count of flowering beds,
+   which ticks up with a bounce. A butterfly comes to visit. If the bed is broken
+   again, the flowers close and shrink back into sprouts the same way.
+3. **Bloom:** when the garden is solved, every flower grows much bigger in a wave
+   from the middle, as big as its plot allows and more (the fewer in a plot, the
+   bigger), overlapping its neighbours at slightly different heights into one
+   lush carpet. The camera rises to look down on it, the light turns golden,
    petals drift down, and bees come out.
 
-At the finale each bud opens into its flower the same way, in one continuous
-change (sixteen in-between shapes, `bloom` in `src/flowers.js`): a stem lifts it
-as the ball of wrapped petals shrinks and its outer petals fold back and fade,
-while the flower's own petals grow and unfurl from inside, and the green cup
-slips down to hold it. The last shape of a bud and the first shape of its bloom
-are identical (a test checks this), so nothing ever jumps.
+Each stage's last shape is the next one's first (a test checks this), so nothing
+ever jumps.
 
 Each bed grows one of nine flowers, each with its own shape as well as colour:
 tulip, marigold, buttercup, daisy, forget-me-not, cornflower, lavender, pansy and
 rose. They are built to look cosy, like a box of sweets: plump round petals,
 big soft centres, short chunky stems and round leaves, in warm colours, with no
-spikes or thin slivers (and no faces). A bud sits in a little green cup like a
-lollipop. Every kind opens to the same big, chunky size, whatever its shape or
-its plot's number, so the finished garden is an even carpet of flowers. Beds that touch, even at a corner, never share a flower, and colours are
+spikes or thin slivers (and no faces). Each flower sits in a little green cup.
+
+Beds that touch, even at a corner, never share a flower, and colours are
 picked far apart on the colour wheel (`assignFlowers` in `src/logic.js`). A
 single-plot bed always grows a sunflower.
 

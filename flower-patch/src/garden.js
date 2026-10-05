@@ -80,8 +80,10 @@ function bedGeometry(shape, width, height, { depth = SOIL_Y, bevel = 0, size = 0
 // courses laid like a real wall, each one shifted half a brick.
 const BRICK = new RoundedBoxGeometry(1, 1, 1, 1, 0.18)
 const BRICK_COLORS = [0xe98a62, 0xdb7a57, 0xf09a70, 0xe0845e]
-const COURSES = 3
-const COURSE = (SOIL_Y + 0.016) / COURSES
+// the wall stands well above the soil, so every bed reads as a planter
+const WALL_ABOVE = 0.08
+const COURSES = 4
+const COURSE = (SOIL_Y + WALL_ABOVE) / COURSES
 
 function wall(shape, rand) {
   const parts = []
@@ -324,7 +326,7 @@ export function labels(cells, width, height) {
     }
     add(SPHERE, 0xff4f8f, [0.09, 0.206, 0.015], [0.013, 0.013, 0.013])
     // it stands at the front middle of the cell, the one spot no die face uses
-    const m = new THREE.Matrix4().makeTranslation(x, SOIL_Y, z + 0.4).multiply(new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(-0.95, 0, 0.04)))
+    const m = new THREE.Matrix4().makeTranslation(x, SOIL_Y, z + 0.3).multiply(new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(-0.95, 0, 0.04)))
     for (const g of sign) parts.push(g.applyMatrix4(m))
   }
   if (!parts.length) return new THREE.Group()
