@@ -111,8 +111,9 @@ function speckle(g, x, y, w, h, colors, n, rand, size = 2.2) {
 
 // Soil for every bed: warm, crumbly earth with soft mottling and a scatter of
 // tiny grains. The plots, furrows and clods are real shapes (see soilSurface),
-// so the texture only carries colour.
-function soilTexture(board, seed) {
+// so the texture only carries colour. Plots planted at the start (fixed) are
+// dug over into dark, rich earth so they read as already tended.
+function soilTexture(board, seed, fixed) {
   const rand = seeded(seed)
   return canvasTexture(board.width * PX, board.height * PX, (g, w, h) => {
     g.fillStyle = '#93623f'
@@ -128,6 +129,18 @@ function soilTexture(board, seed) {
       g.fillRect(x - r, y - r, r * 2, r * 2)
     }
     speckle(g, 0, 0, w, h, ['#7e5233', '#a9774f', '#b88a62'], board.cells * 26, rand, 1.4)
+    // the fixed plots: a soft-edged patch of dark earth, a little damp
+    for (const i of fixed) {
+      const x = (i % board.width) * PX, y = Math.floor(i / board.width) * PX
+      g.save()
+      g.filter = `blur(${PX * 0.05}px)`
+      g.fillStyle = 'rgba(52, 30, 18, .62)'
+      g.beginPath()
+      g.roundRect(x + PX * 0.1, y + PX * 0.1, PX * 0.8, PX * 0.8, PX * 0.28)
+      g.fill()
+      g.restore()
+      speckle(g, x + PX * 0.14, y + PX * 0.14, PX * 0.72, PX * 0.72, ['#3e2416', '#5a3622', '#6b4630'], 30, rand, 1.4)
+    }
   })
 }
 
@@ -383,9 +396,9 @@ function decorations(width, height, seed) {
 }
 
 // Builds every bed, the lawn, the fence and the decorations.
-export function buildGarden(board, flowers, seed) {
+export function buildGarden(board, flowers, fixed, seed) {
   const group = new THREE.Group()
-  const soil = soilTexture(board, seed)
+  const soil = soilTexture(board, seed, fixed)
   const carpet = carpetTexture(board, flowers, seed)
   // the mortar between the bricks; the soil's own sides hide behind the wall
   const mortar = toon(0xf1e2cf, { rim: 0.1 })
@@ -422,35 +435,4 @@ export function buildGarden(board, flowers, seed) {
   group.add(fence(board.width, board.height))
   group.add(decorations(board.width, board.height, seed))
   return { group, beds }
-}
-
-const RIM = new RoundedBoxGeometry(1, 1, 1, 2, 0.35)
-
-// Each cell planted at the start gets a plant label so it reads as fixed.
-export function labels(cells, width, height) {
-  const parts = []
-  for (const i of cells) {
-    const x = (i % width) + 0.5 - width / 2, z = Math.floor(i / width) + 0.5 - height / 2
-    // a chunky label: a cream board with a coral border, a painted seedling
-    // and a bow, on a wooden stake, leaning back to face the camera
-    const sign = []
-    const add = (geometry, color, position, scale, rotation) => sign.push(part(geometry, color, position, scale, rotation))
-    add(RIM, 0xb98458, [0, 0.03, 0], [0.03, 0.08, 0.026])
-    add(RIM, 0xff8a7a, [0, 0.13, 0], [0.24, 0.15, 0.036])
-    add(RIM, 0xfff6e6, [0, 0.13, 0.013], [0.2, 0.112, 0.032])
-    // the painted seedling: a little stem, two big round leaves, two small ones
-    add(RIM, 0x7acb58, [0, 0.1, 0.032], [0.008, 0.05, 0.006])
-    for (const s of [-1, 1]) {
-      add(SPHERE, 0x68c950, [s * 0.026, 0.128, 0.034], [0.026, 0.017, 0.007], [0, 0, s * -0.35])
-      add(SPHERE, 0x8fe06a, [s * 0.012, 0.15, 0.036], [0.016, 0.012, 0.007], [0, 0, s * -0.9])
-      // a bow on the top corner
-      add(SPHERE, 0xff6fa8, [0.09 + s * 0.026, 0.208, 0.01], [0.029, 0.018, 0.013], [0, 0, s * 0.4])
-    }
-    add(SPHERE, 0xff4f8f, [0.09, 0.206, 0.015], [0.013, 0.013, 0.013])
-    // it stands at the front middle of the cell, the one spot no die face uses
-    const m = new THREE.Matrix4().makeTranslation(x, SOIL_Y, z + 0.3).multiply(new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(-0.95, 0, 0.04)))
-    for (const g of sign) parts.push(g.applyMatrix4(m))
-  }
-  if (!parts.length) return new THREE.Group()
-  return baked(parts, { line: 0x6a4a3a, width: 0.005 })
 }

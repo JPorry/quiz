@@ -123,9 +123,9 @@ Beds that touch, even at a corner, never share a flower, and colours are
 picked far apart on the colour wheel (`assignFlowers` in `src/logic.js`). A
 single-plot bed always grows a sunflower.
 
-Plots planted at the start carry a little plant label: a cream board with a
-coral border, a painted seedling and a pink bow, standing at the front
-middle of the plot, the one spot no die face uses. When two seeds clash,
+Plots planted at the start sit in a soft-edged patch of dark, rich earth, dug
+over and already tended, so they stand out from the lighter soil around them.
+When two seeds clash,
 their sprouts slump (grown plants droop), turn straw coloured, and the plot glows red.
 
 ## Controls
