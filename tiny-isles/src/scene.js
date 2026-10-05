@@ -37,6 +37,7 @@ const BUNTING = [0xff8fa3, 0xffd166, 0x7fc8ff, 0x8ee39b, 0xc7a3ff]
 const STONE = 0xf6e8d6
 const DROPLET = new THREE.SphereGeometry(1, 8, 6)
 const CONFETTI = new THREE.PlaneGeometry(1, 0.6)
+const CLOUD = new THREE.SphereGeometry(1, 10, 7)
 const easeOut = (k) => 1 - (1 - k) ** 3
 
 // A bridge is laid plank by plank. One lane is a wooden bridge with rope rails
@@ -342,6 +343,27 @@ const CAR_GEOS = CAR_COLORS.map(carGeometry)
 
 /* ---------- number badges ---------- */
 
+// A fog island's badge is a little cloud with a question mark, and a dot for
+// every bridge it has so far.
+function drawFogBadge(g, have) {
+  g.clearRect(0, 0, 128, 128)
+  const puffs = [[64, 58, 34], [36, 70, 24], [92, 70, 24], [50, 80, 22], [78, 80, 22]]
+  g.fillStyle = 'rgba(40,60,80,.25)'
+  for (const [x, y, r] of puffs) { g.beginPath(); g.arc(x, y + 5, r, 0, Math.PI * 2); g.fill() }
+  g.fillStyle = '#eef3fb'
+  for (const [x, y, r] of puffs) { g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill() }
+  g.fillStyle = '#7d8aa6'
+  g.font = '700 46px Fredoka, Nunito, sans-serif'
+  g.textAlign = 'center'
+  g.textBaseline = 'middle'
+  g.fillText('?', 64, 64)
+  const n = Math.min(8, have)
+  for (let k = 0; k < n; k++) {
+    g.fillStyle = '#4fb8d8'
+    g.beginPath(); g.arc(64 + (k - (n - 1) / 2) * 12, 104, 4.5, 0, Math.PI * 2); g.fill()
+  }
+}
+
 function drawBadge(g, value, have, done, over) {
   g.clearRect(0, 0, 128, 128)
   g.fillStyle = 'rgba(40,60,80,.25)'
@@ -441,7 +463,13 @@ export class IslandScene {
       badge.renderOrder = 10
       this.world.add(badge)
       const entry = { b, r, group, city, island, badge, canvas, tex, bounce: -1, key: '' }
-      this.drawBadge(entry, 0, false, false)
+      if (b.fog) {
+        entry.fog = this.makeFog(r)
+        entry.fog.position.copy(p)
+        entry.fogK = 0
+        this.world.add(entry.fog)
+      }
+      this.drawBadge(entry, 0, false, false, b.fog)
       return entry
     })
     this.bridges = board.edges.map(() => null)
@@ -468,12 +496,30 @@ export class IslandScene {
     return new THREE.Vector3((b.column + 0.5 - this.width / 2) * CX, 0, (b.row + 0.5 - this.height / 2) * this.CZ)
   }
 
-  drawBadge(entry, have, done, over) {
-    const key = `${have}-${done}-${over}`
+  drawBadge(entry, have, done, over, fog = false) {
+    const key = `${have}-${done}-${over}-${fog}`
     if (entry.key === key) return
     entry.key = key
-    drawBadge(entry.canvas.getContext('2d'), entry.b.value, have, done, over)
+    if (fog) drawFogBadge(entry.canvas.getContext('2d'), have)
+    else drawBadge(entry.canvas.getContext('2d'), entry.b.value, have, done, over)
     entry.tex.needsUpdate = true
+  }
+
+  // a ring of cloud puffs drifting around an island whose number is hidden
+  makeFog(r) {
+    const puffs = []
+    const n = 9
+    for (let k = 0; k < n; k++) {
+      const a = (k / n) * Math.PI * 2 + Math.random() * 0.3
+      const d = r * (1.12 + Math.random() * 0.12)
+      const s = 0.06 + Math.random() * 0.05
+      puffs.push(part(CLOUD, 0xffffff, [Math.cos(a) * d, 0.12 + Math.random() * 0.1, Math.sin(a) * d], [s * 1.3, s, s * 1.1]))
+      puffs.push(part(CLOUD, 0xf1f4fb, [Math.cos(a + 0.2) * d * 1.04, 0.08 + Math.random() * 0.06, Math.sin(a + 0.2) * d * 1.04], [s * 0.9, s * 0.7, s * 0.8]))
+    }
+    const geometry = merge(puffs)
+    const g = new THREE.Group()
+    g.add(new THREE.Mesh(geometry, toon(0xffffff, { vertexColors: true, rim: 0.3 })), new THREE.Mesh(geometry, outline(0xaab4c8, 0.006)))
+    return g
   }
 
   // the two ends of a bridge, at the shores of its islands
@@ -546,13 +592,14 @@ export class IslandScene {
     for (const car of this.cars) if (car.bridge === bridge) car.gone = true
   }
 
-  // per island: { tier, have, done, over }
+  // per island: { tier, have, done, over, fog }; fog is true while its number is hidden
   setIslands(states) {
     states.forEach((s, i) => {
       const is = this.islands[i]
       if (is.city.setTier(s.tier)) is.bounce = 0
       is.island.setHappy(s.done)
-      this.drawBadge(is, s.have, s.done, s.over)
+      if (is.fog) is.lifting = !s.fog
+      this.drawBadge(is, s.have, s.done, s.over, Boolean(s.fog))
     })
   }
 
@@ -720,6 +767,15 @@ export class IslandScene {
         if (k >= 1) { is.bounce = -1; is.group.scale.set(1, 1, 1) }
       }
       is.badge.position.y = 0.3 + Math.sin(this.time * 2 + is.b.index) * 0.012
+      if (is.fog) {
+        // the fog drifts round slowly, and lifts away once the number is known
+        is.fogK = clamp(is.fogK + (is.lifting ? dt / 1.4 : -dt / 0.3), 0, 1)
+        const k = is.fogK
+        is.fog.visible = k < 1
+        is.fog.rotation.y += dt * 0.15
+        is.fog.position.y = Math.sin(this.time * 1.2 + is.b.index) * 0.015 + k * 0.5
+        is.fog.scale.set(1 + k * 0.8, Math.max(0.001, 1 - k), 1 + k * 0.8)
+      }
     }
     for (const br of this.bridges) {
       if (!br) continue

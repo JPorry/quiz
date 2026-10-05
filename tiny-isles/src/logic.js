@@ -1,5 +1,6 @@
-// Bunny Burrows is Hashiwokakero dressed as a warren. Burrows are islands, paths are
-// bridges, and Grandma's burrow is the source the carrots travel out from.
+// Tiny Isles is Hashiwokakero. The code still calls islands burrows and bridges
+// paths, from Bunny Burrows where it started. Some islands are in fog: their number
+// is hidden, so the player (and the solver) only know it is somewhere from 1 to 8.
 
 export const DIRECTIONS = {
   up: [-1, 0],
@@ -11,7 +12,7 @@ export const DIRECTIONS = {
 // Everything that never changes while a level is played: which burrows can see each
 // other, which paths would cross, and which paths touch each burrow.
 export function buildBoard(level) {
-  const burrows = level.burrows.map(([row, column, value], index) => ({ row, column, value, index }))
+  const burrows = level.burrows.map(([row, column, value, fog], index) => ({ row, column, value, fog: Boolean(fog), index }))
   const at = new Map(burrows.map((b) => [`${b.row},${b.column}`, b.index]))
   const edges = []
   const neighbors = burrows.map(() => ({}))
@@ -48,6 +49,11 @@ export function buildBoard(level) {
   for (const e of edges) {
     byBurrow[e.a].push(e.index)
     byBurrow[e.b].push(e.index)
+  }
+  // the range a burrow's number could be: exact when shown, 1 to 8 in fog
+  for (const b of burrows) {
+    b.min = b.fog ? 1 : b.value
+    b.max = b.fog ? Math.min(8, byBurrow[b.index].length * 2) : b.value
   }
   return { level, width: level.width, height: level.height, source: level.source ?? 0, burrows, edges, crossings, byBurrow, neighbors }
 }
@@ -128,15 +134,17 @@ function components(board, counts) {
   return groups
 }
 
-// What the garden looks like right now: which burrows are fed, which have too many
-// paths, and which groups have closed themselves off from Grandma's.
+// What the sea looks like right now: which islands are joined to the first, which
+// have too many bridges, and which groups have closed themselves off. A fog island
+// counts as settled once it has any bridge: the puzzle has only one solution, so a
+// finished network gives it exactly its hidden number.
 export function status(board, counts) {
   const degree = degrees(board, counts)
   const fed = reachable(board, counts, board.source)
-  const over = board.burrows.filter((b) => degree[b.index] > b.value).map((b) => b.index)
-  const exact = board.burrows.filter((b) => degree[b.index] === b.value).map((b) => b.index)
+  const over = board.burrows.filter((b) => degree[b.index] > b.max).map((b) => b.index)
+  const exact = board.burrows.filter((b) => (b.fog ? degree[b.index] >= 1 : degree[b.index] === b.value)).map((b) => b.index)
   const closed = components(board, counts).filter(
-    (group) => !group.includes(board.source) && group.length < board.burrows.length && group.every((i) => degree[i] === board.burrows[i].value),
+    (group) => !group.includes(board.source) && group.length < board.burrows.length && group.every((i) => !board.burrows[i].fog && degree[i] === board.burrows[i].value),
   )
   const complete = exact.length === board.burrows.length && fed.size === board.burrows.length
   return { degree, fed, over, exact, closed, complete }
@@ -149,19 +157,29 @@ export function status(board, counts) {
 // the difficulty rating, and the uniqueness check.
 export const TECHNIQUES = ['crossing', 'capacity', 'isolation', 'trial']
 
-function closedGroupContradiction(board, lo) {
-  const n = board.burrows.length
+// Burrows that can take no more paths: full up to their number, or with every
+// path they could still have already decided.
+function saturation(board, lo, hi) {
   const degree = board.burrows.map(() => 0)
+  const room = board.burrows.map(() => 0)
   for (const e of board.edges) {
     degree[e.a] += lo[e.index]
     degree[e.b] += lo[e.index]
+    room[e.a] += hi[e.index] - lo[e.index]
+    room[e.b] += hi[e.index] - lo[e.index]
   }
+  return board.burrows.map((b) => degree[b.index] >= b.max || room[b.index] === 0)
+}
+
+function closedGroupContradiction(board, lo, hi) {
+  const n = board.burrows.length
+  const full = saturation(board, lo, hi)
   const seen = new Set()
   for (const burrow of board.burrows) {
     if (seen.has(burrow.index)) continue
     const group = [...reachable(board, lo, burrow.index).keys()]
     group.forEach((i) => seen.add(i))
-    if (group.length < n && group.every((i) => degree[i] === board.burrows[i].value)) return true
+    if (group.length < n && group.every((i) => full[i])) return true
   }
   return false
 }
@@ -182,10 +200,10 @@ export function nextDeduction(board, lo, hi, { allowTrial = true } = {}) {
     const edges = board.byBurrow[burrow.index]
     const sumLo = edges.reduce((s, i) => s + lo[i], 0)
     const sumHi = edges.reduce((s, i) => s + hi[i], 0)
-    if (sumHi < burrow.value || sumLo > burrow.value) return { contradiction: true, burrow: burrow.index }
+    if (sumHi < burrow.min || sumLo > burrow.max) return { contradiction: true, burrow: burrow.index }
     for (const i of edges) {
-      const newLo = Math.max(lo[i], burrow.value - (sumHi - hi[i]))
-      const newHi = Math.min(hi[i], burrow.value - (sumLo - lo[i]))
+      const newLo = Math.max(lo[i], burrow.min - (sumHi - hi[i]))
+      const newHi = Math.min(hi[i], burrow.max - (sumLo - lo[i]))
       if (newLo > newHi) return { contradiction: true, burrow: burrow.index }
       if (newLo !== lo[i] || newHi !== hi[i]) return { technique: 'capacity', edge: i, lo: newLo, hi: newHi, burrow: burrow.index }
     }
@@ -197,17 +215,13 @@ export function nextDeduction(board, lo, hi, { allowTrial = true } = {}) {
     if (lo[i] === hi[i]) continue
     const trial = lo.slice()
     trial[i] = hi[i]
-    const degree = board.burrows.map(() => 0)
-    for (const f of board.edges) {
-      degree[f.a] += trial[f.index]
-      degree[f.b] += trial[f.index]
-    }
+    const full = saturation(board, trial, hi)
     const group = [...reachable(board, trial, e.a).keys()]
-    if (group.length < n && group.every((j) => degree[j] === board.burrows[j].value)) {
+    if (group.length < n && group.every((j) => full[j])) {
       return { technique: 'isolation', edge: i, lo: lo[i], hi: hi[i] - 1, burrow: e.a }
     }
   }
-  if (closedGroupContradiction(board, lo)) return { contradiction: true }
+  if (closedGroupContradiction(board, lo, hi)) return { contradiction: true }
   if (!allowTrial) return null
   // Trial: try the end of an interval, follow the easy steps, and see if it falls apart.
   for (const e of board.edges) {
