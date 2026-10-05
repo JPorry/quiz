@@ -62,6 +62,7 @@ footer { padding: 4px 12px max(14px, env(safe-area-inset-bottom)); display: grid
   background: linear-gradient(180deg, #fffaf2 0 62%, #f3e6cf 62%); transition: transform .12s;
 }
 .packet .face { width: 30px; height: 30px; fill: var(--leaf); }
+.packet .face circle { stroke: #4a7a3a; stroke-width: .08; }
 .packet span { font: 600 13px var(--display); color: var(--ink-soft); line-height: 1; }
 .packet[aria-pressed="true"] { background: linear-gradient(180deg, #fff 0 62%, #ffd9e8 62%); box-shadow: 0 3px 0 #e8a7c2, 0 0 0 3px var(--rose), 0 8px 16px rgba(50, 80, 40, .2); transform: translateY(-3px); }
 .packet[aria-pressed="true"] .face { fill: #3f9a3a; }

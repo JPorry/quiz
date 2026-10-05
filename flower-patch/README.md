@@ -55,7 +55,14 @@ A seed shows as tiny green seedlings laid out like a die's pips
 (`src/flowers.js`), one per pip, so the number never needs a label. Each is a
 little plant on a short stem: two big, round seed leaves low and wide, two
 smaller, paler leaves standing up between them, and a curled new leaf in the
-middle. From above the rosette reads as one round pip. Seedlings breathe
+middle. From above the rosette reads as one round pip. Every number also has its
+own colour, carried by the seedling's bud tip and its little upright leaves, and
+by the dots on its seed packet, in soft pastels: 1 strawberry, 2 apricot,
+3 butter, 4 baby blue, 5 lilac, 6 white. They differ in lightness as well as
+hue (every pair is at least 42 apart in CIELAB ΔE), so a bed reads as a set of colours and a doubled number
+stands out; the die layout still tells them apart for colour-blind players. As
+a sprout grows into a bud and opens, it keeps its number's colour all the way
+into full bloom. Seedlings breathe
 gently. Plants grow through three stages and keep the pips the whole way:
 
 1. **Sprout:** the seedling, with a few crumbs of earth heaved up round its
@@ -68,8 +75,8 @@ gently. Plants grow through three stages and keep the pips the whole way:
    beat after the tap, a wave runs through the bed from the plot just planted,
    and each sprout *becomes* an open flower in one continuous change (24
    in-between shapes). First it grows into a fat bud (`morph` in
-   `src/flowers.js`): the curled middle leaf swells, rises and ripens through
-   fresh yellows and peaches into the flower's colour, petals grow out of it and
+   `src/flowers.js`): the coloured bud tip swells and rises, petals in the
+   same colour grow out of it and
    wrap round it, the seedling's leaves slide down to become the bud's rosette,
    and a green cup grows under it. Then the bud opens (`bloom`): a
    stem lifts it as the wrapped petals fold back and fade and the flower's own
@@ -113,15 +120,26 @@ between, a light breeze keeps everything swaying gently.
 Each stage's last shape is the next one's first (a test checks this), so nothing
 ever jumps.
 
-Each bed grows one of nine flowers, each with its own shape as well as colour:
-tulip, marigold, buttercup, daisy, forget-me-not, cornflower, lavender, pansy and
-rose. They are built to look cosy, like a box of sweets: plump round petals,
-big soft centres, short chunky stems and round leaves, in warm colours, with no
-spikes or thin slivers (and no faces). Each flower sits in a little green cup.
+Kind and colour are separate. Each bed grows one of nine kinds of flower, each
+with its own shape: tulip, marigold, buttercup, daisy, forget-me-not,
+cornflower, lavender, pansy and rose. Each plant blooms in its seed number's
+colour, whatever its kind (`palette` in `src/flowers.js`): the petals in the
+number's colour, inner petals in a lighter or deeper shade of it, and a golden
+eye picked to stand out against it. So a finished bed is one kind of flower in
+1 to N different colours, and the numbers still read in full bloom. A bed's
+green carpet is strewn with petals in its numbers' colours. They are built to
+look like soft clay toys: every petal is an inflated balloon, narrow where it
+joins the flower and swelling to a round, puffy tip, nearly as thick as it is
+wide; centres are big soft domes, the daisy's and sunflower's ringed with
+little beads. Plants use a smooth clay material with a gentle sheen and no
+outline (`clay` in `src/look.js`), unlike the sticker-outlined world around
+them. It takes less flat fill light and more sun than the world does, every
+petal darkens towards its base and underneath, and plants cast shadows on each
+other, so each petal stands out with a lit side, a shaded side and a crease. Short chunky stems and round leaves, no spikes or thin slivers (and no
+faces). Each flower sits in a little green cup.
 
-Beds that touch, even at a corner, never share a flower, and colours are
-picked far apart on the colour wheel (`assignFlowers` in `src/logic.js`). A
-single-plot bed always grows a sunflower.
+Beds that touch, even at a corner, never share a kind of flower
+(`assignFlowers` in `src/logic.js`). A single-plot bed always grows a sunflower.
 
 Plots planted at the start sit in a soft-edged patch of dark, rich earth, dug
 over and already tended, so they stand out from the lighter soil around them.
@@ -130,7 +148,7 @@ their sprouts slump (grown plants droop), turn straw coloured, and the plot glow
 
 ## Controls
 
-Pick a seed packet (each shows its die face), then tap a plot to plant it. Tap a
+Pick a seed packet (each shows its die face in its number's colour), then tap a plot to plant it. Tap a
 plot again with the same packet, or use the trowel, to dig it up. A seed too big
 for its bed is refused. Undo and Restart (tap twice) sit under the packets; keys
 1 to 6 pick a packet, 0 or Backspace the trowel, and Ctrl+Z undoes. The level

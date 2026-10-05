@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
-import { toon, outline } from './look.js'
-import { cellGeometry, COLORS, GROW_STEPS, PIPS, plantTop, STEPS } from './flowers.js'
+import { toon, outline, clay } from './look.js'
+import { cellGeometry, GROW_STEPS, NUM, PIPS, plantTop, STEPS } from './flowers.js'
 import { Insects } from './insects.js'
 import { buildGarden, SOIL_Y, WIND } from './garden.js'
 import { World } from './world.js'
@@ -76,8 +76,8 @@ export class GardenScene {
     this.glowTarget = 0
     this.elevation = ELEVATION
     this.elevationTarget = ELEVATION
-    this.plantMaterial = toon(0xffffff, { vertexColors: true, rim: 0.2 })
-    this.plantLine = outline(LINE, 0.006)
+    this.plantMaterial = clay()
+    this.plantLine = outline(LINE, 0.004)
     this.faceMaterial = new THREE.MeshBasicMaterial({ vertexColors: true })
     this.humpMaterial = toon(0xa3714b, { rim: 0.25 })
     this.markMaterial = new THREE.MeshBasicMaterial({ color: 0xff5a4a, transparent: true, opacity: 0.38, depthWrite: false })
@@ -130,7 +130,11 @@ export class GardenScene {
     const group = new THREE.Group()
     const mesh = new THREE.Mesh(undefined, this.plantMaterial)
     mesh.castShadow = true
+    // petals and leaves cast soft shadows on each other, which models them
+    mesh.receiveShadow = true
+    // plants are soft clay, like the toys they're modelled on: no outline
     const line = new THREE.Mesh(undefined, this.plantLine)
+    line.visible = false
     const face = new THREE.Mesh(undefined, this.faceMaterial)
     group.add(mesh, line, face)
     group.visible = false
@@ -399,7 +403,7 @@ export class GardenScene {
 
   // A pop of petals, sparkles and a ring in the soil as a cell grows up.
   burst(i) {
-    const color = COLORS[this.flowers[this.board.bedOf[i]]].petal
+    const color = NUM[this.cells[i].value] ?? NUM[1]
     const p = this.center(i)
     for (let k = 0; k < 8; k++) {
       const a = (k / 8) * Math.PI * 2 + Math.random() * 0.5
@@ -440,7 +444,7 @@ export class GardenScene {
       this.gust = { dx: Math.cos(a), dz: Math.sin(a), start: this.time, reach, speed: 1.3, strength: 0.13 + Math.random() * 0.06 }
       this.onGust?.(this.gust.strength)
       // a few petals and leaves ride the gust across
-      const flowers = [...new Set(this.flowers.map((f) => COLORS[f].petal))]
+      const flowers = [...new Set(Object.values(NUM))]
       for (let k = 0; k < 5; k++) {
         const side = (Math.random() - 0.5) * reach * 1.6
         const start = new THREE.Vector3(-this.gust.dx * reach + -this.gust.dz * side, SOIL_Y + 0.3 + Math.random() * 0.35, -this.gust.dz * reach + this.gust.dx * side)
@@ -724,7 +728,7 @@ export class GardenScene {
       this.petals -= dt
       const { width, height } = this.board
       if (Math.random() < dt * 14) {
-        const colors = [...new Set(this.flowers.map((f) => COLORS[f].petal))]
+        const colors = [...new Set(Object.values(NUM))]
         this.spawn(PETAL, colors[Math.floor(Math.random() * colors.length)], new THREE.Vector3((Math.random() - 0.5) * width, 2.2, (Math.random() - 0.5) * height - 0.6), new THREE.Vector3(0.25, -0.35, 0.1), 0.045, { life: 6, gravity: 0, spin: 2.5, basic: true, drift: 1 })
       }
     }
