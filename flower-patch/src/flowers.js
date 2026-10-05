@@ -5,8 +5,8 @@ import { part, merge } from './look.js'
 // laid out like the pips on a die, so the number always reads at a glance, and
 // grows through three stages:
 //   sprout  a chubby green bud, the same for every bed
-//   bud     the bed is complete: a plump round bud in its flower's colour
-//   bloom   the garden is solved: the flower opens fully
+//   bud     the bed is complete: it grows through a fat bud into an open flower
+//   bloom   the garden is solved: every flower grows bigger still
 // A wilting cell breaks a rule: its plants droop (sprouts slump) and turn straw coloured.
 
 const SPHERE = new THREE.SphereGeometry(1, 8, 6)
@@ -34,6 +34,9 @@ const GROWN = 1.15
 // from its middle (in cell widths), as big as its plot allows and more,
 // overlapping its neighbours into one lush carpet.
 const BLOOM = { 1: 0.42, 2: 0.34, 3: 0.31, 4: 0.3, 5: 0.28, 6: 0.25 }
+// A completed bed's flowers are open but modest: every head reaches this far,
+// whatever the plot's number, so the dice faces still read.
+const OPEN = 0.165
 
 export const COLORS = {
   tulip: { petal: 0xff6f86, inner: 0xff9aab, leaf: 0x6fbf6a, carpet: '#ff8fa0' },
@@ -296,7 +299,7 @@ function morph(add, type, spin, g, wilt) {
 // shrinks and its outer petals fold back and fade, while the flower's own
 // petals grow and unfurl from inside it. The green cup slips down to hold the
 // flower, and the leaves stay round its foot.
-function bloom(add, type, spin, b, value, k) {
+function bloom(add, type, spin, b, size, k) {
   const c = COLORS[type] ?? COLORS.daisy
   const cluster = CLUSTER.has(type)
   const wrap = new THREE.Color(c.petal).lerp(new THREE.Color(0xffffff), 0.25).getHex()
@@ -345,7 +348,7 @@ function bloom(add, type, spin, b, value, k) {
     if (tip > 0.01) add(PETAL, color, [0, 0.164 * K + up, 0], [0.02 * K * tip, 0.014 * K * tip, 0.02 * K * tip])
   }
   // the flower grows and unfurls from inside, big enough to fill its plot
-  const h = BLOOM[value] / (GROWN * spread(type)) * smooth(0, 0.75, b)
+  const h = size / (GROWN * spread(type)) * smooth(0, 0.75, b)
   if (h < 0.002) return
   const headParts = []
   const into = (geometry, color, position, scale, rotation) => headParts.push([geometry, color, position, scale, rotation])
@@ -373,12 +376,17 @@ export const STEPS = 16
 
 const cache = new Map()
 
-// How many in-between shapes a sprout passes through as it becomes a bud.
-export const GROW_STEPS = 16
+// How many in-between shapes a sprout passes through on its way to an open
+// flower: the first half grows it into a bud, the second half opens the bud.
+export const GROW_STEPS = 24
 
-// The shapes for a cell holding `value` plants of `type` at `stage`. For a bud,
-// `step` (0 to GROW_STEPS) is how far the sprout has turned into it; for a
-// bloom (0 to STEPS), how far the bud has opened.
+// The shapes for a cell holding `value` plants of `type` at `stage`:
+//   sprout  the smiling seedling
+//   bud     the bed is complete. `step` (0 to GROW_STEPS) runs from the sprout,
+//           through a fat bud, to an open flower; at GROW_STEPS it is in flower.
+//   bloom   the garden is solved. `step` (0 to STEPS) grows the open flower
+//           bigger still, until the flowers overlap into one carpet.
+// Each stage's last shape is the next one's first, so nothing ever jumps.
 export function cellGeometry(type, stage, value, wilt = false, step = stage === 'bud' ? GROW_STEPS : STEPS) {
   if (stage === 'sprout') step = 0
   const key = `${stage === 'sprout' ? 'sprout' : type}|${stage}|${value}|${wilt}|${step}`
@@ -386,7 +394,8 @@ export function cellGeometry(type, stage, value, wilt = false, step = stage === 
   const all = []
   const flat = []
   const g = stage === 'bud' ? step / GROW_STEPS : 0
-  const s = stage === 'bloom' ? GROWN : lerp(SCALE[value], GROWN, g)
+  const toBud = Math.min(1, g * 2), opening = Math.max(0, g * 2 - 1)
+  const s = stage === 'bloom' ? GROWN : lerp(SCALE[value], GROWN, toBud)
   PIPS[value].forEach(([x, z], k) => {
     const spin = k * 2.4 + value
     const m = new THREE.Matrix4().makeTranslation(x, 0, z)
@@ -395,8 +404,9 @@ export function cellGeometry(type, stage, value, wilt = false, step = stage === 
     if (wilt && stage === 'sprout') m.multiply(new THREE.Matrix4().makeScale(1.1, 0.72, 1.1))
     else if (wilt) m.multiply(new THREE.Matrix4().makeRotationAxis(new THREE.Vector3(Math.cos(spin), 0, Math.sin(spin)), 0.75))
     const { parts, flats, add } = builder(m, wilt)
-    if (stage === 'bloom') bloom(add, type, spin, step / STEPS, value, k)
-    else morph(add, type, spin, g, wilt)
+    if (stage === 'bloom') bloom(add, type, spin, 1, lerp(OPEN, BLOOM[value], smooth(0, 1, step / STEPS)), k)
+    else if (opening > 0) bloom(add, type, spin, opening, OPEN, k)
+    else morph(add, type, spin, toBud, wilt)
     all.push(...parts)
     flat.push(...flats)
   })

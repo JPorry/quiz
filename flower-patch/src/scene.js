@@ -258,14 +258,14 @@ export class GardenScene {
     }
     Object.assign(c, { stage: s.stage, wilt: s.wilt })
     if (s.stage === 'bud' && from === 'sprout') {
-      // the sprout itself grows into the bud, one continuous change
-      c.grow = { type, stage: 'bud', steps: GROW_STEPS, k: 0, dur: 1.1, step: -1, rank, morph: true }
+      // the sprout itself grows into a bud and opens into a flower, one continuous change
+      c.grow = { type, stage: 'bud', steps: GROW_STEPS, k: 0, dur: 1.9, step: -1, rank, morph: true }
     } else if (s.stage === 'bloom' && from !== 'bloom') {
-      // the bud opens into its flower, one continuous change
-      c.grow = { type, stage: 'bloom', steps: STEPS, k: 0, dur: 1.3, step: -1, rank, morph: true }
+      // the open flower grows bigger still, one continuous change
+      c.grow = { type, stage: 'bloom', steps: STEPS, k: 0, dur: 1.2, step: -1, rank, morph: true }
     } else if (s.stage === 'sprout' && from !== 'sprout') {
-      // a bed that is no longer complete: its buds shrink back into sprouts
-      c.grow = { type, stage: 'bud', steps: GROW_STEPS, k: 0, dur: 0.6, step: -1, rank, morph: true, back: true }
+      // a bed that is no longer complete: its flowers close and shrink back into sprouts
+      c.grow = { type, stage: 'bud', steps: GROW_STEPS, k: 0, dur: 0.8, step: -1, rank, morph: true, back: true }
     } else {
       // a seed starts or stops wilting
       c.grow = null
