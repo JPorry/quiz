@@ -3,18 +3,16 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { toon, part, baked, canvasTexture, seeded } from './look.js'
 import { COLORS } from './flowers.js'
 
-// The garden around the plants: raised wooden beds filled with soil, a striped
+// The garden around the plants: raised beds of soil walled in brick, a striped
 // lawn between them, a picket fence, and a few things left lying about.
 
-export const BED_DEPTH = 0.13
-export const BEVEL = 0.03
-export const SOIL_Y = BED_DEPTH + BEVEL
+export const SOIL_Y = 0.16
 const GAP = 0.055 // half the strip of lawn between two beds
 const PX = 72 // texture pixels per cell
 
 // The outline of a bed, walked around its edge, pulled in by GAP on every side.
 // Beds hold at most six cells, so a bed never wraps around another or pinches.
-export function bedOutline(cells, width) {
+export function bedOutline(cells, width, gap = GAP) {
   const inBed = new Set(cells)
   const has = (r, c) => c >= 0 && c < width && inBed.has(r * width + c)
   const next = new Map()
@@ -44,18 +42,18 @@ export function bedOutline(cells, width) {
   return corners.map((p, k) => {
     const a = corners[(k + corners.length - 1) % corners.length], b = corners[(k + 1) % corners.length]
     const d1 = [Math.sign(p[0] - a[0]), Math.sign(p[1] - a[1])], d2 = [Math.sign(b[0] - p[0]), Math.sign(b[1] - p[1])]
-    return [p[0] + GAP * (-d1[1] - d2[1]), p[1] + GAP * (d1[0] + d2[0])]
+    return [p[0] + gap * (-d1[1] - d2[1]), p[1] + gap * (d1[0] + d2[0])]
   })
 }
 
-// A raised bed: the outline with rounded corners, extruded and turned to lie on the lawn.
-function bedGeometry(cells, width, height) {
-  const pts = bedOutline(cells, width)
+// A bed's outline with rounded corners, as a shape in (x, -z).
+function bedShape(cells, width, height, gap = GAP, round = 0.16) {
+  const pts = bedOutline(cells, width, gap)
   const shape = new THREE.Shape()
   pts.forEach((p, k) => {
     const a = pts[(k + pts.length - 1) % pts.length], b = pts[(k + 1) % pts.length]
     const lenIn = Math.hypot(p[0] - a[0], p[1] - a[1]), lenOut = Math.hypot(b[0] - p[0], b[1] - p[1])
-    const r = Math.min(0.16, lenIn / 2, lenOut / 2)
+    const r = Math.min(round, lenIn / 2, lenOut / 2)
     const from = [p[0] - (p[0] - a[0]) / lenIn * r, p[1] - (p[1] - a[1]) / lenIn * r]
     const to = [p[0] + (b[0] - p[0]) / lenOut * r, p[1] + (b[1] - p[1]) / lenOut * r]
     // shape space is (x, -z), board space is (column, row)
@@ -65,12 +63,38 @@ function bedGeometry(cells, width, height) {
     shape.quadraticCurveTo(...w(p), ...w(to))
   })
   shape.closePath()
-  const g = new THREE.ExtrudeGeometry(shape, { depth: BED_DEPTH, bevelEnabled: true, bevelThickness: BEVEL, bevelSize: BEVEL * 0.9, bevelSegments: 2, curveSegments: 4 })
+  return shape
+}
+
+// The shape extruded and turned to lie on the lawn, its top at SOIL_Y.
+function bedGeometry(shape, width, height, { depth = SOIL_Y, bevel = 0, size = 0, segments = 1 } = {}) {
+  const g = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: bevel > 0, bevelThickness: bevel, bevelSize: size, bevelSegments: segments, curveSegments: 6 })
   g.rotateX(-Math.PI / 2)
   // map the top onto the garden-wide soil texture
   const pos = g.attributes.position, uv = g.attributes.uv
   for (let k = 0; k < pos.count; k++) uv.setXY(k, (pos.getX(k) + width / 2) / width, 1 - (pos.getZ(k) + height / 2) / height)
   return g
+}
+
+// A brick wall all round a bed, from the lawn up to just above the soil, in
+// courses laid like a real wall, each one shifted half a brick.
+const BRICK = new RoundedBoxGeometry(1, 1, 1, 1, 0.18)
+const BRICK_COLORS = [0xe98a62, 0xdb7a57, 0xf09a70, 0xe0845e]
+const COURSES = 3
+const COURSE = (SOIL_Y + 0.016) / COURSES
+
+function wall(shape, rand) {
+  const parts = []
+  const n = Math.max(8, Math.round(shape.getLength() / 0.1))
+  for (let c = 0; c < COURSES; c++) {
+    for (let k = 0; k < n; k++) {
+      const u = ((k + (c % 2) * 0.5) / n) % 1
+      const p = shape.getPointAt(u), t = shape.getTangentAt(u)
+      const color = BRICK_COLORS[Math.floor(rand() * BRICK_COLORS.length)]
+      parts.push(part(BRICK, color, [p.x, COURSE * (c + 0.5), -p.y], [shape.getLength() / n - 0.008, COURSE - 0.006, 0.07], [0, Math.atan2(t.y, t.x), 0]))
+    }
+  }
+  return parts
 }
 
 function speckle(g, x, y, w, h, colors, n, rand, size = 2.2) {
@@ -146,8 +170,6 @@ function bedMaterial(soil, carpet) {
   return m
 }
 
-const WOOD = 0xc98f5f
-const WOOD_DARK = 0xa8724a
 const LAWN = 0x8fd06c
 
 function lawnTexture(size) {
@@ -237,15 +259,21 @@ export function buildGarden(board, flowers, seed) {
   const group = new THREE.Group()
   const soil = soilTexture(board, seed)
   const carpet = carpetTexture(board, flowers, seed)
-  const side = toon(WOOD, { rim: 0.12 })
+  // the mortar between the bricks; the soil's own sides hide behind the wall
+  const mortar = toon(0xf1e2cf, { rim: 0.1 })
+  const rand = seeded(seed + 11)
+  const bricks = []
   const beds = board.beds.map((cells) => {
     const material = bedMaterial(soil, carpet)
-    const mesh = new THREE.Mesh(bedGeometry(cells, board.width, board.height), [material, side])
+    const shape = bedShape(cells, board.width, board.height, 0.08, 0.2)
+    const geometry = bedGeometry(shape, board.width, board.height, { depth: SOIL_Y, bevel: 0 })
+    bricks.push(...wall(shape, rand))
+    const mesh = new THREE.Mesh(geometry, [material, mortar])
     mesh.receiveShadow = true
-    mesh.castShadow = true
     group.add(mesh)
     return { mesh, material }
   })
+  group.add(baked(bricks, { line: 0x8a4a3a, width: 0.004 }))
   const lawn = new THREE.Mesh(new THREE.PlaneGeometry(40, 40).rotateX(-Math.PI / 2), toon(0xffffff, { rim: 0 }).clone())
   lawn.material.map = lawnTexture(seed)
   lawn.material.map.wrapS = lawn.material.map.wrapT = THREE.RepeatWrapping
@@ -261,7 +289,7 @@ export function buildGarden(board, flowers, seed) {
   group.add(turf)
   group.add(fence(board.width, board.height))
   group.add(decorations(board.width, board.height, seed))
-  return { group, beds, colors: { WOOD, WOOD_DARK, LAWN } }
+  return { group, beds }
 }
 
 const RIM = new RoundedBoxGeometry(1, 1, 1, 2, 0.35)
