@@ -111,3 +111,8 @@ footer { padding: 4px 12px max(14px, env(safe-area-inset-bottom)); display: grid
 @keyframes rise { from { transform: translateY(40px); opacity: 0; } }
 @keyframes pop { from { opacity: 0; transform: translate(-50%, 30px) scale(.9); } }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+/* a flower flying up from a budding bed to the count */
+.fly { position: fixed; width: 32px; height: 32px; pointer-events: none; z-index: 6; filter: drop-shadow(0 2px 2px rgba(60, 40, 30, .25)); }
+.fly svg { width: 100%; height: 100%; display: block; }
+.titles p.pulse { animation: tickup .5s cubic-bezier(.2, 1.6, .4, 1); transform-origin: left center; color: #3f9a3a; font-weight: 700; }
+@keyframes tickup { 0% { transform: scale(1); } 35% { transform: scale(1.18); } 100% { transform: scale(1); } }

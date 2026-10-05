@@ -2,7 +2,7 @@ import { POOLS } from './levels.js'
 import { assignFlowers, bedComplete, buildBoard, conflicts, isSolved, MAX_SEED } from './logic.js'
 import { GardenScene } from './scene.js'
 import { Sounds } from './sounds.js'
-import { PIPS } from './flowers.js'
+import { COLORS, PIPS } from './flowers.js'
 import './style.css'
 
 const STORAGE_KEY = 'flower-patch.v1'
@@ -68,7 +68,7 @@ const save = () => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(save
 const sounds = new Sounds()
 const scene = new GardenScene($('stage'))
 let levelIndex = Math.min(saved.level ?? 0, LEVELS.length - 1)
-let board, flowers, values, history, won, seed, complete
+let board, flowers, values, history, won, seed, complete, shown = 0
 
 const say = (text) => { $('say').textContent = text }
 const buzz = (pattern) => { try { navigator.vibrate?.(pattern) } catch { /* not allowed here */ } }
@@ -122,24 +122,82 @@ function choose(n) {
 
 // Brings the garden in line with the seeds planted: what grows where, which
 // beds are complete, and what the header says.
-function refresh(quiet = false) {
+function refresh(quiet = false, origin = null) {
   const bad = conflicts(board, values)
   const nowComplete = new Set(board.beds.map((_, b) => b).filter((b) => bedComplete(board, values, b, bad)))
   const fresh = [...nowComplete].filter((b) => !complete.has(b))
   complete = nowComplete
   const stage = (i) => (won ? 'bloom' : complete.has(board.bedOf[i]) ? 'bud' : 'sprout')
-  scene.setCells([...values].map((value, i) => ({ value, stage: stage(i), wilt: !won && bad.has(i) })), { quiet })
-  scene.setBeds(board.beds.map((_, b) => (won ? 1 : complete.has(b) ? 0.75 : 0)), { quiet })
-  if (!quiet) for (const b of fresh) { scene.sparkleBed(b); sounds.bed(board.beds[b].length) }
-  const level = LEVELS[levelIndex]
-  $('prog').textContent = `${POOL_NAMES[level.pool]} · ${complete.size} of ${board.beds.length} beds in bud`
+  scene.setCells([...values].map((value, i) => ({ value, stage: stage(i), wilt: !won && bad.has(i) })), { quiet, origin })
+  scene.setBeds(board.beds.map((_, b) => (won ? 1 : complete.has(b) ? 0.75 : 0)), { quiet, origin })
+  // the count catches up as each budding bed sends its flower up to it
+  if (quiet || complete.size < shown) shown = complete.size
+  showProgress()
   $('undo').disabled = !history.length || won
   if (!won) {
-    saved.plots[level.id] = [...values].map((v) => v || '.').join('')
+    saved.plots[LEVELS[levelIndex].id] = [...values].map((v) => v || '.').join('')
     save()
   }
   return { bad, fresh }
 }
+
+function showProgress() {
+  const pool = POOL_NAMES[LEVELS[levelIndex].pool]
+  $('prog').textContent = won ? `${pool} · all ${board.beds.length} beds in bloom` : `${pool} · ${shown} of ${board.beds.length} beds in bud`
+}
+
+// A little flower flies from a bed that has just budded up to the count, which
+// ticks up with a bounce when it lands.
+function flyFlower(i, color) {
+  const from = scene.toScreen(i)
+  const to = $('prog').getBoundingClientRect()
+  const el = document.createElement('div')
+  el.className = 'fly'
+  el.innerHTML = `<svg viewBox="-10 -10 20 20" aria-hidden="true">${[0, 1, 2, 3, 4].map((k) => `<circle cx="${Math.cos(k * 1.2566 - 1.57) * 4.6}" cy="${Math.sin(k * 1.2566 - 1.57) * 4.6}" r="4.2" fill="${color}"/>`).join('')}<circle r="3.2" fill="#ffd34d"/></svg>`
+  document.body.append(el)
+  const dx = to.left + 20 - from.x, dy = to.top + to.height / 2 - from.y
+  el.style.left = `${from.x - 16}px`
+  el.style.top = `${from.y - 16}px`
+  const flight = el.animate([
+    { transform: 'translate(0, 0) scale(0.4) rotate(0deg)', opacity: 0 },
+    { transform: `translate(${dx * 0.15}px, ${dy * 0.15 - 50}px) scale(1.5) rotate(120deg)`, opacity: 1, offset: 0.3 },
+    { transform: `translate(${dx}px, ${dy}px) scale(0.7) rotate(360deg)`, opacity: 1 },
+  ], { duration: 850, easing: 'cubic-bezier(.5, 0, .3, 1)' })
+  // the count ticks up when the flower lands, or soon anyway if the tab was hidden
+  let landed = false
+  const land = () => {
+    if (landed) return
+    landed = true
+    el.remove()
+    shown = Math.min(complete.size, shown + 1)
+    showProgress()
+    $('prog').classList.remove('pulse')
+    void $('prog').offsetWidth
+    $('prog').classList.add('pulse')
+    sounds.tick(shown)
+  }
+  flight.onfinish = land
+  setTimeout(land, 1200)
+}
+
+// Every plant that grows up pops with a note, climbing as the wave runs through
+// its bed; the last one in a bed rings the bed's chime and sends a flower up.
+scene.onPop = (i, stage, rank) => {
+  if (stage === 'bloom') {
+    const now = performance.now()
+    if (now - lastBloom > 70) { lastBloom = now; sounds.bloom(bloomCount++) }
+    return
+  }
+  const bed = board.bedOf[i]
+  sounds.budPop(rank)
+  buzz(8)
+  if (rank === board.beds[bed].length - 1) {
+    setTimeout(() => sounds.bed(board.beds[bed].length), 60)
+    buzz([0, 15, 40, 25])
+    flyFlower(i, '#' + COLORS[flowers[bed]].petal.toString(16).padStart(6, '0'))
+  }
+}
+let lastBloom = 0, bloomCount = 0
 
 function plant(i) {
   if (won) return
@@ -163,7 +221,7 @@ function plant(i) {
   history.push([i, before])
   values[i] = next
   if (next) { sounds.plant(next); buzz(10); scene.puff(i) } else { sounds.dig(); buzz(8); scene.puff(i, 0x8a5a3b, 5) }
-  const { bad, fresh } = refresh()
+  const { bad, fresh } = refresh(false, i)
   if (next && bad.has(i)) {
     sounds.droop()
     const bedTwin = board.beds[board.bedOf[i]].some((j) => j !== i && values[j] === next)
@@ -180,6 +238,7 @@ const left = () => values.filter((v) => !v).length
 
 function win() {
   won = true
+  bloomCount = 0
   if (!saved.done.includes(LEVELS[levelIndex].id)) saved.done.push(LEVELS[levelIndex].id)
   delete saved.plots[LEVELS[levelIndex].id]
   save()
@@ -234,7 +293,7 @@ $('undo').onclick = () => {
   values[i] = before
   sounds.undo()
   scene.puff(i, 0x8a5a3b, 4)
-  refresh()
+  refresh(false, i)
   say('Undone.')
 }
 let armed = false
