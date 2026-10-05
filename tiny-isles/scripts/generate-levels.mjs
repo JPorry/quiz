@@ -1,54 +1,46 @@
-// Builds Tiny Isles' three pools of levels (easy, medium, hard) into src/levels.js.
+// Builds Tiny Isles' daily puzzles into src/days.js: every day has one easy, one
+// medium and one hard puzzle.
 //
-// Each level grows a network bridge by bridge from one island, then keeps it only if
-// it has exactly one solution and a player can solve it by always taking the easiest
-// step, using only the techniques its pool allows. Every other level hides a few
-// islands' numbers in fog: those are picked so the puzzle stays unique and solvable
-// and gets harder. Within a pool the levels climb steadily.
+// Each puzzle grows a network bridge by bridge from one island, then is kept only
+// if it has exactly one solution and a player can solve it by always taking the
+// easiest step, using only the techniques its difficulty allows. On some days a
+// puzzle hides a few islands' numbers in fog, picked so it stays fair and gets
+// harder. Every puzzle is seeded by its day and difficulty, so adding more days
+// never changes the ones already played.
+//
+//   node scripts/generate-levels.mjs --days=400 --output=src/days.js
 import { writeFileSync } from 'node:fs'
 import { buildBoard, solve, playerSolve, DIRECTIONS } from '../src/logic.js'
 
 const args = Object.fromEntries(process.argv.slice(2).map((a) => a.replace(/^--/, '').split('=')))
-let seed = Number(args.seed ?? 20261005)
+const DAYS = Number(args.days ?? 400)
+const FIRST_DAY = '2026-09-16'
+let seed = 1
 const rand = () => ((seed = (seed * 48271) % 2147483647) / 2147483647)
 const pick = (list) => list[Math.floor(rand() * list.length)]
-const POOL = Number(args.pool ?? 10)
 
-const NAMES = {
-  easy: [
-    'Pebble Bay', 'Seashell Cove', 'Driftwood Key', 'Sandy Hollow', 'Tidepool Point', 'Starfish Shoals', 'Gull Rock', 'Coral Nook',
-    'Kelp Harbor', 'Sunny Sands', 'Lantern Isle', 'Breezy Banks', 'Puffin Perch', 'Clam Bake Cay', 'Seaglass Shore', 'Minnow Bay',
-    'Sailcloth Cove', 'Buoy Bend', 'Saltwater Steps', 'Pelican Pier',
-  ],
-  medium: [
-    'Lagoon Loop', 'Harbor Lights', 'Fisher’s Wharf', 'Mariner’s Rest', 'Compass Rose', 'Anchor Heights', 'Ferry Crossing', 'Bellbuoy Bay',
-    'Market Quay', 'Marina Gardens', 'Clocktower Cay', 'Canal Quarter', 'Seawall Square', 'Lighthouse Row', 'Palm Promenade', 'Old Port',
-    'Boardwalk Bay', 'Riviera Rise', 'Tidegate Town', 'Halfmoon Harbor',
-  ],
-  hard: [
-    'Skyline Shoals', 'Glasswater City', 'Tower Atoll', 'Monorail Keys', 'Neon Waterfront', 'Aurora Archipelago', 'Silver Spires', 'Highrise Harbor',
-    'Crystal Lagoon', 'Starlight Strait', 'Metro Marina', 'Pearl Skyline', 'Horizon Heights', 'Orbit Isles', 'Zenith Bay', 'Prism Port',
-    'Cloudpiercer Cay', 'Golden Gateway', 'Opal Metropolis', 'Sapphire Metropolis',
-  ],
-}
-
-// The board size and island count climb through each pool; `fog` is how many
-// islands hide their numbers on the fog levels.
+// What each difficulty looks like every day. `fogOn` says which days it has fog.
 const TIERS = {
   easy: {
-    sizes: (k) => (k < 8 ? [5, 5, 4 + Math.floor(k / 2)] : [6, 6, 6 + Math.floor((k - 8) / 3)]),
-    fog: (k) => (k < 10 ? 1 : 2),
+    size: () => (rand() < 0.5 ? [5, 5, 5 + Math.floor(rand() * 3)] : [6, 6, 6 + Math.floor(rand() * 3)]),
+    fog: 1,
+    fogOn: (day) => day % 3 === 2,
     allows: (used) => !used.isolation && !used.trial,
+    base: (used) => !used.isolation && !used.trial,
   },
   medium: {
-    sizes: (k) => (k < 6 ? [6, 6, 8 + Math.floor(k / 3)] : [7, 7, 9 + Math.floor((k - 6) / 3)]),
-    fog: (k) => (k < 10 ? 2 : 3),
+    size: () => [7, 7, 9 + Math.floor(rand() * 4)],
+    fog: 2,
+    fogOn: (day) => day % 2 === 1,
     allows: (used) => used.trial <= 2 && used.isolation + used.trial >= 1,
+    base: (used) => used.trial <= 2,
   },
   hard: {
-    sizes: (k) => (k < 10 ? [7, 8, 12 + Math.floor(k / 3)] : [8, 9, 14 + Math.floor((k - 10) / 3)]),
-    fog: (k) => (k < 10 ? 3 : 4),
+    size: () => (rand() < 0.4 ? [7, 8, 13 + Math.floor(rand() * 3)] : [8, 9, 14 + Math.floor(rand() * 3)]),
+    fog: 3,
+    fogOn: (day) => day % 2 === 0,
     allows: (used) => used.trial >= 2,
+    base: () => true,
   },
 }
 
@@ -137,11 +129,13 @@ function addFog(base, tier, want) {
   return best
 }
 
-function candidate(name, k, foggy) {
+function candidate(name, day) {
   const tier = TIERS[name]
-  const [width, height, count] = tier.sizes(k)
+  seed = (day * 7919 + Object.keys(TIERS).indexOf(name) * 104729) % 2147483646 + 1
+  const foggy = tier.fogOn(day)
   for (let attempt = 1; ; attempt++) {
-    if (attempt % 3000 === 0) console.error('still looking', name, k + 1, foggy ? 'fog' : '')
+    if (attempt % 3000 === 0) console.error('still looking', name, day)
+    const [width, height, count] = tier.size()
     const level = grow({ width, height, count })
     if (!level) continue
     if (!foggy) {
@@ -149,46 +143,33 @@ function candidate(name, k, foggy) {
       if (rated) return rated
       continue
     }
-    // a fog level starts from a puzzle that is fair even before the fog, so the
-    // fog is what makes it harder
-    const plain = rate(level, { allows: (used) => name === 'easy' ? tier.allows(used) : name === 'medium' ? used.trial <= 2 : true })
+    // a fog puzzle starts from one that is fair even before the fog
+    const plain = rate(level, { allows: tier.base })
     if (!plain) continue
-    const fogged = addFog(plain, tier, tier.fog(k))
+    const fogged = addFog(plain, tier, tier.fog)
     if (fogged) return fogged
   }
 }
 
-const pools = {}
-for (const name of Object.keys(TIERS)) {
-  pools[name] = []
-  // plain and fog levels each climb on their own
-  const previous = [0, 0]
-  for (let k = 0; k < 20; k++) {
-    // every other level is a fog level, starting with the second
-    const foggy = k % 2 === 1
-    const pool = Array.from({ length: POOL }, () => candidate(name, k, foggy)).sort((a, b) => a.score - b.score)
-    const harder = pool.filter((p) => p.score > previous[+foggy])
-    const chosen = harder[Math.min(harder.length - 1, Math.floor(harder.length * 0.3))] ?? pool[pool.length - 1]
-    previous[+foggy] = chosen.score
-    pools[name].push({
-      id: `${name}-${String(k + 1).padStart(2, '0')}`,
-      name: NAMES[name][k],
-      width: chosen.level.width,
-      height: chosen.level.height,
-      burrows: chosen.level.burrows,
-      solution: chosen.solution,
-    })
-    console.log(name.padEnd(6), `${k + 1}`.padStart(2), NAMES[name][k].padEnd(22), `${chosen.level.width}x${chosen.level.height}`, `${chosen.level.burrows.length} isles`, `${chosen.level.burrows.filter((b) => b[3]).length} fog`, `score ${chosen.score}`, JSON.stringify(chosen.used))
-  }
+// a puzzle packed into a short string: width and height, then four digits per
+// island for its row, column, number and whether it is in fog
+const pack = ({ width, height, burrows }) => `${width}${height}:${burrows.map(([r, c, v, f]) => `${r}${c}${v}${f ? 1 : 0}`).join('')}`
+
+const days = []
+for (let day = 1; day <= DAYS; day++) {
+  const puzzles = Object.keys(TIERS).map((name) => candidate(name, day))
+  days.push(puzzles.map((p) => pack(p.level)))
+  if (day % 20 === 0 || day === DAYS) console.log('day', day, puzzles.map((p) => `${p.level.burrows.length} isles ${p.level.burrows.filter((b) => b[3]).length} fog ${JSON.stringify(p.used)}`).join(' | '))
 }
 
-const list = (levels) => levels.map((l) => `    { id: '${l.id}', name: ${JSON.stringify(l.name)}, width: ${l.width}, height: ${l.height},\n      burrows: ${JSON.stringify(l.burrows)},\n      solution: ${JSON.stringify(l.solution)} },`).join('\n')
 const body = `// Generated by scripts/generate-levels.mjs. Regenerate with \`npm run generate:levels\`.
-// Each island is [row, column, bridges] or [row, column, bridges, 1] when its number
-// is hidden in fog; solution lists the bridges on every possible crossing, in board order.
-export const POOLS = {
-${Object.entries(pools).map(([name, levels]) => `  ${name}: [\n${list(levels)}\n  ],`).join('\n')}
-}
+// Day 1 is FIRST_DAY. Each day has an easy, a medium and a hard puzzle, packed as
+// "<width><height>:" followed by four digits per island: row, column, number, and
+// 1 when the number is hidden in fog.
+export const FIRST_DAY = '${FIRST_DAY}'
+export const DAYS = [
+${days.map((d) => `  ${JSON.stringify(d)},`).join('\n')}
+]
 `
 if (args.output) writeFileSync(args.output, body)
 else process.stdout.write(body)

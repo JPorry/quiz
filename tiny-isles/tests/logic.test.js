@@ -1,7 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { buildBoard, blockedBy, degrees, findHint, playerSolve, reachable, routeFrom, solve, status } from '../src/logic.js'
-import { POOLS } from '../src/levels.js'
+import { DAYS } from '../src/days.js'
+import { TIERS, puzzle, dayOf, today, dateOf, LAST_DAY } from '../src/puzzles.js'
 
 // A small warren:   A . B
 //                   . . .
@@ -64,7 +65,8 @@ test('the solved square is complete and unique', () => {
   assert.ok(s.complete)
 })
 
-const LEVELS = Object.values(POOLS).flat()
+const PUZZLES = DAYS.flatMap((_, d) => TIERS.map((tier) => puzzle(d + 1, tier)))
+const byTier = (tier) => PUZZLES.filter((p) => p.tier === tier)
 
 test('fog hides a number but the solver still finds the one solution', () => {
   // the square with D's number (4) hidden: its neighbours still pin it down
@@ -81,48 +83,55 @@ test('fog hides a number but the solver still finds the one solution', () => {
   assert.deepEqual(s.over, [])
 })
 
-test('there are three pools of twenty, half of each with fog', () => {
-  assert.deepEqual(Object.keys(POOLS), ['easy', 'medium', 'hard'])
-  for (const [name, levels] of Object.entries(POOLS)) {
-    assert.equal(levels.length, 20, name)
-    assert.equal(levels.filter((l) => l.burrows.some((b) => b[3])).length, 10, `${name} fog levels`)
+test('every day has an easy, a medium and a hard puzzle, for over a year', () => {
+  assert.ok(LAST_DAY >= 365)
+  for (const tier of TIERS) {
+    const fog = byTier(tier).filter((p) => p.fog).length
+    assert.ok(fog > LAST_DAY * 0.25 && fog < LAST_DAY * 0.6, `${tier} has fog on some days, not all`)
   }
 })
 
-test('every shipped level is uniquely solvable by easy steps, and its solution is right', () => {
+test('days follow the calendar', () => {
+  assert.equal(dayOf(dateOf(1)), 1)
+  assert.equal(dayOf(new Date(2026, 9, 5)), 20, '5 October 2026 is day 20')
+  assert.equal(dayOf(new Date(2026, 9, 6, 0, 30)), 21, 'a new day starts at local midnight')
+  assert.equal(today(new Date(2020, 0, 1)), 1)
+  assert.equal(today(new Date(2099, 0, 1)), LAST_DAY)
+})
+
+test('every puzzle has exactly one solution, reached by easy steps, with its numbers right', () => {
   const ids = new Set()
-  for (const level of LEVELS) {
-    assert.ok(!ids.has(level.id), `${level.id} is unique`)
-    ids.add(level.id)
-    const board = buildBoard(level)
-    assert.equal(level.solution.length, board.edges.length, `${level.id} solution covers every path`)
-    assert.ok(status(board, level.solution).complete, `${level.id} solution completes the network`)
-    assert.ok(board.edges.every((e) => !(level.solution[e.index] && blockedBy(board, level.solution, e.index) !== undefined)), `${level.id} solution has no crossings`)
+  for (const p of PUZZLES) {
+    assert.ok(!ids.has(p.id), `${p.id} is unique`)
+    ids.add(p.id)
+    const board = buildBoard(p)
+    const solutions = solve(board, { limit: 2 })
+    assert.equal(solutions.length, 1, `${p.id} has one solution`)
+    const [solution] = solutions
+    assert.ok(status(board, solution).complete, `${p.id} solution completes the network`)
     const player = playerSolve(board)
-    assert.ok(player.solved, `${level.id} can be solved step by step`)
-    assert.deepEqual(player.counts, level.solution, `${level.id} step-by-step solve matches`)
-    assert.equal(solve(board, { limit: 2 }).length, 1, `${level.id} has one solution`)
-    // the hidden numbers are the real ones
-    const d = degrees(board, level.solution)
-    assert.ok(board.burrows.every((b) => d[b.index] === b.value), `${level.id} numbers match the solution`)
+    assert.ok(player.solved, `${p.id} can be solved step by step`)
+    assert.deepEqual(player.counts, solution, `${p.id} step-by-step solve matches`)
+    const d = degrees(board, solution)
+    assert.ok(board.burrows.every((b) => d[b.index] === b.value), `${p.id} numbers, hidden or not, match the solution`)
   }
 })
 
-test('each pool asks for the techniques its name promises', () => {
-  for (const level of POOLS.easy) {
-    const { used } = playerSolve(buildBoard(level))
-    assert.equal(used.isolation + used.trial, 0, `${level.id} needs only counting`)
+test('each difficulty asks for the techniques its name promises', () => {
+  for (const p of byTier('easy')) {
+    const { used } = playerSolve(buildBoard(p))
+    assert.equal(used.isolation + used.trial, 0, `${p.id} needs only counting`)
   }
-  for (const level of POOLS.hard) assert.ok(playerSolve(buildBoard(level)).used.trial >= 2, `${level.id} needs looking ahead`)
-})
-
-test('levels grow from small seas to big ones', () => {
-  assert.ok(POOLS.easy[0].burrows.length <= 5)
-  assert.ok(POOLS.hard.at(-1).burrows.length >= 15)
+  for (const p of byTier('medium')) {
+    const { used } = playerSolve(buildBoard(p))
+    assert.ok(used.isolation + used.trial >= 1 && used.trial <= 2, `${p.id} needs a little more`)
+  }
+  for (const p of byTier('hard')) assert.ok(playerSolve(buildBoard(p)).used.trial >= 2, `${p.id} needs looking ahead`)
 })
 
 test('hints point at a mistake first, then at a path the player can be sure of', () => {
-  const level = POOLS.easy[4]
+  const p = puzzle(5, 'medium')
+  const level = { ...p, solution: solve(buildBoard(p))[0] }
   const board = buildBoard(level)
   const counts = board.edges.map(() => 0)
   const wrong = level.solution.findIndex((n) => n === 0)
