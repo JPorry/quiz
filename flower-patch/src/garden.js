@@ -260,6 +260,11 @@ export function soilSurface(board, cells, seed) {
   return mergeGeometries([g.toNonIndexed(), ...clods])
 }
 
+// A gust of wind shows as a soft, light ripple rolling across every bed. The
+// scene moves it: dir is where the wind blows to, front is how far the ripple
+// has come (in cells from the middle of the board), on fades it in and out.
+export const WIND = { dir: { value: new THREE.Vector2(1, 0) }, front: { value: -99 }, on: { value: 0 } }
+
 // Soil that turns into the carpet as `grow` goes from 0 to 1. The carpet
 // spreads out in a ring from `origin` (in cells) as `reach` grows.
 function bedMaterial(soil, carpet, width, height) {
@@ -272,15 +277,23 @@ function bedMaterial(soil, carpet, width, height) {
     shader.uniforms.origin = m.userData.origin
     shader.uniforms.reach = m.userData.reach
     shader.uniforms.board = { value: new THREE.Vector2(width, height) }
+    shader.uniforms.windDir = WIND.dir
+    shader.uniforms.windFront = WIND.front
+    shader.uniforms.windOn = WIND.on
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform sampler2D carpet;\nuniform float grow;\nuniform vec2 origin;\nuniform float reach;\nuniform vec2 board;')
+      .replace('#include <common>', '#include <common>\nuniform sampler2D carpet;\nuniform float grow;\nuniform vec2 origin;\nuniform float reach;\nuniform vec2 board;\nuniform vec2 windDir;\nuniform float windFront;\nuniform float windOn;')
       .replace('#include <map_fragment>', `#include <map_fragment>
         vec4 carpetColor = texture2D(carpet, vMapUv);
         float away = distance(vec2(vMapUv.x, 1.0 - vMapUv.y) * board, origin);
         float spread = 1.0 - smoothstep(reach - 0.35, reach, away);
         // a bright edge rides the front of the spreading carpet
         float edge = smoothstep(reach - 0.35, reach - 0.15, away) * spread * step(reach, 6.0);
-        diffuseColor.rgb = mix(diffuseColor.rgb, carpetColor.rgb, grow * spread) + vec3(0.18, 0.2, 0.08) * edge * grow;`)
+        diffuseColor.rgb = mix(diffuseColor.rgb, carpetColor.rgb, grow * spread) + vec3(0.18, 0.2, 0.08) * edge * grow;
+        // the wind's ripple: a soft light band, brighter on the green
+        vec2 here = vec2(vMapUv.x, 1.0 - vMapUv.y) * board - board * 0.5;
+        float behind = windFront - dot(here, windDir);
+        float sheen = exp(-pow((behind - 0.5) / 0.55, 2.0)) * windOn;
+        diffuseColor.rgb += vec3(0.1, 0.12, 0.06) * sheen * (0.5 + 0.5 * grow);`)
   }
   m.customProgramCacheKey = () => 'flower-bed'
   return m

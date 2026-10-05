@@ -84,6 +84,27 @@ export class Sounds {
     this.noise({ vol: 0.04, freq: 380, len: 0.08 })
     this.pop(260, 520 + seed * 40, { len: 0.12, vol: 0.16 })
   }
+  // a soft gust of wind through the leaves
+  gust(strength) {
+    if (!this.enabled || !this.ctx) return
+    const len = 2.2
+    const t = this.ctx.currentTime
+    const buf = this.ctx.createBuffer(1, Math.floor(this.ctx.sampleRate * len), this.ctx.sampleRate)
+    const d = buf.getChannelData(0)
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1
+    const src = this.ctx.createBufferSource(), f = this.ctx.createBiquadFilter(), g = this.ctx.createGain()
+    src.buffer = buf
+    f.type = 'bandpass'
+    f.Q.value = 0.7
+    f.frequency.setValueAtTime(300, t)
+    f.frequency.linearRampToValueAtTime(900, t + len * 0.4)
+    f.frequency.linearRampToValueAtTime(400, t + len)
+    g.gain.setValueAtTime(0, t)
+    g.gain.linearRampToValueAtTime(0.05 + strength * 0.2, t + len * 0.35)
+    g.gain.linearRampToValueAtTime(0, t + len)
+    src.connect(f).connect(g).connect(this.master)
+    src.start(t)
+  }
   // a sprout blinks awake: a tiny, bright chirp
   awake(seed) {
     this.pluck(this.note(6 + (seed % 3)), { len: 0.22, vol: 0.12, ot: 2 })

@@ -62,8 +62,7 @@ gently. Plants grow through three stages and keep the pips the whole way:
    foot, the same for every bed. Planting wakes it up: the soil swells into a
    little dome over each pip, trembles and cracks open with a few crumbs, and
    each seedling pushes slowly up out of the ground with its leaves folded up
-   tight. Then it opens them out wide with a chirp and gives a happy little
-   wiggle. Everything happens inside the plot. A dug-up seedling sinks back into
+   tight. Then it opens them out wide with a chirp and settles. Everything happens inside the plot. A dug-up seedling sinks back into
    the soil. A wilting one lets its leaves droop.
 2. **Flower:** once a bed holds 1 to N with no clashes, it bursts into flower. A
    beat after the tap, a wave runs through the bed from the plot just planted,
@@ -103,6 +102,13 @@ top of its head, so they never pass through a flower:
 
 Now and then a newly opened flower draws a visitor, who stops at a few flowers
 and wanders off again. Tap the lawn near a critter to make it jump.
+
+Now and then (every 7 to 17 seconds, at random) a gust of wind sweeps across the
+garden from a random direction. A soft light ripple rolls over the beds, a few
+white wind streaks and loose petals ride along with it, and every flower and
+sprout it passes leans away from the wind and sways back as it moves on (sprouts
+lean less). It comes with a soft whoosh. In between, a light breeze keeps
+everything swaying gently.
 
 Each stage's last shape is the next one's first (a test checks this), so nothing
 ever jumps.

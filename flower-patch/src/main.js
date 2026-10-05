@@ -184,6 +184,7 @@ function flyFlower(i, color) {
 // its bed; the last one in a bed rings the bed's chime and sends a flower up.
 scene.onSprout = (i, value) => sounds.sprout(value)
 scene.onAwake = (i, value) => sounds.awake(value)
+scene.onGust = (strength) => sounds.gust(strength)
 
 scene.onPop = (i, stage, rank) => {
   if (stage === 'bloom') {
