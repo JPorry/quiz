@@ -437,21 +437,21 @@ export class GardenScene {
       const a = Math.random() * Math.PI * 2
       const { width, height } = this.board
       const reach = Math.hypot(width, height) / 2 + 0.5
-      this.gust = { dx: Math.cos(a), dz: Math.sin(a), start: this.time, reach, speed: 2.4, strength: 0.45 + Math.random() * 0.2 }
+      this.gust = { dx: Math.cos(a), dz: Math.sin(a), start: this.time, reach, speed: 1.3, strength: 0.13 + Math.random() * 0.06 }
       this.onGust?.(this.gust.strength)
       // a few petals and leaves ride the gust across
       const flowers = [...new Set(this.flowers.map((f) => COLORS[f].petal))]
-      for (let k = 0; k < 14; k++) {
+      for (let k = 0; k < 5; k++) {
         const side = (Math.random() - 0.5) * reach * 1.6
         const start = new THREE.Vector3(-this.gust.dx * reach + -this.gust.dz * side, SOIL_Y + 0.3 + Math.random() * 0.35, -this.gust.dz * reach + this.gust.dx * side)
-        const v = new THREE.Vector3(this.gust.dx, 0.05, this.gust.dz).multiplyScalar(this.gust.speed * (0.9 + Math.random() * 0.3))
+        const v = new THREE.Vector3(this.gust.dx, 0.03, this.gust.dz).multiplyScalar(this.gust.speed * (0.9 + Math.random() * 0.3))
         const color = k % 3 === 0 ? 0x7acb58 : flowers[Math.floor(Math.random() * flowers.length)]
         const life = (reach * 2) / this.gust.speed
-        setTimeout(() => this.spawn(PETAL, color, start, v, 0.045, { life, gravity: 0, spin: 5, basic: true, drift: 1 }), k * 70)
+        setTimeout(() => this.spawn(PETAL, color, start, v, 0.045, { life, gravity: 0, spin: 2, basic: true, drift: 1 }), k * 400)
       }
       // soft white streaks of wind sweep across with the gust
-      for (let k = 0; k < 5; k++) {
-        const side = (k / 4 - 0.5) * reach * 1.4 + (Math.random() - 0.5) * 0.4
+      for (let k = 0; k < 3; k++) {
+        const side = (k / 2 - 0.5) * reach * 1.4 + (Math.random() - 0.5) * 0.4
         const mesh = new THREE.Mesh(STREAK, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }))
         mesh.rotation.y = -a
         this.world.add(mesh)
@@ -466,16 +466,16 @@ export class GardenScene {
       const k01 = g ? (run + g.reach) / (g.reach * 2) : 2
       if (!g || k01 > 1) { st.mesh.removeFromParent(); st.mesh.material.dispose(); this.streaks.splice(k, 1); continue }
       st.mesh.visible = k01 > 0
-      st.mesh.position.set(g.dx * run - g.dz * st.side, st.height + Math.sin(this.time * 3 + k) * 0.03, g.dz * run + g.dx * st.side)
-      st.mesh.material.opacity = 0.7 * Math.sin(Math.max(0, Math.min(1, k01)) * Math.PI)
-      st.mesh.scale.set(st.len, 1, 2.2)
+      st.mesh.position.set(g.dx * run - g.dz * st.side, st.height + Math.sin(this.time * 1.5 + k) * 0.03, g.dz * run + g.dx * st.side)
+      st.mesh.material.opacity = 0.3 * Math.sin(Math.max(0, Math.min(1, k01)) * Math.PI)
+      st.mesh.scale.set(st.len, 1, 1.4)
     }
     if (this.gust) {
       const g = this.gust
       const front = (this.time - g.start) * g.speed - g.reach
       WIND.dir.value.set(g.dx, g.dz)
       WIND.front.value = front
-      WIND.on.value = Math.min(1, (front + g.reach) / 1.5) * Math.max(0, Math.min(1, (g.reach + 1.5 - front) / 1.5))
+      WIND.on.value = 0.45 * Math.min(1, (front + g.reach) / 1.5) * Math.max(0, Math.min(1, (g.reach + 1.5 - front) / 1.5))
     } else WIND.on.value = 0
     if (this.gust && (this.time - this.gust.start) * this.gust.speed > this.gust.reach * 2 + 3) {
       this.gust = null
@@ -491,8 +491,8 @@ export class GardenScene {
     const front = (this.time - g.start) * g.speed - g.reach
     const behind = front - (p.x * g.dx + p.z * g.dz)
     if (behind <= 0) return [0, 0]
-    // lean over as the gust arrives, sway back, and settle
-    const lean = g.strength * Math.sin(Math.min(behind / 0.5, 1) * Math.PI / 2) * Math.exp(-behind * 0.9) * Math.cos(Math.max(0, behind - 0.5) * 3.2)
+    // lean over softly as the breeze arrives, sway back, and settle
+    const lean = g.strength * Math.sin(Math.min(behind / 1.2, 1) * Math.PI / 2) * Math.exp(-behind * 0.6) * Math.cos(Math.max(0, behind - 1.2) * 1.6)
     const bend = (c.stage === 'sprout' ? 0.55 : 1) * lean
     return [g.dz * bend, -g.dx * bend]
   }

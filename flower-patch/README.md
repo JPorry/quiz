@@ -103,12 +103,12 @@ top of its head, so they never pass through a flower:
 Now and then a newly opened flower draws a visitor, who stops at a few flowers
 and wanders off again. Tap the lawn near a critter to make it jump.
 
-Now and then (every 7 to 17 seconds, at random) a gust of wind sweeps across the
-garden from a random direction. A soft light ripple rolls over the beds, a few
-white wind streaks and loose petals ride along with it, and every flower and
-sprout it passes leans away from the wind and sways back as it moves on (sprouts
-lean less). It comes with a soft whoosh. In between, a light breeze keeps
-everything swaying gently.
+Now and then (every 7 to 17 seconds, at random) a gentle breeze drifts across
+the garden from a random direction. A faint light ripple rolls slowly over the
+beds, a couple of soft wind wisps and a few loose petals float along with it,
+and every flower and sprout it passes leans over just a little and sways softly
+back as it moves on (sprouts lean less). It comes with a quiet rustle. In
+between, a light breeze keeps everything swaying gently.
 
 Each stage's last shape is the next one's first (a test checks this), so nothing
 ever jumps.
