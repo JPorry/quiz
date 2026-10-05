@@ -87,10 +87,10 @@ gently. Plants grow through three stages and keep the pips the whole way:
    the bed's chime, and a little flower flies up to the count of flowering beds,
    which ticks up with a bounce. A butterfly comes to visit. If the bed is broken
    again, the flowers close and shrink back into sprouts the same way.
-3. **Bloom:** when the garden is solved, every flower grows much bigger in a wave
-   from the middle, as big as its plot allows and more (the fewer in a plot, the
-   bigger), overlapping its neighbours at slightly different heights into one
-   lush carpet. The camera rises to look down on it, the light turns golden,
+3. **Bloom:** when the garden is solved, every flower grows a little bigger in a
+   wave from the middle (the fewer in a plot, the bigger), opening flatter
+   rather than puffing up, until the flowers just touch: the garden is full
+   but each flower still reads on its own. The camera rises to look down on it, the light turns golden,
    petals drift down, and a crowd of bees, butterflies and ladybirds comes to see.
 
 Little visitors live in the garden (`src/insects.js`), each a chubby toy with a
