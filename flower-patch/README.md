@@ -133,7 +133,9 @@ joins the flower and swelling to a round, puffy tip, nearly as thick as it is
 wide; centres are big soft domes, the daisy's and sunflower's ringed with
 little beads. Plants use a smooth clay material with a gentle sheen and no
 outline (`clay` in `src/look.js`), unlike the sticker-outlined world around
-them. Short chunky stems and round leaves, no spikes or thin slivers (and no
+them. It takes less flat fill light and more sun than the world does, every
+petal darkens towards its base and underneath, and plants cast shadows on each
+other, so each petal stands out with a lit side, a shaded side and a crease. Short chunky stems and round leaves, no spikes or thin slivers (and no
 faces). Each flower sits in a little green cup.
 
 Beds that touch, even at a corner, never share a kind of flower

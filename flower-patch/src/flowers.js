@@ -10,7 +10,15 @@ import { part, merge } from './look.js'
 // A wilting cell breaks a rule: its plants droop (sprouts slump) and turn straw coloured.
 
 const SPHERE = new THREE.SphereGeometry(1, 8, 6)
-const ROUND = new THREE.SphereGeometry(1, 16, 12)
+// round parts shade a little underneath, where they sit on what holds them
+const ROUND = (() => {
+  const g = new THREE.SphereGeometry(1, 16, 12)
+  const p = g.attributes.position
+  const shade = new Float32Array(p.count)
+  for (let i = 0; i < p.count; i++) shade[i] = 1 - Math.max(0, -p.getY(i)) * 0.3
+  g.setAttribute('shade', new THREE.BufferAttribute(shade, 1))
+  return g
+})()
 const STEM = new THREE.CylinderGeometry(1, 1, 1, 5).translate(0, 0.5, 0)
 // petals and centres are smooth and round
 const PETAL = new THREE.SphereGeometry(1, 14, 10)
@@ -19,13 +27,19 @@ const PETAL = new THREE.SphereGeometry(1, 14, 10)
 const PUFF = (() => {
   const g = new THREE.SphereGeometry(1, 22, 14)
   const p = g.attributes.position
+  // each petal darkens towards its base and underneath, where it tucks into the
+  // flower and under its neighbours, so petals stand apart from each other
+  const shade = new Float32Array(p.count)
   for (let i = 0; i < p.count; i++) {
     const t = (p.getX(i) + 1) / 2
+    const under = Math.max(0, -p.getY(i))
     const w = 0.42 + 0.58 * Math.sin(Math.min(1, t / 0.72) * Math.PI / 2)
     p.setZ(i, p.getZ(i) * w)
     p.setY(i, p.getY(i) * (0.62 + 0.38 * w))
+    shade[i] = (0.55 + 0.45 * Math.min(1, t / 0.6)) * (1 - under * 0.25)
   }
   g.computeVertexNormals()
+  g.setAttribute('shade', new THREE.BufferAttribute(shade, 1))
   return g
 })()
 

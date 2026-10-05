@@ -33,11 +33,19 @@ export function toon(color = 0xffffff, { vertexColors = false, rim = 0.22, emiss
 // Soft clay, like a little toy modelled in plasticine: smooth shading with a
 // gentle sheen and a warm rim, no hard bands.
 const clays = new Map()
-export function clay({ rim = 0.18, roughness = 0.5 } = {}) {
-  const key = `${rim}-${roughness}`
+export function clay({ rim = 0.12, roughness = 0.42, fill = 0.5, key: sun = 1.4 } = {}) {
+  const key = `${rim}-${roughness}-${fill}-${sun}`
   if (clays.has(key)) return clays.get(key)
   const m = new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness, metalness: 0 })
   m.onBeforeCompile = (shader) => {
+    // less flat fill light and more sun, so every petal is clearly modelled:
+    // a lit side, a shaded side and a soft shadow where it tucks under the next
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <lights_fragment_end>',
+      `#include <lights_fragment_end>
+      reflectedLight.indirectDiffuse *= ${fill.toFixed(2)};
+      reflectedLight.directDiffuse *= ${sun.toFixed(2)};`,
+    )
     shader.fragmentShader = shader.fragmentShader.replace(
       '#include <opaque_fragment>',
       `vec3 rimV = isOrthographic ? vec3(0.0, 0.0, 1.0) : normalize(vViewPosition);
@@ -68,11 +76,17 @@ export function outline(color, width) {
 // A coloured part: geometry placed by position, scale and rotation.
 export function part(geometry, color, [x, y, z] = [0, 0, 0], [sx, sy, sz] = [1, 1, 1], [rx, ry, rz] = [0, 0, 0]) {
   const g = (geometry.index ? geometry.toNonIndexed() : geometry.clone())
-  for (const name of Object.keys(g.attributes)) if (name !== 'position' && name !== 'normal') g.deleteAttribute(name)
+  for (const name of Object.keys(g.attributes)) if (name !== 'position' && name !== 'normal' && name !== 'shade') g.deleteAttribute(name)
   g.applyMatrix4(new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, rz)), new THREE.Vector3(sx, sy, sz)))
   const c = new THREE.Color(color)
   const colors = new Float32Array(g.attributes.position.count * 3)
-  for (let i = 0; i < colors.length; i += 3) { colors[i] = c.r; colors[i + 1] = c.g; colors[i + 2] = c.b }
+  // a shape can carry its own soft occlusion (darker in creases), baked in
+  const shade = g.attributes.shade
+  for (let i = 0; i < colors.length; i += 3) {
+    const k = shade ? shade.getX(i / 3) : 1
+    colors[i] = c.r * k; colors[i + 1] = c.g * k; colors[i + 2] = c.b * k
+  }
+  if (shade) g.deleteAttribute('shade')
   g.setAttribute('color', new THREE.BufferAttribute(colors, 3))
   return g
 }

@@ -130,6 +130,8 @@ export class GardenScene {
     const group = new THREE.Group()
     const mesh = new THREE.Mesh(undefined, this.plantMaterial)
     mesh.castShadow = true
+    // petals and leaves cast soft shadows on each other, which models them
+    mesh.receiveShadow = true
     // plants are soft clay, like the toys they're modelled on: no outline
     const line = new THREE.Mesh(undefined, this.plantLine)
     line.visible = false
