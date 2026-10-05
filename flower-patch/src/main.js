@@ -22,8 +22,51 @@ const ICON = {
   trowel: '<path d="M12.5 11.5 20 4"/><path d="M12.8 7.2 5 9.5c-1.6.5-2 2.5-.9 3.7l6.7 6.7c1.2 1.1 3.2.7 3.7-.9l2.3-7.8z"/>',
 }
 const icon = (name) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[name]}</svg>`
-// a die face of little sprouts, each dot in the seed's own colour
-const face = (n) => `<svg class="face" viewBox="-1 -1 2 2" aria-hidden="true">${PIPS[n].map(([x, z]) => `<circle cx="${x * 2.2}" cy="${z * 2.2}" r="${n === 1 ? 0.36 : 0.24}" style="fill:#${NUM[n].toString(16).padStart(6, '0')}"/>`).join('')}</svg>`
+const hex = (n) => '#' + n.toString(16).padStart(6, '0')
+const blend = (a, b, k) => {
+  const ch = (v, s) => (v >> s) & 255
+  const m = (s) => Math.round(ch(a, s) + (ch(b, s) - ch(a, s)) * k) << s
+  return m(16) | m(8) | m(0)
+}
+// A little bag of seeds, drawn like a sticker: a chubby cloth sack in the
+// seed's own soft colour with a soft sheen, a scalloped frill gathered at the
+// neck with a ribbon bow, a seedling peeking out of the top, and a round
+// stitched tag on the front showing the die face.
+const bag = (n) => {
+  const c = NUM[n], pale = n === 6
+  const body = hex(pale ? 0xfffdf8 : blend(c, 0xffffff, 0.3))
+  const light = hex(pale ? 0xffffff : blend(c, 0xffffff, 0.72))
+  const deep = hex(pale ? 0xeee3cf : blend(c, 0x8a4a6a, 0.14))
+  const frill = hex(pale ? 0xffffff : blend(c, 0xffffff, 0.55))
+  const line = hex(pale ? 0xb7a585 : blend(c, 0x5a3a3a, 0.5))
+  const ribbon = n === 1 ? '#fff0d4' : '#ff8fb8'
+  const ribbonLine = n === 1 ? line : '#c9567f'
+  const dot = hex(pale ? 0xe0c27a : blend(c, 0x8a4a6a, 0.1))
+  return `<svg class="bag" viewBox="0 0 48 60" aria-hidden="true">
+    <defs><radialGradient id="bag${n}" cx="36%" cy="34%" r="75%"><stop offset="0" stop-color="${light}"/><stop offset=".55" stop-color="${body}"/><stop offset="1" stop-color="${deep}"/></radialGradient></defs>
+    <ellipse cx="24" cy="57" rx="15" ry="2.6" fill="#2f5a25" opacity=".16"/>
+    <g class="sprout"><path d="M24 16 C24 12 24 10 24 8" stroke="#5fae4b" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+      <path d="M24 9 C20 4 15 6 15.5 9 C16 12 21 11 24 9Z" fill="#86d464" stroke="#3f7a35" stroke-width="1.1" stroke-linejoin="round"/>
+      <path d="M24 8.5 C27 3 33 4.5 32.6 7.8 C32.2 11 27 10.6 24 8.5Z" fill="#a6e67c" stroke="#3f7a35" stroke-width="1.1" stroke-linejoin="round"/></g>
+    <path d="M15 22 C8 28 5 38 6 46 C7 54 15 57 24 57 C33 57 41 54 42 46 C43 38 40 28 33 22 Z" fill="url(#bag${n})" stroke="${line}" stroke-width="1.4" stroke-linejoin="round"/>
+    <path d="M17.5 24 C14 30 12.5 36 12.5 41 M30.5 24 C34 30 35.5 36 35.5 41" stroke="${line}" stroke-opacity=".22" stroke-width="1.2" stroke-linecap="round" fill="none"/>
+    <ellipse cx="13.6" cy="34" rx="2.4" ry="5" fill="#fff" opacity=".55" transform="rotate(18 13.6 34)"/>
+    <circle cx="15.6" cy="27.6" r="1.2" fill="#fff" opacity=".7"/>
+    <path class="frill" d="M13.5 22 C10 18.5 12 13.5 16 15.4 C16.4 10.8 21.4 10.4 22 14 C23.4 10 28 10.2 27.6 14.1 C29 10.6 33.8 11.4 32.6 15.6 C36.4 14 38.4 18.6 34.5 22 Z" fill="${frill}" stroke="${line}" stroke-width="1.3" stroke-linejoin="round"/>
+    <path d="M17 18 C17.5 19.5 18 20.5 19 21.5 M24.6 17 C24.6 18.5 24.6 20 24.6 21.6 M31 18 C30.6 19.5 30 20.5 29.2 21.5" stroke="${line}" stroke-opacity=".28" stroke-width="1" stroke-linecap="round" fill="none"/>
+    <path d="M13.8 22.4 Q24 26.4 34.2 22.4" stroke="${ribbonLine}" stroke-width="4.4" stroke-linecap="round" fill="none"/>
+    <path d="M13.8 22.4 Q24 26.4 34.2 22.4" stroke="${ribbon}" stroke-width="2.6" stroke-linecap="round" fill="none"/>
+    <path d="M24 24.6 C20 20 14.8 21.6 16.6 25.4 C18 28.2 22 26.6 24 24.6Z M24 24.6 C28 20 33.2 21.6 31.4 25.4 C30 28.2 26 26.6 24 24.6Z" fill="${ribbon}" stroke="${ribbonLine}" stroke-width="1.1" stroke-linejoin="round"/>
+    <path d="M22.6 25.6 L20.4 30.4 M25.4 25.6 L27.6 30.4" stroke="${ribbonLine}" stroke-width="2.6" stroke-linecap="round"/>
+    <path d="M22.6 25.6 L20.4 30.4 M25.4 25.6 L27.6 30.4" stroke="${ribbon}" stroke-width="1.2" stroke-linecap="round"/>
+    <circle cx="24" cy="24.8" r="2.1" fill="${ribbon}" stroke="${ribbonLine}" stroke-width="1"/>
+    <circle cx="24" cy="42" r="10.4" fill="#fffdf7" stroke="${line}" stroke-width="1.2"/>
+    <circle cx="24" cy="42" r="8.4" fill="none" stroke="${line}" stroke-opacity=".35" stroke-width=".9" stroke-dasharray="1.6 1.5"/>
+    <g transform="translate(24 42) scale(6.6)">${PIPS[n].map(([x, z]) => `<circle cx="${x * 2.2}" cy="${z * 2.2}" r="${n === 1 ? 0.36 : 0.25}" fill="${dot}"/>`).join('')}</g>
+  </svg>`
+}
+// seeds that hop out of the bag when it is picked
+const seeds = (n) => `<span class="seeds" aria-hidden="true">${[0, 1, 2, 3].map((k) => `<i style="--k:${k};background:${hex(blend(NUM[n], 0x8a5a3b, 0.25))}"></i>`).join('')}</span>`
 
 document.querySelector('#app').innerHTML = `
   <div class="app">
@@ -111,13 +154,20 @@ function start(index, { fresh = false } = {}) {
 function drawTray() {
   const top = biggest()
   $('tray').innerHTML = Array.from({ length: top }, (_, k) => k + 1).map((n) =>
-    `<button class="packet" data-seed="${n}" aria-label="Seed ${n}" aria-pressed="${n === seed}">${face(n)}<span>${n}</span></button>`).join('') +
+    `<button class="packet" data-seed="${n}" aria-label="Seed ${n}" aria-pressed="${n === seed}">${bag(n)}${seeds(n)}<span>${n}</span></button>`).join('') +
     `<button class="packet trowel" data-seed="0" aria-label="Trowel: dig up a seed" aria-pressed="${seed === 0}">${icon('trowel')}</button>`
 }
 
 function choose(n) {
   seed = n
-  for (const b of $('tray').children) b.setAttribute('aria-pressed', String(Number(b.dataset.seed) === n))
+  for (const b of $('tray').children) {
+    const on = Number(b.dataset.seed) === n
+    b.setAttribute('aria-pressed', String(on))
+    // the picked bag hops, wiggles and tosses out a few seeds; the others let
+    // go of their hop so they settle back down with the rest
+    b.classList.remove('hop')
+    if (on) { void b.offsetWidth; b.classList.add('hop') }
+  }
 }
 
 // Brings the garden in line with the seeds planted: what grows where, which
