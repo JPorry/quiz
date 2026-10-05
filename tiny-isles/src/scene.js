@@ -20,9 +20,10 @@ export const islandRadius = (value) => 0.39 + value * 0.04
 
 /* ---------- bridges ---------- */
 
-const SOFT = new RoundedBoxGeometry(1, 1, 1, 2, 0.2)
+const SOFT = new RoundedBoxGeometry(1, 1, 1, 1, 0.2)
 const POST = new THREE.CylinderGeometry(1, 1, 1, 8)
-const BALL = new THREE.SphereGeometry(1, 10, 8)
+const BOX = new THREE.BoxGeometry(1, 1, 1)
+const BALL = new THREE.SphereGeometry(1, 8, 6)
 const CAP = new THREE.ConeGeometry(1, 1, 10)
 const RING = new THREE.TorusGeometry(1, 0.18, 6, 20).rotateX(Math.PI / 2)
 const FLAG = (() => {
@@ -68,11 +69,11 @@ class Bridge {
       const parts = stone
         ? [
             part(SOFT, STONE, [0, 0, 0], [seg * 1.01, 0.045, width]),
-            part(SOFT, 0xe6d0b8, [0, 0.022, 0], [seg * 1.01, 0.006, width * 0.7]),
-            i % 2 ? null : part(SOFT, 0xffffff, [0, 0.026, 0], [seg * 0.5, 0.004, 0.016]),
+            part(BOX, 0xe6d0b8, [0, 0.022, 0], [seg * 1.01, 0.006, width * 0.7]),
+            i % 2 ? null : part(BOX, 0xffffff, [0, 0.026, 0], [seg * 0.5, 0.004, 0.016]),
             ...[-1, 1].map((s) => part(SOFT, i % 2 ? 0xffb8a0 : 0xffc9b4, [0, 0.042, s * (width / 2 - 0.016)], [seg * 0.96, 0.055, 0.034])),
           ]
-        : [part(SOFT, WOOD[i % 3], [0, 0, 0], [seg * 0.88, 0.028, width * (i % 2 ? 1 : 0.94)])]
+        : [part(BOX, WOOD[i % 3], [0, 0, 0], [seg * 0.88, 0.028, width * (i % 2 ? 1 : 0.94)])]
       const geometry = merge(parts)
       const g = new THREE.Group()
       const mesh = new THREE.Mesh(geometry, this.material)
@@ -136,7 +137,7 @@ class Bridge {
           const sag = Math.abs(Math.sin(t * posts * Math.PI)) * 0.012
           pts.push(new THREE.Vector3(t * len, this.heightAt(t) + 0.075 - sag, s * (width / 2)))
         }
-        parts.push(part(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 40, 0.006, 5), 0xf7e3c4))
+        parts.push(part(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 24, 0.006, 4), 0xf7e3c4))
         const flags = Math.round(len / 0.07)
         for (let k = 1; k < flags; k++) {
           const t = k / flags
@@ -219,6 +220,7 @@ class Bridge {
       const speed = this.target > this.built ? 2.2 : 2.6
       this.built += clamp(this.target - this.built, -dt * speed, dt * speed)
     }
+    if (this.baked && (this.built < 1 || this.target < 1)) this.unbake()
     const n = this.segments.length
     let landed = 0
     this.segments.forEach((s, i) => {
@@ -283,11 +285,33 @@ class Bridge {
       ring.scale.set(base.x * w, base.y, base.z * w)
     })
     // the guide dots ahead of the last plank bob in a little wave
+    // a finished bridge is drawn as one piece instead of a mesh per plank
+    if (done && this.open >= 1 && !this.baked) this.bake()
     if (this.guide) for (const { d, t } of this.guide) {
       d.visible = t > this.built
       d.position.y = this.heightAt(t) + 0.02 + Math.max(0, Math.sin(time * 6 - t * 12)) * 0.02
     }
     return this.built
+  }
+
+  bake() {
+    const geometry = merge(this.segments.map((s) => {
+      s.g.updateMatrix()
+      return s.mesh.geometry.clone().applyMatrix4(s.g.matrix)
+    }))
+    const mesh = new THREE.Mesh(geometry, this.material)
+    mesh.castShadow = true
+    this.baked = new THREE.Group()
+    this.baked.add(mesh, new THREE.Mesh(geometry, outline(LINE, 0.005)))
+    this.group.add(this.baked)
+    for (const s of this.segments) s.g.visible = false
+  }
+
+  unbake() {
+    this.baked.removeFromParent()
+    this.baked.children[0].geometry.dispose()
+    this.baked = null
+    for (const s of this.segments) s.g.visible = s.state !== 0
   }
 
   // nothing left standing or falling
@@ -303,7 +327,7 @@ class Bridge {
 /* ---------- cars ---------- */
 
 function carGeometry(color) {
-  const body = new RoundedBoxGeometry(1, 1, 1, 3, 0.3)
+  const body = new RoundedBoxGeometry(1, 1, 1, 2, 0.3)
   const wheel = new THREE.CylinderGeometry(1, 1, 1, 12)
   return merge([
     part(body, color, [0, 0.032, 0], [0.11, 0.04, 0.062]),
@@ -351,6 +375,9 @@ export class IslandScene {
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2))
     this.renderer.shadowMap.enabled = true
     this.renderer.shadowMap.type = THREE.PCFShadowMap
+    // shadows are redrawn only while something that casts one is changing
+    this.renderer.shadowMap.autoUpdate = false
+    this.shadowFrames = 0
     this.renderer.outputColorSpace = THREE.SRGBColorSpace
     container.append(this.renderer.domElement)
     this.scene = new THREE.Scene()
@@ -421,6 +448,7 @@ export class IslandScene {
     this.counts = board.edges.map(() => 0)
     this.preview = null
     this.retiring = []
+    this.shadowFrames = 3
     const reach = Math.max(width, height * this.CZ) + 3
     const shores = []
     for (const is of this.islands) {
@@ -655,6 +683,22 @@ export class IslandScene {
     this.camera.updateProjectionMatrix()
   }
 
+  // If frames keep coming slowly, draw fewer pixels: the pixel ratio steps down
+  // a quarter at a time, never below 1, and never back up during a visit.
+  tune(ms) {
+    if (ms > 250) return
+    this.frames = (this.frames ?? 0) + 1
+    this.frameTime = (this.frameTime ?? 0) + ms
+    if (this.frames < 90) return
+    const avg = this.frameTime / this.frames
+    this.frames = this.frameTime = 0
+    const ratio = this.renderer.getPixelRatio()
+    if (avg > 20 && ratio > 1) {
+      this.renderer.setPixelRatio(Math.max(1, ratio - 0.25))
+      this.resize()
+    }
+  }
+
   /* ---------- animation ---------- */
 
   update(dt) {
@@ -689,6 +733,12 @@ export class IslandScene {
     for (const br of this.retiring) br.update(dt, this.time)
     this.retiring = this.retiring.filter((br) => { if (br.gone) { br.dispose(); return false } return true })
     this.traffic(dt)
+    const busy = this.preview || this.retiring.length || this.bridges.some((br) => br && !br.baked) || this.islands.some((is) => is.bounce >= 0 || is.city.busy)
+    if (busy) this.shadowFrames = 3
+    if (this.shadowFrames > 0) {
+      this.shadowFrames--
+      this.renderer.shadowMap.needsUpdate = true
+    }
     for (let k = this.fx.length - 1; k >= 0; k--) {
       const f = this.fx[k]
       f.age += dt
@@ -727,7 +777,6 @@ export class IslandScene {
         const lane = br.lanes === 2 ? (mine.filter((c) => c.lane > 0).length <= mine.filter((c) => c.lane < 0).length ? 1 : -1) : 0
         const forward = br.lanes === 2 ? lane > 0 : Math.random() < 0.5
         const mesh = new THREE.Mesh(CAR_GEOS[Math.floor(Math.random() * CAR_GEOS.length)], toon(0xffffff, { vertexColors: true }))
-        mesh.castShadow = true
         this.world.add(mesh)
         this.cars.push({ mesh, bridge: br, lane, forward, t: -0.12, speed: 0.22 + Math.random() * 0.1, bob: Math.random() * 6 })
         br.spawn = 0.8 + Math.random() * 1.6

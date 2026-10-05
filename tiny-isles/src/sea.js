@@ -13,17 +13,38 @@ import { toon } from './look.js'
 const SPEED = 0.3 // waves reaching a shore per second
 const K = 1.9 // waves per world unit
 const FIELD = 384
+const NOISE_PERIOD = 32
+
+// value noise on a lattice of NOISE_PERIOD cells that wraps around, four texels a cell
+const NOISE = (() => {
+  const size = NOISE_PERIOD * 4
+  const lattice = Array.from({ length: NOISE_PERIOD * NOISE_PERIOD }, () => Math.random())
+  const at = (i, j) => lattice[((j + NOISE_PERIOD) % NOISE_PERIOD) * NOISE_PERIOD + ((i + NOISE_PERIOD) % NOISE_PERIOD)]
+  const data = new Uint8Array(size * size)
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    const fx = x / 4, fy = y / 4
+    const i = Math.floor(fx), j = Math.floor(fy)
+    let u = fx - i, v = fy - j
+    u = u * u * (3 - 2 * u)
+    v = v * v * (3 - 2 * v)
+    const a = at(i, j) + (at(i + 1, j) - at(i, j)) * u
+    const b = at(i, j + 1) + (at(i + 1, j + 1) - at(i, j + 1)) * u
+    data[y * size + x] = Math.round((a + (b - a) * v) * 255)
+  }
+  const t = new THREE.DataTexture(data, size, size, THREE.RedFormat)
+  t.wrapS = t.wrapT = THREE.RepeatWrapping
+  t.minFilter = t.magFilter = THREE.LinearFilter
+  t.needsUpdate = true
+  return t
+})()
 
 const COMMON = /* glsl */ `
   uniform sampler2D uField;
   uniform vec4 uBounds;
   uniform float uTime;
-  float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-  float noise(vec2 p) {
-    vec2 i = floor(p), f = fract(p);
-    f = f * f * (3.0 - 2.0 * f);
-    return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y);
-  }
+  uniform sampler2D uNoise;
+  // smooth value noise, baked into a tiling texture so it costs one lookup
+  float noise(vec2 p) { return texture2D(uNoise, p / ${NOISE_PERIOD.toFixed(1)}).r; }
   float shoreDist(vec2 p) { return texture2D(uField, (p - uBounds.xy) / uBounds.zw).r; }
   // where in its cycle the incoming wave is, 0..1; the crest sits near 0.15
   float wavePhase(vec2 p, float s) {
@@ -50,21 +71,31 @@ function material(flat) {
       uTime: { value: 0 },
       uDusk: { value: 0 },
       uSun: { value: new THREE.Vector3(-5, 10, 6).normalize() },
+      uNoise: { value: NOISE },
     },
     vertexShader: /* glsl */ `
       ${COMMON}
+      uniform vec3 uSun;
       varying vec3 vWorld;
+      varying float vLit;
       void main() {
         vec4 w = modelMatrix * vec4(position, 1.0);
-        ${flat ? '' : 'w.y += seaHeight(w.xz);'}
+        vLit = 0.0;
+        ${flat ? '' : `
+        // lit per vertex from the wave's slope, so the pixels don't have to
+        float h0 = seaHeight(w.xz);
+        float e = 0.025;
+        vec3 nrm = normalize(vec3(h0 - seaHeight(w.xz + vec2(e, 0.0)), e, h0 - seaHeight(w.xz + vec2(0.0, e))));
+        vLit = dot(nrm, uSun) - uSun.y;
+        w.y += h0;`}
         vWorld = w.xyz;
         gl_Position = projectionMatrix * viewMatrix * w;
       }`,
     fragmentShader: /* glsl */ `
       ${COMMON}
       uniform float uDusk;
-      uniform vec3 uSun;
       varying vec3 vWorld;
+      varying float vLit;
       void main() {
         vec2 p = vWorld.xz;
         float s = shoreDist(p);
@@ -80,11 +111,7 @@ function material(flat) {
         col = mix(col, vec3(0.56, 0.90, 0.88), step(sd, 0.15));
 
         // cel lighting from the wave's slope, in three hard bands
-        float e = 0.025;
-        float h0 = seaHeight(p);
-        vec3 nrm = normalize(vec3(h0 - seaHeight(p + vec2(e, 0.0)), e, h0 - seaHeight(p + vec2(0.0, e))));
-        float lit = dot(nrm, uSun) - dot(vec3(0.0, 1.0, 0.0), uSun);
-        col *= 1.0 + 0.05 * step(0.08, lit) - 0.05 * step(lit, -0.1);
+        col *= 1.0 + 0.05 * step(0.08, vLit) - 0.05 * step(vLit, -0.1);
         // the soft shadows of clouds drifting over
         float cloud = noise(p * 0.32 + vec2(uTime * 0.035, uTime * 0.012)) * 0.75 + noise(p * 0.9 - uTime * 0.02) * 0.25;
         col *= 1.0 - 0.06 * step(0.6, cloud);
@@ -125,7 +152,9 @@ export class Sea {
     this.far = new THREE.Mesh(new THREE.PlaneGeometry(120, 120).rotateX(-Math.PI / 2), material(true))
     this.near.position.y = -0.02
     this.far.position.y = -0.05
-    this.near.renderOrder = this.far.renderOrder = -1
+    // the near surface is drawn first so the far one is hidden behind it for free
+    this.near.renderOrder = -2
+    this.far.renderOrder = -1
     scene.add(this.far, this.near)
     this.group = new THREE.Group()
     scene.add(this.group)
@@ -173,7 +202,7 @@ export class Sea {
     }
     // the moving surface covers everything the camera can see around the board
     const span = Math.max(size, reach * 2 + 6)
-    const segs = Math.min(320, Math.round(span / 0.07))
+    const segs = Math.min(200, Math.round(span / 0.1))
     this.near.geometry.dispose()
     this.near.geometry = new THREE.PlaneGeometry(span, span, segs, segs).rotateX(-Math.PI / 2)
     this.near.position.x = (minX + maxX) / 2

@@ -9,15 +9,15 @@ import { part, merge, toon, outline, seeded } from './look.js'
 // petals, snow, leaves or butterflies, depending on its biome.
 
 const LINE = 0x5e4a58
-const SPHERE = new THREE.SphereGeometry(1, 16, 12)
-const CAPSULE = new THREE.CapsuleGeometry(1, 1, 4, 12)
-const CONE = new THREE.ConeGeometry(1, 1, 12)
-const CYL = new THREE.CylinderGeometry(1, 1, 1, 12)
+const SPHERE = new THREE.SphereGeometry(1, 10, 7)
+const CAPSULE = new THREE.CapsuleGeometry(1, 1, 2, 8)
+const CONE = new THREE.ConeGeometry(1, 1, 8)
+const CYL = new THREE.CylinderGeometry(1, 1, 1, 8)
 const BOX = new THREE.BoxGeometry(1, 1, 1)
 const ROCK = new THREE.DodecahedronGeometry(1, 1)
-const DOME = new THREE.SphereGeometry(1, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2)
+const DOME = new THREE.SphereGeometry(1, 10, 4, 0, Math.PI * 2, 0, Math.PI / 2)
 const PETAL = new THREE.CircleGeometry(1, 8)
-const SOFT = new RoundedBoxGeometry(1, 1, 1, 2, 0.3)
+const SOFT = new RoundedBoxGeometry(1, 1, 1, 1, 0.3)
 
 // colours of the cliff layers (top to bottom), the beach, and who lives here
 export const LOOKS = {
@@ -50,6 +50,13 @@ const DECOR = {
   barrel: () => [part(SPHERE, 0x6cc47a, [0, 0.014, 0], [0.016, 0.016, 0.016]), part(SPHERE, 0xff8fb8, [0, 0.03, 0], [0.006, 0.004, 0.006])],
   leaves: () => [0, 1, 2, 3, 4].map((k) => part(SPHERE, [0xff9a3d, 0xf26b4a, 0xffc24d][k % 3], [Math.cos(k * 2.4) * 0.014, 0.003, Math.sin(k * 2.4) * 0.014], [0.011, 0.003, 0.007], [0, k, 0])),
 }
+// a geometry reduced to what merged parts carry: positions, normals, colours
+function plain(geometry) {
+  const g = geometry.index ? geometry.toNonIndexed() : geometry
+  for (const name of Object.keys(g.attributes)) if (!['position', 'normal', 'color'].includes(name)) g.deleteAttribute(name)
+  return g
+}
+
 const DIRECTION = { right: 0, down: Math.PI / 2, left: Math.PI, up: -Math.PI / 2 }
 
 /* ---------- critters: all face +x, about 0.07 long ---------- */
@@ -159,7 +166,7 @@ export class Island {
     // the cliffs, in layers stepping in toward the top
     const steps = [[0, -0.3], [1.13, -0.3], [1.15, -0.03], [1.13, 0.0], [1.125, 0.055], [1.1, 0.07], [1.09, 0.115], [1.06, 0.13], [1.05, 0.18], [0, 0.18]]
     const pts = steps.map(([x, y]) => new THREE.Vector2(Math.max(0.001, x * radius), y))
-    const body = new THREE.LatheGeometry(pts, 64)
+    const body = new THREE.LatheGeometry(pts, 40)
     const pos = body.attributes.position
     const colors = new Float32Array(pos.count * 3)
     const strata = look.strata.map((c) => new THREE.Color(c))
@@ -173,12 +180,12 @@ export class Island {
     }
     body.setAttribute('color', new THREE.BufferAttribute(colors, 3))
     body.computeVertexNormals()
-    const bodyMesh = new THREE.Mesh(body, toon(0xffffff, { vertexColors: true, rim: 0.18 }))
-    bodyMesh.receiveShadow = true
-    this.group.add(bodyMesh, new THREE.Mesh(body, outline(LINE, 0.012)))
+    // everything that never moves is gathered up and drawn as one mesh at the end:
+    // lined parts get the usual outline, fine ones a thin one, smooth ones none
+    const lined = [plain(body)], fine = [], smooth = []
 
     // grassy (or snowy, or sandy) top that drips over the edge
-    const topGeo = new THREE.CylinderGeometry(radius * 1.0, radius * 1.05, 0.05, 64)
+    const topGeo = new THREE.CylinderGeometry(radius * 1.0, radius * 1.05, 0.05, 40)
     const tp = topGeo.attributes.position
     for (let i = 0; i < tp.count; i++) {
       const k = bulge(Math.atan2(tp.getZ(i), tp.getX(i)))
@@ -186,10 +193,7 @@ export class Island {
       tp.setZ(i, tp.getZ(i) * k)
     }
     topGeo.computeVertexNormals()
-    const topMesh = new THREE.Mesh(topGeo, toon(top.top, { rim: 0.15 }))
-    topMesh.position.y = 0.18
-    topMesh.receiveShadow = true
-    this.group.add(topMesh)
+    smooth.push(part(topGeo, top.top, [0, 0.18, 0]))
     const drips = []
     const n = Math.round(12 + radius * 12)
     for (let k = 0; k < n; k++) {
@@ -197,9 +201,7 @@ export class Island {
       const rr = radius * 1.045 * bulge(a)
       drips.push(part(CAPSULE, top.drip, [Math.cos(a) * rr, 0.15, Math.sin(a) * rr], [0.028, 0.02 + r() * 0.045, 0.028]))
     }
-    const dripMesh = new THREE.Mesh(merge(drips), toon(0xffffff, { vertexColors: true, rim: 0.15 }))
-    dripMesh.receiveShadow = true
-    this.group.add(dripMesh)
+    smooth.push(...drips)
 
     // flowers, mushrooms and such around the edge of the top, clear of the
     // four directions the bridges and footpaths come from
@@ -211,12 +213,7 @@ export class Island {
       const d = radius * (0.86 + r() * 0.1) * bulge(a)
       for (const g of DECOR[look.decor[k % 3]](r)) decor.push(g.applyMatrix4(new THREE.Matrix4().makeScale(1.6, 1.6, 1.6).premultiply(new THREE.Matrix4().makeTranslation(Math.cos(a) * d, 0.205, Math.sin(a) * d))))
     }
-    if (decor.length) {
-      const geo = merge(decor)
-      const m = new THREE.Mesh(geo, toon(0xffffff, { vertexColors: true }))
-      m.castShadow = true
-      this.group.add(m, new THREE.Mesh(geo, outline(LINE, 0.003)))
-    }
+    fine.push(...decor)
 
     // footpaths from each bridge into town, hidden until a bridge arrives
     this.paths = {}
@@ -256,11 +253,9 @@ export class Island {
       const a = a0 + (a1 - a0) * (k / N)
       shape.lineTo(Math.cos(a) * radius * 0.8, -Math.sin(a) * radius * 0.8)
     }
-    const beach = new THREE.ExtrudeGeometry(shape, { depth: 0.04, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.025, bevelSegments: 3, curveSegments: 4 })
+    const beach = new THREE.ExtrudeGeometry(shape, { depth: 0.04, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.025, bevelSegments: 2, curveSegments: 4 })
     beach.rotateX(-Math.PI / 2).translate(0, -0.03, 0)
-    const beachMesh = new THREE.Mesh(beach, toon(look.sand, { rim: 0.12 }))
-    beachMesh.receiveShadow = true
-    this.group.add(beachMesh, new THREE.Mesh(beach, outline(LINE, 0.008)))
+    lined.push(part(beach, look.sand))
     this.beachY = 0.03
 
     // a little dock from the beach out over the water, with a rowboat tied up
@@ -268,15 +263,11 @@ export class Island {
     const dockParts = []
     for (let k = 0; k < 5; k++) dockParts.push(part(BOX, k % 2 ? 0xd9a273 : 0xe8b98a, [edge + k * 0.04, 0.045, 0], [0.034, 0.012, 0.07]))
     for (const x of [edge + 0.06, edge + 0.17]) for (const z of [-0.032, 0.032]) dockParts.push(part(CYL, 0xa8714a, [x, 0.01, z], [0.008, 0.09, 0.008]))
-    const dockGeo = merge(dockParts)
+    fine.push(merge(dockParts).applyMatrix4(new THREE.Matrix4().makeRotationY(-beachAt)))
     const dock = new THREE.Group()
     dock.rotation.y = -beachAt
-    const dockMesh = new THREE.Mesh(dockGeo, toon(0xffffff, { vertexColors: true }))
-    dockMesh.castShadow = true
-    dock.add(dockMesh, new THREE.Mesh(dockGeo, outline(LINE, 0.005)))
     this.boat = new THREE.Group()
     const boatMesh = new THREE.Mesh(BOAT, toon(0xffffff, { vertexColors: true }))
-    boatMesh.castShadow = true
     this.boat.add(boatMesh, new THREE.Mesh(BOAT, outline(LINE, 0.005)))
     this.boat.position.set(edge + 0.13, 0.0, 0.085)
     this.boat.rotation.y = 0.15
@@ -297,12 +288,11 @@ export class Island {
       if (biome === 'snowy') rockParts.push(part(SPHERE, 0xffffff, [x, size * 0.65, z], [size * 0.75, size * 0.25, size * 0.7]))
       this.rocks.push({ x, z, r: size * 0.95 })
     }
-    if (rockParts.length) {
-      const geo = merge(rockParts)
-      const rocks = new THREE.Mesh(geo, toon(0xffffff, { vertexColors: true, rim: 0.15 }))
-      rocks.castShadow = rocks.receiveShadow = true
-      this.group.add(rocks, new THREE.Mesh(geo, outline(LINE, 0.008)))
-    }
+    lined.push(...rockParts)
+    const ground = merge([...lined, ...fine, ...smooth])
+    const groundMesh = new THREE.Mesh(ground, toon(0xffffff, { vertexColors: true, rim: 0.16 }))
+    groundMesh.castShadow = groundMesh.receiveShadow = true
+    this.group.add(groundMesh, new THREE.Mesh(merge(lined), outline(LINE, 0.01)), new THREE.Mesh(merge(fine), outline(LINE, 0.004)))
 
     // the locals: two or three animals pottering about on the beach
     this.critters = []
@@ -311,7 +301,6 @@ export class Island {
     for (let k = 0; k < count; k++) {
       const g = new THREE.Group()
       const m = new THREE.Mesh(geo, toon(0xffffff, { vertexColors: true }))
-      m.castShadow = true
       g.add(m, new THREE.Mesh(geo, outline(LINE, 0.004)))
       g.scale.setScalar(1.7)
       this.group.add(g)
@@ -327,9 +316,10 @@ export class Island {
     if (look.air) {
       const color = { petal: 0xffb7cf, snow: 0xffffff, leaf: 0xff9a3d, butterfly: 0xffd166 }[look.air]
       for (let k = 0; k < 6; k++) {
-        const mat = new THREE.MeshBasicMaterial({ color: k % 2 && look.air === 'leaf' ? 0xf26b4a : k % 3 === 1 && look.air === 'butterfly' ? 0xff9fb8 : color, side: THREE.DoubleSide })
+        const tint = k % 2 && look.air === 'leaf' ? 0xf26b4a : k % 3 === 1 && look.air === 'butterfly' ? 0xff9fb8 : color
         let mesh
         if (look.air === 'butterfly') {
+          const mat = new THREE.MeshBasicMaterial({ color: tint, side: THREE.DoubleSide })
           mesh = new THREE.Group()
           for (const s of [-1, 1]) {
             const w = new THREE.Mesh(PETAL, mat)
@@ -340,13 +330,20 @@ export class Island {
             pivot.add(w)
             mesh.add(pivot)
           }
+          this.group.add(mesh)
         } else {
-          mesh = new THREE.Mesh(look.air === 'snow' ? SPHERE : PETAL, mat)
+          // petals, snow and leaves are drawn together, below
+          mesh = new THREE.Object3D()
           mesh.scale.setScalar(look.air === 'snow' ? 0.009 : 0.014)
         }
-        this.group.add(mesh)
-        this.air.push({ mesh, t: r() * 10, life: 0, seed: r() })
+        this.air.push({ mesh, tint, life: 0, seed: r() })
         this.respawn(this.air[k], r() * 1)
+      }
+      if (look.air !== 'butterfly') {
+        this.flakes = new THREE.InstancedMesh(look.air === 'snow' ? SPHERE : PETAL, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }), this.air.length)
+        this.air.forEach((p, k) => this.flakes.setColorAt(k, new THREE.Color(p.tint)))
+        this.flakes.frustumCulled = false
+        this.group.add(this.flakes)
       }
     }
     this.happy = false
@@ -417,6 +414,13 @@ export class Island {
         p.mesh.rotation.y += dt * 1.1
         if (p.y < 0.2) this.respawn(p)
       }
+    }
+    if (this.flakes) {
+      this.air.forEach((p, k) => {
+        p.mesh.updateMatrix()
+        this.flakes.setMatrixAt(k, p.mesh.matrix)
+      })
+      this.flakes.instanceMatrix.needsUpdate = true
     }
   }
 }
