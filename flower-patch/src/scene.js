@@ -3,7 +3,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { toon, outline } from './look.js'
 import { cellGeometry, COLORS, GROW_STEPS, PIPS, plantTop, STEPS } from './flowers.js'
 import { Insects } from './insects.js'
-import { buildGarden, labels, SOIL_Y, WIND } from './garden.js'
+import { buildGarden, SOIL_Y, WIND } from './garden.js'
 import { World } from './world.js'
 
 // A tilted diorama of a garden seen through a fixed orthographic camera. Every
@@ -96,10 +96,9 @@ export class GardenScene {
     this.fx = []
     this.glowTarget = 0
     this.elevationTarget = ELEVATION
-    const garden = buildGarden(board, flowers, seed)
+    const garden = buildGarden(board, flowers, fixed, seed)
     this.world.add(garden.group)
     this.beds = garden.beds.map((b) => ({ ...b, grow: 0, target: 0 }))
-    this.world.add(labels(fixed, board.width, board.height))
     this.cells = Array.from({ length: board.cells }, (_, i) => {
       const group = new THREE.Group()
       group.position.copy(this.center(i))
