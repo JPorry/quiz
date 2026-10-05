@@ -141,7 +141,7 @@ function apply(edge, next) {
   if (next > before) { sounds.build(++built); buzz(12) } else { sounds.splash(); buzz(8) }
   const st = refresh()
   const d = st.degree
-  if ([e.a, e.b].some((i) => !board.burrows[i].fog && d[i] > board.burrows[i].value)) say('That island has more bridges than its number. Tap a bridge to take it down.')
+  if ([e.a, e.b].some((i) => !board.burrows[i].fog && d[i] > board.burrows[i].value)) say('That island has more bridges than its number. Swipe across a bridge to take it down.')
   else if (st.closed.length) say('Some islands are closed off from the rest. Every island must join up.')
   else if (next === 2 && before === 1) say('A two-lane bridge: twice the traffic!')
   else {
@@ -185,7 +185,7 @@ canvas.addEventListener('pointerdown', (ev) => {
   if (!p) return
   canvas.setPointerCapture(ev.pointerId)
   const island = scene.islandAt(p)
-  drag = { id: ev.pointerId, island, start: p, sx: ev.clientX, sy: ev.clientY, moved: false, edge: null, progress: 0, shown: 0, snapped: false }
+  drag = { id: ev.pointerId, island, start: p, last: p, cut: new Set(), sx: ev.clientX, sy: ev.clientY, moved: false, edge: null, progress: 0, shown: 0, snapped: false }
   if (island !== null) { scene.bounce(island); sounds.press() }
 })
 
@@ -194,7 +194,12 @@ canvas.addEventListener('pointermove', (ev) => {
   const p = scene.toWorld(ev.clientX, ev.clientY)
   if (!p) return
   if (Math.hypot(ev.clientX - drag.sx, ev.clientY - drag.sy) > 9) drag.moved = true
-  if (drag.island === null || !drag.moved) return
+  if (drag.island === null) {
+    if (drag.moved) cutAcross(drag.last, p)
+    drag.last = p
+    return
+  }
+  if (!drag.moved) return
   const o = scene.pos(drag.island)
   const dx = p.x - o.x, dz = p.z - o.z
   const dir = Math.abs(dx) > Math.abs(dz) ? (dx > 0 ? 'right' : 'left') : dz > 0 ? 'down' : 'up'
@@ -206,6 +211,22 @@ canvas.addEventListener('pointermove', (ev) => {
   const along = (dir === 'left' || dir === 'right' ? Math.abs(p.x - a.x) * Math.sign((p.x - a.x) * (b.x - a.x)) : Math.abs(p.z - a.z) * Math.sign((p.z - a.z) * (b.z - a.z)))
   drag.progress = clamp(along / total, 0, 1)
 })
+
+// A swipe that starts out on the water takes down every bridge it passes over,
+// single or double, each as its own step to undo.
+const side = (p, a, b) => (b.x - a.x) * (p.z - a.z) - (b.z - a.z) * (p.x - a.x)
+const crosses = (p1, p2, q1, q2) => side(p1, q1, q2) * side(p2, q1, q2) < 0 && side(q1, p1, p2) * side(q2, p1, p2) < 0
+function cutAcross(from, to) {
+  for (const e of board.edges) {
+    if (!counts[e.index] || drag.cut.has(e.index)) continue
+    const [a, b] = scene.ends(e.index)
+    if (!crosses(from, to, a, b)) continue
+    drag.cut.add(e.index)
+    sounds.snip()
+    scene.droplets(to, 6)
+    apply(e.index, 0)
+  }
+}
 
 function endDrag(ev) {
   if (!drag || drag.id !== ev.pointerId) return
