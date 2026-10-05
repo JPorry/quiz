@@ -33,11 +33,19 @@ a white picket fence, bushes, mushrooms, and a watering can sit around the edge.
 Rows stretch a little to make up for the tilt, so plots look square and the
 garden fills a tall phone.
 
-A seed shows as green sprouts laid out like a die's pips (`src/flowers.js`), so
-the number never needs a label. Plants grow through three stages and keep the
+Around the fence is a little world (`src/world.js`) that fills whatever lawn the
+screen shows: a cottage with a round roof and a puffing chimney behind the
+garden, puffy trees (some in pink blossom), flowering bushes, spotted mushrooms,
+a gnome, stepping stones leading down from the garden, and a pond with lily pads
+and a paddling duck. Bunnies hop about and stop to look around, a snail glides
+along, and ladybirds scurry in loops, each with a soft round shadow. Tap a
+critter and it jumps. Everything is chunky and round with sticker outlines.
+
+A seed shows as chubby round green buds laid out like a die's pips
+(`src/flowers.js`), one round dot per bud, so the number never needs a label. Plants grow through three stages and keep the
 pips the whole way:
 
-1. **Sprout:** a seedling on a little mound, the same for every bed.
+1. **Sprout:** a round bud with one tiny leaf, on a little mound, the same for every bed.
 2. **Bud:** once a bed holds 1 to N with no clashes, its plants grow taller and
    show half-open heads in the bed's flower. The soil turns into a leafy carpet,
    sparkles rise, a chime plays, and a butterfly comes to visit.
@@ -52,7 +60,7 @@ picked far apart on the colour wheel (`assignFlowers` in `src/logic.js`). A
 single-plot bed always grows a sunflower.
 
 Plots planted at the start are ringed with white pebbles. When two seeds clash,
-their plants droop, turn straw coloured, and the plot glows red.
+their sprouts slump (grown plants droop), turn straw coloured, and the plot glows red.
 
 ## Controls
 

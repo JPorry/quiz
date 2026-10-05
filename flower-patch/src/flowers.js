@@ -4,10 +4,10 @@ import { part, merge } from './look.js'
 // The plants in a cell, baked into one geometry. A cell with seed N holds N plants
 // laid out like the pips on a die, so the number always reads at a glance, and
 // grows through three stages:
-//   sprout  a green seedling, the same for every bed
+//   sprout  a chubby green bud, the same for every bed
 //   bud     the bed is complete: taller, with a half-open head in its flower
 //   bloom   the garden is solved: the flower opens fully
-// A wilting cell breaks a rule: its plants droop and turn straw coloured.
+// A wilting cell breaks a rule: its plants droop (sprouts slump) and turn straw coloured.
 
 const SPHERE = new THREE.SphereGeometry(1, 8, 6)
 const BALL = new THREE.SphereGeometry(1, 6, 4)
@@ -40,8 +40,8 @@ export const COLORS = {
   sunflower: { petal: 0xffc414, inner: 0x6b3f1f, leaf: 0x5aa84a, carpet: '#ffd23d' },
 }
 
-const SPROUT = 0x7fd04f
-const SPROUT_LIGHT = 0xa6e46a
+const SPROUT = 0x6fcf52
+const SPROUT_LIGHT = 0xb6ef7c
 const MOUND = 0x5e3a24
 const STRAW = new THREE.Color(0xc9a45c)
 
@@ -144,13 +144,14 @@ function head(add, type, y, open, spin) {
   }
 }
 
+// A sprout is one chubby round bud with a single little leaf on top, so from
+// above every seed reads as one round dot, like a pip on a die.
 function sprout(add, spin) {
-  add(SPHERE, MOUND, [0, 0, 0], [0.1, 0.035, 0.1])
-  add(STEM, SPROUT, [0, 0, 0], [0.016, 0.1, 0.016])
-  for (const s of [-1, 1]) {
-    const a = spin + (s > 0 ? 0 : Math.PI)
-    add(SPHERE, s > 0 ? SPROUT_LIGHT : SPROUT, [Math.cos(a) * 0.058, 0.108, Math.sin(a) * 0.058], [0.068, 0.016, 0.042], [0, -a, 0.35])
-  }
+  add(SPHERE, MOUND, [0, 0, 0], [0.105, 0.03, 0.105])
+  add(SPHERE, SPROUT, [0, 0.068, 0], [0.082, 0.07, 0.082])
+  add(SPHERE, SPROUT_LIGHT, [-0.022, 0.1, -0.026], [0.03, 0.022, 0.026])
+  add(STEM, SPROUT, [0, 0.13, 0], [0.008, 0.026, 0.008])
+  add(SPHERE, SPROUT_LIGHT, [Math.cos(spin) * 0.024, 0.158, Math.sin(spin) * 0.024], [0.032, 0.009, 0.018], [0, -spin, 0.5])
 }
 
 function grown(add, type, stage, spin) {
@@ -181,7 +182,8 @@ export function cellGeometry(type, stage, value, wilt = false) {
     const m = new THREE.Matrix4().makeTranslation(x, 0, z)
     m.multiply(new THREE.Matrix4().makeScale(s, s, s))
     // a wilting plant flops over to one side
-    if (wilt) m.multiply(new THREE.Matrix4().makeRotationAxis(new THREE.Vector3(Math.cos(spin), 0, Math.sin(spin)), 0.75))
+    if (wilt && stage === 'sprout') m.multiply(new THREE.Matrix4().makeScale(1.08, 0.6, 1.08))
+    else if (wilt) m.multiply(new THREE.Matrix4().makeRotationAxis(new THREE.Vector3(Math.cos(spin), 0, Math.sin(spin)), 0.75))
     const { parts, add } = builder(m, wilt)
     if (stage === 'sprout') sprout(add, spin)
     else grown(add, type, stage, spin)

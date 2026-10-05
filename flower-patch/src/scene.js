@@ -3,12 +3,13 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { toon, outline, seeded } from './look.js'
 import { cellGeometry, COLORS } from './flowers.js'
 import { buildGarden, pebbles, SOIL_Y } from './garden.js'
+import { World } from './world.js'
 
 // A tilted diorama of a garden seen through a fixed orthographic camera. Every
 // cell's plants are one baked mesh; they pop up when planted, grow buds when
 // their bed is complete, and bloom in a wave across the garden when it is solved.
 
-const ELEVATION = 60 * Math.PI / 180
+const ELEVATION = 53 * Math.PI / 180
 const FINALE_ELEVATION = 78 * Math.PI / 180
 const LINE = 0x3f5a32
 const clamp = THREE.MathUtils.clamp
@@ -99,6 +100,7 @@ export class GardenScene {
     this.scene.add(this.sky, this.sun, this.sun.target)
     this.world = new THREE.Group()
     this.scene.add(this.world)
+    this.around = new World(this.scene)
     this.ray = new THREE.Raycaster()
     this.plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -SOIL_Y)
     this.time = 0
@@ -148,6 +150,7 @@ export class GardenScene {
     this.sun.shadow.camera.updateProjectionMatrix()
     this.shadowFrames = 3
     this.elevation = ELEVATION
+    this.seed = seed
     this.resize()
   }
 
@@ -328,6 +331,37 @@ export class GardenScene {
     this.camera.top = cy + h / 2 / s
     this.camera.bottom = cy - h / 2 / s
     this.camera.updateProjectionMatrix()
+    if (this.elevationTarget === ELEVATION) this.surroundings()
+  }
+
+  // Lays out the little world on whatever lawn the screen shows around the fence.
+  surroundings() {
+    const ground = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0)
+    let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity
+    for (const [nx, ny] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+      this.ray.setFromCamera(new THREE.Vector2(nx, ny), this.camera)
+      const hit = new THREE.Vector3()
+      if (!this.ray.ray.intersectPlane(ground, hit)) continue
+      x0 = Math.min(x0, hit.x); x1 = Math.max(x1, hit.x); z0 = Math.min(z0, hit.z); z1 = Math.max(z1, hit.z)
+    }
+    // tall things behind the garden poke up into view, so look a little further back
+    const bounds = [x0 + 0.05, x1 - 0.05, z0 - 0.6, z1 - 0.1]
+    const key = bounds.map((v) => v.toFixed(1)).join() + this.board.level.id
+    if (key === this.worldKey) return
+    this.worldKey = key
+    const sz = this.world.scale.z
+    const hw = this.board.width / 2 + 0.5, hd = (this.board.height / 2 + 0.45) * sz
+    this.around.build(bounds, [-hw, hw, -hd - 0.1, hd], this.seed)
+    const reach = Math.max(x1 - x0, z1 - z0) / 2 + 1.5
+    Object.assign(this.sun.shadow.camera, { left: -reach, right: reach, top: reach, bottom: -reach })
+    this.sun.shadow.camera.updateProjectionMatrix()
+    this.shadowFrames = 3
+  }
+
+  // a tap on the lawn: a critter there jumps
+  poke(clientX, clientY) {
+    const p = this.toWorld(clientX, clientY)
+    return p ? this.around.poke(p.x, p.z) : null
   }
 
   // If frames keep coming slowly, draw fewer pixels: the pixel ratio steps down
@@ -394,6 +428,7 @@ export class GardenScene {
       }
     }
     for (const f of this.flyers) f.update(dt, this.time)
+    this.around.update(dt, this.time)
     if (busy) this.shadowFrames = 2
     if (this.shadowFrames > 0) {
       this.shadowFrames--
