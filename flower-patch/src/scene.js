@@ -210,11 +210,10 @@ export class GardenScene {
         else c.plant.group.visible = false
         c.value = 0
         c.grow = null
-        c.tx = null
         return
       }
       if (quiet) {
-        Object.assign(c, { value: s.value, stage: s.stage, wilt: s.wilt, grow: null, tx: null, pop: 1 })
+        Object.assign(c, { value: s.value, stage: s.stage, wilt: s.wilt, grow: null, pop: 1 })
         this.show(c.plant, cellGeometry(type, s.stage, s.value, s.wilt))
         c.plant.group.scale.setScalar(1)
         return
@@ -224,7 +223,7 @@ export class GardenScene {
       if (seedling) {
         // a new seed pops up as a sprout first, and grows on from there
         this.retire(c)
-        Object.assign(c, { value: s.value, stage: 'sprout', wilt: s.wilt, grow: null, tx: null, pop: 0, popFrom: 0 })
+        Object.assign(c, { value: s.value, stage: 'sprout', wilt: s.wilt, grow: null, pop: 0, popFrom: 0 })
         this.show(c.plant, cellGeometry(type, 'sprout', s.value, s.wilt))
         if (s.stage !== 'sprout') c.pending = { at: this.time + 0.32 + rank.get(i) * 0.11, change: () => this.advance(c, type, s, rank.get(i)) }
         return
@@ -244,27 +243,28 @@ export class GardenScene {
     })
   }
 
-  // Moves a cell's plants on to a new stage. Growing up is a little show: the
-  // plants crouch, then pop into their new shape with a twist and a burst.
+  // Moves a cell's plants on to a new stage. Growing up is one continuous
+  // change of shape that lands with a little boing and a burst.
   advance(c, type, s, rank = 0) {
     const from = c.stage
     if (s.stage === 'bloom' && from === 'sprout') {
       // the last seed planted buds first, then opens with the rest
-      this.advance(c, type, { ...s, stage: 'bud' })
-      c.pending = { at: this.time + 0.9, change: () => this.advance(c, type, s) }
+      this.advance(c, type, { ...s, stage: 'bud' }, rank)
+    }
+    if (s.stage === 'bloom' && c.grow?.morph && !c.grow.back) {
+      // a bud still growing finishes first, then opens
+      c.pending = { at: this.time + (1 - c.grow.k) * c.grow.dur + 0.1, change: () => this.advance(c, type, s) }
       return
     }
     Object.assign(c, { stage: s.stage, wilt: s.wilt })
     if (s.stage === 'bud' && from === 'sprout') {
       // the sprout itself grows into the bud, one continuous change
-      c.tx = null
       c.grow = { type, stage: 'bud', steps: GROW_STEPS, k: 0, dur: 1.1, step: -1, rank, morph: true }
     } else if (s.stage === 'bloom' && from !== 'bloom') {
-      c.grow = null
-      c.tx = { k: 0, type, rank, stage: s.stage }
+      // the bud opens into its flower, one continuous change
+      c.grow = { type, stage: 'bloom', steps: STEPS, k: 0, dur: 1.3, step: -1, rank, morph: true }
     } else if (s.stage === 'sprout' && from !== 'sprout') {
       // a bed that is no longer complete: its buds shrink back into sprouts
-      c.tx = null
       c.grow = { type, stage: 'bud', steps: GROW_STEPS, k: 0, dur: 0.6, step: -1, rank, morph: true, back: true }
     } else {
       // a seed starts or stops wilting
@@ -272,29 +272,6 @@ export class GardenScene {
       this.show(c.plant, cellGeometry(type, s.stage, c.value, s.wilt))
       c.wobble = 0
     }
-  }
-
-  // The crouch before the pop, then the swap to the new shape.
-  transform(c, dt) {
-    const tx = c.tx
-    const CROUCH = 0.13
-    tx.k += dt
-    if (tx.k < CROUCH) {
-      const k = tx.k / CROUCH
-      c.plant.group.scale.set(1 + k * 0.2, 1 - k * 0.32, 1 + k * 0.2)
-      return
-    }
-    c.tx = null
-    if (tx.stage === 'bloom') {
-      this.show(c.plant, cellGeometry(tx.type, 'bloom', c.value, c.wilt, 0))
-      c.grow = { type: tx.type, k: 0, dur: 0.5, step: 0 }
-    } else this.show(c.plant, cellGeometry(tx.type, 'bud', c.value, c.wilt))
-    c.pop = 0
-    c.popFrom = 0.45
-    c.twist = 0
-    this.burst(c.i)
-    this.shadowFrames = 3
-    this.onPop?.(c.i, tx.stage, tx.rank)
   }
 
   stepGrowth(c, dt) {
@@ -320,10 +297,9 @@ export class GardenScene {
       // done: a little boing, a burst of petals, and its note
       c.pop = 0
       c.popFrom = 0.86
-      c.twist = 0
       this.burst(c.i)
       this.shadowFrames = 3
-      this.onPop?.(c.i, 'bud', g.rank)
+      this.onPop?.(c.i, g.stage, g.rank)
     }
   }
 
@@ -540,7 +516,6 @@ export class GardenScene {
         c.pending = null
         change()
       }
-      if (c.tx) { this.transform(c, dt); busy = true }
       if (c.grow) { this.stepGrowth(c, dt); busy = true }
       if (c.gone < 1) {
         // the old plants squash down and sink away
@@ -551,8 +526,8 @@ export class GardenScene {
         busy = true
       }
       const sprout = c.stage === 'sprout'
-      if (c.tx || c.grow?.morph) {
-        // crouching or changing shape, handled above
+      if (c.grow?.morph) {
+        // changing shape, handled above
       } else if (c.pop < 1) {
         // a springy pop, stretching up and squashing back
         c.pop = Math.min(1, c.pop + dt / 0.6)
@@ -572,11 +547,7 @@ export class GardenScene {
         c.group.rotation.z = Math.sin(k * Math.PI * 4) * (1 - k) * 0.25
         if (k >= 1) c.wobble = -1
       } else {
-        // a gentle breeze, and a little twist after a pop
-        if (c.twist !== undefined && c.twist < 1) {
-          c.twist = Math.min(1, c.twist + dt / 0.7)
-          c.group.rotation.y = Math.sin(c.twist * Math.PI * 3) * (1 - c.twist) * 0.5
-        } else c.group.rotation.y = 0
+        // a gentle breeze
         c.group.rotation.z = Math.sin(this.time * 1.3 + c.phase) * 0.025
         c.group.rotation.x = Math.sin(this.time * 0.9 + c.phase * 0.7) * 0.02
       }

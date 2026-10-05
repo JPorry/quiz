@@ -68,8 +68,12 @@ pips the whole way:
    from the middle, the camera rises to look down on the mosaic, the light turns golden,
    petals drift down, and bees come out.
 
-At the finale each bud crouches and pops open the same way, unfurling its petals
-through eight in-between shapes.
+At the finale each bud opens into its flower the same way, in one continuous
+change (sixteen in-between shapes, `bloom` in `src/flowers.js`): a stem lifts it
+as the ball of wrapped petals shrinks and its outer petals fold back and fade,
+while the flower's own petals grow and unfurl from inside, and the green cup
+slips down to hold it. The last shape of a bud and the first shape of its bloom
+are identical (a test checks this), so nothing ever jumps.
 
 Each bed grows one of nine flowers, each with its own shape as well as colour:
 tulip, marigold, buttercup, daisy, forget-me-not, cornflower, lavender, pansy and

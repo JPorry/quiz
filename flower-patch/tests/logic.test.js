@@ -85,3 +85,15 @@ for (const [pool, levels] of Object.entries(POOLS)) {
     for (const level of levels) assert.deepEqual(checkLevel(level, pool), [], level.id)
   })
 }
+
+test('a finished bud and the first step of its bloom are the same shape, so opening never jumps', async () => {
+  const { cellGeometry, GROW_STEPS, FLOWERS_ALL } = await import('../src/flowers.js')
+  for (const type of FLOWERS_ALL) {
+    for (const value of [1, 3, 6]) {
+      const bud = cellGeometry(type, 'bud', value, false, GROW_STEPS).body.attributes
+      const bloom = cellGeometry(type, 'bloom', value, false, 0).body.attributes
+      assert.deepEqual([...bud.position.array], [...bloom.position.array], `${type} ${value}`)
+      assert.deepEqual([...bud.color.array], [...bloom.color.array], `${type} ${value}`)
+    }
+  }
+})
