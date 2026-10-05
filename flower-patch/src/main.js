@@ -22,8 +22,34 @@ const ICON = {
   trowel: '<path d="M12.5 11.5 20 4"/><path d="M12.8 7.2 5 9.5c-1.6.5-2 2.5-.9 3.7l6.7 6.7c1.2 1.1 3.2.7 3.7-.9l2.3-7.8z"/>',
 }
 const icon = (name) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[name]}</svg>`
-// a die face of little sprouts, each dot in the seed's own colour
-const face = (n) => `<svg class="face" viewBox="-1 -1 2 2" aria-hidden="true">${PIPS[n].map(([x, z]) => `<circle cx="${x * 2.2}" cy="${z * 2.2}" r="${n === 1 ? 0.36 : 0.24}" style="fill:#${NUM[n].toString(16).padStart(6, '0')}"/>`).join('')}</svg>`
+const hex = (n) => '#' + n.toString(16).padStart(6, '0')
+const blend = (a, b, k) => {
+  const ch = (v, s) => (v >> s) & 255
+  const m = (s) => Math.round(ch(a, s) + (ch(b, s) - ch(a, s)) * k) << s
+  return m(16) | m(8) | m(0)
+}
+// A little bag of seeds: a plump paper sack in the seed's own soft colour,
+// gathered at the neck with twine and a bow, a seedling peeking out of the
+// top and a cream label showing the die face.
+const bag = (n) => {
+  const body = hex(blend(NUM[n], 0xffffff, n === 6 ? 0 : 0.5))
+  const fold = hex(blend(NUM[n], 0xffffff, n === 6 ? 0.2 : 0.25))
+  const line = hex(blend(n === 6 ? 0xc9bfa8 : NUM[n], 0x5a3a2a, 0.45))
+  return `<svg class="bag" viewBox="0 0 48 58" aria-hidden="true" style="--line:${line}">
+    <g class="sprout"><path d="M24 15 C24 11 24 9 24 7" stroke="#5fae4b" stroke-width="2" stroke-linecap="round" fill="none"/>
+      <ellipse cx="19.6" cy="7.2" rx="4.4" ry="2.8" fill="#7fcf5c" stroke="#3f7a35" stroke-width="1.1" transform="rotate(-25 19.6 7.2)"/>
+      <ellipse cx="28.4" cy="6.6" rx="4.4" ry="2.8" fill="#9be070" stroke="#3f7a35" stroke-width="1.1" transform="rotate(25 28.4 6.6)"/></g>
+    <path class="frill" d="M12 18 Q13 11 17 14 Q20 9 24 13 Q28 9 31 14 Q35 11 36 18 Z" fill="${fold}" stroke="${line}" stroke-width="1.4" stroke-linejoin="round"/>
+    <path d="M14 19 C9 26 6 36 7 45 C8 53 15 56 24 56 C33 56 40 53 41 45 C42 36 39 26 34 19 Z" fill="${body}" stroke="${line}" stroke-width="1.5" stroke-linejoin="round"/>
+    <path d="M10 44 C11 51 17 53 24 53" stroke="#fff" stroke-opacity=".45" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+    <path d="M13 19.5 Q24 23 35 19.5" stroke="#b98a5a" stroke-width="2.6" stroke-linecap="round" fill="none"/>
+    <path d="M24 21 q-6 -5 -6 1 q0 3 6 -1 q6 4 6 1 q0 -6 -6 -1z" fill="#d9a066" stroke="#8a5a3b" stroke-width="1"/>
+    <rect x="13" y="28" width="22" height="21" rx="7" fill="#fffaf2" stroke="${line}" stroke-width="1.2"/>
+    <g transform="translate(24 38.5) scale(8.2)">${PIPS[n].map(([x, z]) => `<circle cx="${x * 2.2}" cy="${z * 2.2}" r="${n === 1 ? 0.36 : 0.24}" fill="${hex(NUM[n])}" stroke="${line}" stroke-width=".09"/>`).join('')}</g>
+  </svg>`
+}
+// seeds that hop out of the bag when it is picked
+const seeds = (n) => `<span class="seeds" aria-hidden="true">${[0, 1, 2, 3].map((k) => `<i style="--k:${k};background:${hex(blend(NUM[n], 0x8a5a3b, 0.25))}"></i>`).join('')}</span>`
 
 document.querySelector('#app').innerHTML = `
   <div class="app">
@@ -111,13 +137,18 @@ function start(index, { fresh = false } = {}) {
 function drawTray() {
   const top = biggest()
   $('tray').innerHTML = Array.from({ length: top }, (_, k) => k + 1).map((n) =>
-    `<button class="packet" data-seed="${n}" aria-label="Seed ${n}" aria-pressed="${n === seed}">${face(n)}<span>${n}</span></button>`).join('') +
+    `<button class="packet" data-seed="${n}" aria-label="Seed ${n}" aria-pressed="${n === seed}">${bag(n)}${seeds(n)}<span>${n}</span></button>`).join('') +
     `<button class="packet trowel" data-seed="0" aria-label="Trowel: dig up a seed" aria-pressed="${seed === 0}">${icon('trowel')}</button>`
 }
 
 function choose(n) {
   seed = n
-  for (const b of $('tray').children) b.setAttribute('aria-pressed', String(Number(b.dataset.seed) === n))
+  for (const b of $('tray').children) {
+    const on = Number(b.dataset.seed) === n
+    b.setAttribute('aria-pressed', String(on))
+    // the picked bag hops, wiggles and tosses out a few seeds
+    if (on) { b.classList.remove('hop'); void b.offsetWidth; b.classList.add('hop') }
+  }
 }
 
 // Brings the garden in line with the seeds planted: what grows where, which
