@@ -264,18 +264,34 @@ export function buildGarden(board, flowers, seed) {
   return { group, beds, colors: { WOOD, WOOD_DARK, LAWN } }
 }
 
-// Small round stones around a cell planted at the start, marking it as fixed.
-export function pebbles(cells, width, height) {
+const RIM = new RoundedBoxGeometry(1, 1, 1, 2, 0.35)
+
+// Each cell planted at the start gets a plant label so it reads as fixed.
+export function labels(cells, width, height) {
   const parts = []
   for (const i of cells) {
     const x = (i % width) + 0.5 - width / 2, z = Math.floor(i / width) + 0.5 - height / 2
-    const n = 14
-    for (let k = 0; k < n; k++) {
-      const a = (k / n) * Math.PI * 2 + 0.2
-      const d = Math.min(0.39 / Math.max(Math.abs(Math.cos(a)), Math.abs(Math.sin(a))), 0.41)
-      parts.push(part(SPHERE, k % 3 ? 0xf4ede2 : 0xe2d7c6, [x + Math.cos(a) * d, SOIL_Y + 0.008, z + Math.sin(a) * d], [0.034, 0.02, 0.03], [0, a, 0]))
+    // a chunky label: a cream board with a coral border, a painted smiling
+    // sprout and a bow, on a wooden stake, leaning back to face the camera
+    const sign = []
+    const add = (geometry, color, position, scale, rotation) => sign.push(part(geometry, color, position, scale, rotation))
+    add(RIM, 0xb98458, [0, 0.03, 0], [0.03, 0.08, 0.026])
+    add(RIM, 0xff8a7a, [0, 0.13, 0], [0.24, 0.15, 0.036])
+    add(RIM, 0xfff6e6, [0, 0.13, 0.013], [0.2, 0.112, 0.032])
+    add(SPHERE, 0x6fcf52, [0, 0.12, 0.032], [0.034, 0.031, 0.007])
+    add(SPHERE, 0x5fc24a, [-0.026, 0.158, 0.032], [0.024, 0.011, 0.007], [0, 0, 0.45])
+    add(SPHERE, 0x9fe57a, [0.024, 0.16, 0.032], [0.024, 0.011, 0.007], [0, 0, -0.5])
+    for (const s of [-1, 1]) {
+      add(SPHERE, 0x3a2e3e, [s * 0.012, 0.125, 0.04], [0.005, 0.0065, 0.003])
+      add(SPHERE, 0xff9fb2, [s * 0.022, 0.115, 0.039], [0.0065, 0.0037, 0.003])
+      // a bow on the top corner
+      add(SPHERE, 0xff6fa8, [0.09 + s * 0.026, 0.208, 0.01], [0.029, 0.018, 0.013], [0, 0, s * 0.4])
     }
+    add(SPHERE, 0xff4f8f, [0.09, 0.206, 0.015], [0.013, 0.013, 0.013])
+    // it stands at the front middle of the cell, the one spot no die face uses
+    const m = new THREE.Matrix4().makeTranslation(x, SOIL_Y, z + 0.4).multiply(new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(-0.95, 0, 0.04)))
+    for (const g of sign) parts.push(g.applyMatrix4(m))
   }
   if (!parts.length) return new THREE.Group()
-  return baked(parts, { line: 0x8a7a6a, width: 0.004, shadow: false })
+  return baked(parts, { line: 0x6a4a3a, width: 0.005 })
 }
