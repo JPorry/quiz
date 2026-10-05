@@ -25,6 +25,12 @@ export const PIPS = {
   5: [[-D, -D], [D, -D], [0, 0], [-D, D], [D, D]],
   6: [[-0.2, -0.24], [0.2, -0.24], [-0.2, 0], [0.2, 0], [-0.2, 0.24], [0.2, 0.24]],
 }
+// Every seed number has its own colour, carried by the sprout's bud tip and
+// its little upright leaves, and by the dots on its seed packet. They are far
+// apart in hue and in lightness (red, orange, lemon, sky, violet, white), so
+// no two are easily confused, even for colour-blind players; the die layout
+// still tells them apart too.
+export const NUM = { 1: 0xe8333c, 2: 0xff9014, 3: 0xffe83a, 4: 0x3aa8ff, 5: 0x8a4dff, 6: 0xffffff }
 // fewer sprouts grow bigger, so a single one fills its cell like a big pip
 const SCALE = { 1: 1.55, 2: 1.3, 3: 1.18, 4: 1.12, 5: 1.02, 6: 0.95 }
 // Buds are all one size, whatever their number.
@@ -204,7 +210,8 @@ const K = 1.8
 // flower's colour, petals grow out of it and wrap round it, and the seedling's
 // leaves slide down to become the bud's rosette. Lavender and forget-me-nots
 // grow a cluster of little beads instead.
-function morph(add, type, spin, g, wilt, fold = 0) {
+function morph(add, type, spin, g, wilt, fold = 0, value = 1) {
+  const tint = NUM[value]
   const c = COLORS[type] ?? COLORS.daisy
   const cluster = CLUSTER.has(type)
   const wrap = new THREE.Color(c.petal).lerp(new THREE.Color(0xffffff), 0.25).getHex()
@@ -245,7 +252,7 @@ function morph(add, type, spin, g, wilt, fold = 0) {
     const a = spin + (k / 3) * Math.PI * 2
     const to = { p: [Math.cos(a) * 0.035 * K, 0.014 * K, Math.sin(a) * 0.035 * K], s: [0.042 * K, 0.014 * K, 0.03 * K], tilt: 0.25 }
     const turn = lerp(-from.a, -a, unfurl)
-    add(PETAL, mix(from.color, c.leaf, unfurl), from.p.map((v, i) => lerp(v, to.p[i], unfurl)), from.s.map((v, i) => lerp(v, to.s[i], unfurl)), [0, turn, lerp(from.tilt, to.tilt, unfurl)])
+    add(PETAL, mix(new THREE.Color(from.color).lerp(new THREE.Color(tint), from.color === SPROUT ? 0.55 : 0.12).getHex(), c.leaf, unfurl), from.p.map((v, i) => lerp(v, to.p[i], unfurl)), from.s.map((v, i) => lerp(v, to.s[i], unfurl)), [0, turn, lerp(from.tilt, to.tilt, unfurl)])
   }
   const tuck = 1 - smooth(0, 0.5, g)
   if (tuck > 0.01) {
@@ -262,7 +269,8 @@ function morph(add, type, spin, g, wilt, fold = 0) {
   // the middle bead of a cluster
   const body = cluster ? { y: 0.11 * K, r: [0.038 * K, 0.036 * K, 0.038 * K], color: beadColors[0] } : { y: 0.092 * K, r: [0.072 * K, 0.074 * K, 0.072 * K], color: c.petal }
   const by = L(0.088 + fold * 0.012, body.y)
-  add(ROUND, mix(SPROUT_LIGHT, body.color, blush), [0, by, 0], [L(0.02, body.r[0]), L(0.026, body.r[1]), L(0.02, body.r[2])])
+  // the bud tip carries the seed's colour
+  add(ROUND, mix(tint, body.color, blush), [0, by, 0], [L(0.042, body.r[0]), L(0.05, body.r[1]), L(0.042, body.r[2])])
   // a green cup grows under the bud
   if (!cluster) {
     const cup = smooth(0.35, 1, g)
@@ -406,7 +414,7 @@ export function cellGeometry(type, stage, value, wilt = false, step = stage === 
     const { parts, flats, add } = builder(m, wilt)
     if (stage === 'bloom') bloom(add, type, spin, 1, lerp(OPEN, BLOOM[value], smooth(0, 1, step / STEPS)), k)
     else if (opening > 0) bloom(add, type, spin, opening, OPEN, k)
-    else morph(add, type, spin, toBud, wilt, fold)
+    else morph(add, type, spin, toBud, wilt, fold, value)
     all.push(...parts)
     flat.push(...flats)
   })

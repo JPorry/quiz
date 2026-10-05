@@ -2,7 +2,7 @@ import { POOLS } from './levels.js'
 import { assignFlowers, bedComplete, buildBoard, conflicts, isSolved, MAX_SEED } from './logic.js'
 import { GardenScene } from './scene.js'
 import { Sounds } from './sounds.js'
-import { COLORS, PIPS } from './flowers.js'
+import { COLORS, PIPS, NUM } from './flowers.js'
 import './style.css'
 
 const STORAGE_KEY = 'flower-patch.v1'
@@ -22,8 +22,8 @@ const ICON = {
   trowel: '<path d="M12.5 11.5 20 4"/><path d="M12.8 7.2 5 9.5c-1.6.5-2 2.5-.9 3.7l6.7 6.7c1.2 1.1 3.2.7 3.7-.9l2.3-7.8z"/>',
 }
 const icon = (name) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[name]}</svg>`
-// a die face of little sprouts, for the seed packets
-const face = (n) => `<svg class="face" viewBox="-1 -1 2 2" aria-hidden="true">${PIPS[n].map(([x, z]) => `<circle cx="${x * 2.2}" cy="${z * 2.2}" r="${n === 1 ? 0.36 : 0.24}"/>`).join('')}</svg>`
+// a die face of little sprouts, each dot in the seed's own colour
+const face = (n) => `<svg class="face" viewBox="-1 -1 2 2" aria-hidden="true">${PIPS[n].map(([x, z]) => `<circle cx="${x * 2.2}" cy="${z * 2.2}" r="${n === 1 ? 0.36 : 0.24}" style="fill:#${NUM[n].toString(16).padStart(6, '0')}"/>`).join('')}</svg>`
 
 document.querySelector('#app').innerHTML = `
   <div class="app">

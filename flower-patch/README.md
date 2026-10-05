@@ -55,7 +55,14 @@ A seed shows as tiny green seedlings laid out like a die's pips
 (`src/flowers.js`), one per pip, so the number never needs a label. Each is a
 little plant on a short stem: two big, round seed leaves low and wide, two
 smaller, paler leaves standing up between them, and a curled new leaf in the
-middle. From above the rosette reads as one round pip. Seedlings breathe
+middle. From above the rosette reads as one round pip. Every number also has its
+own colour, carried by the seedling's bud tip and its little upright leaves, and
+by the dots on its seed packet: 1 red, 2 orange, 3 lemon, 4 sky blue, 5 violet,
+6 white. They differ in lightness as well as hue (every pair is at least 50
+apart in CIELAB ΔE), so a bed reads as a set of colours and a doubled number
+stands out; the die layout still tells them apart for colour-blind players. As
+a sprout grows into a bud, its tip ripens from its number's colour into the
+flower's. Seedlings breathe
 gently. Plants grow through three stages and keep the pips the whole way:
 
 1. **Sprout:** the seedling, with a few crumbs of earth heaved up round its
@@ -130,7 +137,7 @@ their sprouts slump (grown plants droop), turn straw coloured, and the plot glow
 
 ## Controls
 
-Pick a seed packet (each shows its die face), then tap a plot to plant it. Tap a
+Pick a seed packet (each shows its die face in its number's colour), then tap a plot to plant it. Tap a
 plot again with the same packet, or use the trowel, to dig it up. A seed too big
 for its bed is refused. Undo and Restart (tap twice) sit under the packets; keys
 1 to 6 pick a packet, 0 or Backspace the trowel, and Ctrl+Z undoes. The level
