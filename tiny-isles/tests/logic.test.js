@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { buildBoard, blockedBy, degrees, findHint, playerSolve, reachable, routeFrom, solve, status } from '../src/logic.js'
-import { LEVELS } from '../src/levels.js'
+import { POOLS } from '../src/levels.js'
 
 // A small warren:   A . B
 //                   . . .
@@ -64,31 +64,65 @@ test('the solved square is complete and unique', () => {
   assert.ok(s.complete)
 })
 
+const LEVELS = Object.values(POOLS).flat()
+
+test('fog hides a number but the solver still finds the one solution', () => {
+  // the square with D's number (4) hidden: its neighbours still pin it down
+  const foggy = { ...SQUARE, burrows: SQUARE.burrows.map((b, i) => (i === 3 ? [...b, 1] : b)) }
+  const board = buildBoard(foggy)
+  assert.equal(board.burrows[3].fog, true)
+  assert.deepEqual([board.burrows[3].min, board.burrows[3].max], [1, 6])
+  const solutions = solve(board, { limit: 3 })
+  assert.equal(solutions.length, 1)
+  assert.deepEqual(solutions[0], solve(buildBoard(SQUARE))[0])
+  // a fog island never reports being over its number, and is settled by any bridge
+  const s = status(board, solutions[0])
+  assert.ok(s.complete)
+  assert.deepEqual(s.over, [])
+})
+
+test('there are three pools of twenty, half of each with fog', () => {
+  assert.deepEqual(Object.keys(POOLS), ['easy', 'medium', 'hard'])
+  for (const [name, levels] of Object.entries(POOLS)) {
+    assert.equal(levels.length, 20, name)
+    assert.equal(levels.filter((l) => l.burrows.some((b) => b[3])).length, 10, `${name} fog levels`)
+  }
+})
+
 test('every shipped level is uniquely solvable by easy steps, and its solution is right', () => {
-  assert.equal(LEVELS.length, 30)
   const ids = new Set()
   for (const level of LEVELS) {
     assert.ok(!ids.has(level.id), `${level.id} is unique`)
     ids.add(level.id)
     const board = buildBoard(level)
     assert.equal(level.solution.length, board.edges.length, `${level.id} solution covers every path`)
-    assert.ok(status(board, level.solution).complete, `${level.id} solution completes the garden`)
+    assert.ok(status(board, level.solution).complete, `${level.id} solution completes the network`)
     assert.ok(board.edges.every((e) => !(level.solution[e.index] && blockedBy(board, level.solution, e.index) !== undefined)), `${level.id} solution has no crossings`)
     const player = playerSolve(board)
     assert.ok(player.solved, `${level.id} can be solved step by step`)
     assert.deepEqual(player.counts, level.solution, `${level.id} step-by-step solve matches`)
     assert.equal(solve(board, { limit: 2 }).length, 1, `${level.id} has one solution`)
+    // the hidden numbers are the real ones
+    const d = degrees(board, level.solution)
+    assert.ok(board.burrows.every((b) => d[b.index] === b.value), `${level.id} numbers match the solution`)
   }
 })
 
-test('levels grow from small meadows to big ones', () => {
-  const sizes = LEVELS.map((l) => l.burrows.length)
-  assert.ok(sizes[0] <= 5)
-  assert.ok(sizes.at(-1) >= 15)
+test('each pool asks for the techniques its name promises', () => {
+  for (const level of POOLS.easy) {
+    const { used } = playerSolve(buildBoard(level))
+    assert.equal(used.isolation + used.trial, 0, `${level.id} needs only counting`)
+  }
+  for (const level of POOLS.hard) assert.ok(playerSolve(buildBoard(level)).used.trial >= 2, `${level.id} needs looking ahead`)
+})
+
+test('levels grow from small seas to big ones', () => {
+  assert.ok(POOLS.easy[0].burrows.length <= 5)
+  assert.ok(POOLS.hard.at(-1).burrows.length >= 15)
 })
 
 test('hints point at a mistake first, then at a path the player can be sure of', () => {
-  const level = LEVELS[4]
+  const level = POOLS.easy[4]
   const board = buildBoard(level)
   const counts = board.edges.map(() => 0)
   const wrong = level.solution.findIndex((n) => n === 0)

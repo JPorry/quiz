@@ -1,24 +1,22 @@
-import { LEVELS } from './levels.js'
+import { POOLS } from './levels.js'
 import { buildBoard, blockedBy, degrees, status as boardStatus } from './logic.js'
 import { IslandScene } from './scene.js'
 import { Sounds } from './sounds.js'
 import './style.css'
 
-const STORAGE_KEY = 'tiny-isles.v1'
-const NAMES = [
-  'Pebble Bay', 'Coral Cove', 'Seashell Keys', 'Lagoon Loop', 'Driftwood Isles',
-  'Starfish Shoals', 'Puffin Point', 'Turtle Reef', 'Sandcastle Sound', 'Kelp Harbour',
-  'Lighthouse Rocks', 'Mango Atoll', 'Pelican Pier', 'Seaglass Strait', 'Breezy Banks',
-  'Sunset Archipelago', 'Dolphin Dunes', 'Tidepool Twins', 'Saltwater Skyline', 'Harbour Lights',
-  'Coconut Crossing', 'Moonbeam Marina', 'Marina Bay', 'Palm Crescent', 'Azure Heights',
-  'Pearl Towers', 'Glimmer Coast', 'Neon Waterfront', 'Skyport Isles', 'Sapphire Metropolis',
-]
+const STORAGE_KEY = 'tiny-isles.v2'
+const POOL_NAMES = { easy: 'Easy', medium: 'Medium', hard: 'Hard' }
+// every level in play order, easy to hard, each knowing which pool it is in
+const LEVELS = Object.entries(POOLS).flatMap(([pool, levels]) => levels.map((level, k) => ({ ...level, pool, number: k + 1, fog: level.burrows.some((b) => b[3]) })))
 
 const ICON = {
   prev: '<path d="M15 18l-6-6 6-6"/>',
   next: '<path d="M9 6l6 6-6 6"/>',
   undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
   restart: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>',
+  close: '<path d="M6 6l12 12M18 6 6 18"/>',
+  cloud: '<path d="M7 18h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.3 1.5A3.3 3.3 0 0 0 7 18z"/>',
+  check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
   sound: '<path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/>',
   mute: '<path d="M11 5 6 9H2v6h4l5 4z"/><path d="m22 9-6 6M16 9l6 6"/>',
 }
@@ -27,7 +25,7 @@ const icon = (name) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColo
 document.querySelector('#app').innerHTML = `
   <div class="app">
     <header>
-      <div class="badge" id="num">1</div>
+      <button class="badge" id="num" aria-label="Choose a level">1</button>
       <div class="titles"><h1 id="name"></h1><p id="prog"></p></div>
       <button class="round" id="sound" aria-label="Sound">${icon('sound')}</button>
       <button class="round" id="prev" aria-label="Previous level">${icon('prev')}</button>
@@ -41,6 +39,14 @@ document.querySelector('#app').innerHTML = `
         <button class="chip" id="restart">${icon('restart')}<span>Restart</span></button>
       </div>
     </footer>
+    <section class="picker" id="picker" hidden>
+      <div class="sheet">
+        <div class="sheethead"><h2>Choose a puzzle</h2><button class="round" id="closepicker" aria-label="Close">${icon('close')}</button></div>
+        <div class="tabs" id="tabs" role="tablist"></div>
+        <div class="grid" id="grid"></div>
+        <p class="legend">${icon('cloud')} Fog hides some islands' numbers.</p>
+      </div>
+    </section>
     <section class="win" id="win" hidden>
       <h2>All connected!</h2>
       <p id="winmeta"></p>
@@ -80,13 +86,18 @@ function start(index) {
   built = 0
   tiers = board.burrows.map(() => 0)
   $('win').hidden = true
-  $('num').textContent = levelIndex + 1
-  $('name').textContent = NAMES[levelIndex]
+  const level = LEVELS[levelIndex]
+  $('num').textContent = level.number
+  $('num').dataset.pool = level.pool
+  $('name').textContent = level.name
   scene.load(board, { seed: 5 + levelIndex * 7 })
   refresh(true)
-  say(levelIndex === 0
-    ? 'Drag from an island toward a neighbour to build a bridge. The number is how many bridges it wants.'
-    : 'Every island wants its number of bridges, and all of them must join up.')
+  if (levelIndex === 0) say('Drag from an island toward a neighbour to build a bridge. The number is how many bridges it wants.')
+  else if (level.fog && !saved.seenFog) {
+    saved.seenFog = true
+    save()
+    say('Fog hides some islands’ numbers. Work them out from their neighbours: the fog lifts when everything joins up.')
+  } else say(level.fog ? 'Fog hides some numbers. Every island still wants exactly its number of bridges.' : 'Every island wants its number of bridges, and all of them must join up.')
 }
 
 const say = (text) => { $('say').textContent = text }
@@ -97,10 +108,14 @@ function refresh(quiet = false) {
   const next = board.burrows.map((b) => Math.min(8, d[b.index]))
   if (!quiet) next.forEach((t, i) => { if (t > tiers[i]) sounds.grow(t) })
   tiers = next
-  scene.setIslands(board.burrows.map((b) => ({ tier: next[b.index], have: d[b.index], done: d[b.index] === b.value, over: d[b.index] > b.value })))
+  // a fog island gives nothing away: it only turns happy when the fog lifts on a win
+  const happy = (b) => (b.fog ? won : d[b.index] === b.value)
+  scene.setIslands(board.burrows.map((b) => ({ tier: next[b.index], have: d[b.index], done: happy(b), over: !b.fog && d[b.index] > b.value, fog: b.fog && !won })))
   scene.setBridges(counts)
-  const doneCount = board.burrows.filter((b) => d[b.index] === b.value).length
-  $('prog').textContent = `${doneCount} of ${board.burrows.length} islands happy`
+  const known = board.burrows.filter((b) => !b.fog)
+  const fogNote = known.length < board.burrows.length && !won ? ` · ${board.burrows.length - known.length} in fog` : ''
+  const counted = won ? board.burrows : known
+  $('prog').textContent = `${POOL_NAMES[LEVELS[levelIndex].pool]} · ${counted.filter(happy).length} of ${counted.length} ${fogNote ? '' : 'islands '}happy${fogNote}`
   $('undo').disabled = !history.length || won
   return st
 }
@@ -126,10 +141,13 @@ function apply(edge, next) {
   if (next > before) { sounds.build(++built); buzz(12) } else { sounds.splash(); buzz(8) }
   const st = refresh()
   const d = st.degree
-  if ([e.a, e.b].some((i) => d[i] > board.burrows[i].value)) say('That island has more bridges than its number. Tap a bridge to take it down.')
+  if ([e.a, e.b].some((i) => !board.burrows[i].fog && d[i] > board.burrows[i].value)) say('That island has more bridges than its number. Tap a bridge to take it down.')
   else if (st.closed.length) say('Some islands are closed off from the rest. Every island must join up.')
   else if (next === 2 && before === 1) say('A two-lane bridge: twice the traffic!')
-  else say(`${board.burrows.length - board.burrows.filter((b) => d[b.index] === b.value).length} islands still want bridges.`)
+  else {
+    const left = board.burrows.filter((b) => !b.fog && d[b.index] !== b.value).length
+    say(left ? `${left} ${left === 1 ? 'island still wants' : 'islands still want'} bridges.` : 'Every number is met. Now join every island, fog and all.')
+  }
   if (st.complete) win()
   return true
 }
@@ -144,7 +162,8 @@ function win() {
     sounds.win()
     scene.celebrate()
     setTimeout(() => {
-      $('winmeta').textContent = `${board.burrows.length} islands and ${counts.reduce((a, b) => a + b, 0)} bridges in ${NAMES[levelIndex]}.`
+      const level = LEVELS[levelIndex]
+      $('winmeta').textContent = `${board.burrows.length} islands and ${counts.reduce((a, b) => a + b, 0)} bridges in ${level.name}.${level.fog ? ' The fog has lifted!' : ''}`
       $('win').hidden = false
     }, 2200)
   }, 600)
@@ -261,6 +280,35 @@ $('undo').onclick = () => {
   sounds.undo()
   refresh()
 }
+/* ---------- choosing a level ---------- */
+let pickerPool = 'easy'
+function drawPicker() {
+  $('tabs').innerHTML = Object.entries(POOL_NAMES).map(([pool, label]) => {
+    const levels = LEVELS.filter((l) => l.pool === pool)
+    const done = levels.filter((l) => saved.done.includes(l.id)).length
+    return `<button role="tab" class="tab" data-pool="${pool}" aria-selected="${pool === pickerPool}">${label}<small>${done}/${levels.length}</small></button>`
+  }).join('')
+  $('grid').innerHTML = LEVELS.map((l, i) => [l, i]).filter(([l]) => l.pool === pickerPool).map(([l, i]) => {
+    const done = saved.done.includes(l.id)
+    return `<button class="tile${done ? ' done' : ''}${i === levelIndex ? ' here' : ''}" data-index="${i}" aria-label="${l.name}${l.fog ? ', with fog' : ''}${done ? ', solved' : ''}">
+      <span>${l.number}</span>${l.fog ? `<i class="fog">${icon('cloud')}</i>` : ''}${done ? `<i class="tick">${icon('check')}</i>` : ''}</button>`
+  }).join('')
+}
+function openPicker() {
+  pickerPool = LEVELS[levelIndex].pool
+  drawPicker()
+  $('picker').hidden = false
+}
+$('num').onclick = () => { sounds.unlock(); openPicker() }
+$('closepicker').onclick = () => { $('picker').hidden = true }
+$('picker').onclick = (ev) => {
+  if (ev.target === $('picker')) { $('picker').hidden = true; return }
+  const tab = ev.target.closest('.tab')
+  if (tab) { pickerPool = tab.dataset.pool; drawPicker(); return }
+  const tile = ev.target.closest('.tile')
+  if (tile) { $('picker').hidden = true; start(Number(tile.dataset.index)) }
+}
+
 let armed = false
 $('restart').onclick = () => {
   const label = $('restart').querySelector('span')

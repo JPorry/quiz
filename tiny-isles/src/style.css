@@ -28,10 +28,16 @@ button { font: inherit; cursor: pointer; -webkit-tap-highlight-color: transparen
 .app { position: relative; height: 100%; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; grid-template-columns: minmax(0, 1fr); overflow: hidden; }
 header { display: flex; align-items: center; gap: 6px; min-width: 0; padding: max(12px, env(safe-area-inset-top)) 12px 4px; }
 .badge, .round, .chip { background: var(--cream); color: var(--ink); box-shadow: 0 3px 0 #cfe3e6, 0 6px 14px rgba(40, 70, 90, .18); }
-.badge { width: 38px; height: 38px; flex: none; border-radius: 50%; display: grid; place-items: center; font: 600 18px var(--display); }
+.badge { width: 38px; height: 38px; flex: none; border: 0; border-radius: 50%; display: grid; place-items: center; font: 600 18px var(--display); transition: transform .12s; }
+.badge:active { transform: translateY(2px); box-shadow: 0 1px 0 #cfe3e6; }
+.badge:focus-visible { outline: 3px solid #ffd166; outline-offset: 2px; }
+/* the level badge wears its pool's colour */
+.badge[data-pool="easy"] { background: #e3f7e6; }
+.badge[data-pool="medium"] { background: #fff1c9; }
+.badge[data-pool="hard"] { background: #ffe0da; }
 .titles { flex: 1; min-width: 0; line-height: 1.1; }
 .titles h1 { margin: 0; font: 600 21px var(--display); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.titles p { margin: 2px 0 0; font-size: 13px; color: var(--ink-soft); white-space: nowrap; }
+.titles p { margin: 2px 0 0; font-size: 13px; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .round { width: 38px; height: 38px; flex: none; border: 0; border-radius: 50%; display: grid; place-items: center; transition: transform .12s; }
 .round:active, .chip:active { transform: translateY(2px); box-shadow: 0 1px 0 #cfe3e6; }
 .round svg { width: 19px; height: 19px; }
@@ -60,5 +66,34 @@ footer { padding: 6px 16px max(14px, env(safe-area-inset-bottom)); display: grid
 .win h2 { margin: 0; font: 600 30px var(--display); color: var(--coral); }
 .win p { margin: 4px 0 14px; color: var(--ink-soft); }
 .chip.go { background: var(--leaf); color: #fff; box-shadow: 0 3px 0 #3f9a56; height: 50px; padding: 0 26px; font-size: 17px; }
+/* the level picker: a sheet that rises from the bottom */
+.picker { position: absolute; inset: 0; display: flex; align-items: flex-end; justify-content: center; background: rgba(30, 60, 80, .35); }
+.picker[hidden] { display: none; }
+.sheet {
+  width: min(440px, 100%); max-height: 88%; overflow: auto; padding: 16px 16px max(18px, env(safe-area-inset-bottom));
+  border-radius: 26px 26px 0 0; background: var(--cream); box-shadow: 0 -10px 40px rgba(30, 60, 80, .3);
+  animation: rise .35s cubic-bezier(.2, 1.2, .4, 1) both;
+}
+.sheethead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.sheethead h2 { margin: 0; font: 600 22px var(--display); }
+.tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 4px; border-radius: 18px; background: #eef4f2; margin-bottom: 14px; }
+.tab { border: 0; border-radius: 14px; padding: 8px 4px; background: transparent; color: var(--ink-soft); font: 600 15px var(--display); display: grid; gap: 1px; }
+.tab small { font: 700 11px var(--body); opacity: .8; }
+.tab[aria-selected="true"] { background: #fff; color: var(--ink); box-shadow: 0 2px 0 #d6e4e2; }
+.grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.tile {
+  position: relative; aspect-ratio: 1; border: 0; border-radius: 16px; background: #eaf6f8; color: var(--ink);
+  font: 600 19px var(--display); box-shadow: 0 3px 0 #cfe3e6; display: grid; place-items: center;
+}
+.tile:active { transform: translateY(2px); box-shadow: 0 1px 0 #cfe3e6; }
+.tile.done { background: #e1f5e4; box-shadow: 0 3px 0 #b9dcc0; }
+.tile.here { outline: 3px solid var(--coral); outline-offset: 1px; }
+.tile i { position: absolute; display: grid; width: 18px; height: 18px; }
+.tile i svg { width: 100%; height: 100%; }
+.tile .fog { top: 4px; right: 4px; color: #8f9bb5; }
+.tile .tick { bottom: 4px; right: 4px; color: var(--leaf); }
+.legend { margin: 14px 0 0; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 13px; color: var(--ink-soft); }
+.legend svg { width: 18px; height: 18px; color: #8f9bb5; }
+@keyframes rise { from { transform: translateY(40px); opacity: 0; } }
 @keyframes pop { from { opacity: 0; transform: translate(-50%, 30px) scale(.9); } }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
