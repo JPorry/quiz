@@ -85,6 +85,8 @@ export class Sounds {
     top.forEach((n, k) => this.pluck(this.note(n), { at: k * 0.06, len: 0.5, vol: 0.18 }))
     this.pop(900, 1800, { at: 0, len: 0.09, vol: 0.08 })
   }
+  // a bridge cut with a swipe: a quick swish down
+  snip() { this.pop(1500, 380, { len: 0.12, vol: 0.14 }); this.noise({ vol: 0.05, freq: 2400, len: 0.08 }) }
   splash() { this.noise({ vol: 0.12, freq: 700, len: 0.25 }) }
   snap() { this.pluck(this.note(6), { len: 0.18, vol: 0.2 }) }
   press() { this.pop(500, 700, { len: 0.05, vol: 0.12 }) }

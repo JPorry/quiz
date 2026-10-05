@@ -96,7 +96,10 @@ hour and sets off fireworks over the cities.
 Drag from an island toward a neighbour: the bridge follows the finger plank by
 plank, and past halfway it snaps across. Drag again for a two-lane bridge, and
 a third time to take it down. Tapping a bridge, or two islands in turn, does
-the same. A bridge that would cross another stops short and the one in the way
+the same. Swiping across bridges from open water takes each one you pass over
+down at once, single or double, with a splash. Every touch sends a ripple out from the
+finger (warm yellow on an island), a swipe across the water leaves a fading
+streak, and each bridge it cuts flashes a coral starburst (`src/touch.js`). A bridge that would cross another stops short and the one in the way
 wobbles. Undo and Restart (tap twice) sit below the sea. The level badge in
 the corner opens the level picker: three tabs, Easy, Medium and Hard, each a
 grid of twenty levels marked when solved and when foggy.
