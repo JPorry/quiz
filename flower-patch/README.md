@@ -73,7 +73,22 @@ pips the whole way:
    from the middle, as big as its plot allows and more (the fewer in a plot, the
    bigger), overlapping its neighbours at slightly different heights into one
    lush carpet. The camera rises to look down on it, the light turns golden,
-   petals drift down, and bees come out.
+   petals drift down, and a crowd of bees, butterflies and ladybirds comes to see.
+
+Little visitors live in the garden (`src/insects.js`), each a chubby toy with a
+face, a sticker outline and a soft round shadow, flying with smooth steered
+motion that turns and banks gently:
+
+- **Butterflies** have round, spotted wings. They flap in little bursts and
+  glide between them, land on flowers and slowly fan their wings. Every bed in
+  flower keeps one, and it flies off if the bed is broken.
+- **Bumblebees** are round and fuzzy, with stripes and shimmering wings. They
+  zip from flower to flower and hover over each one in a tiny figure of eight.
+- **Ladybirds** flutter over with their spotted shells lifted, then settle on a
+  flower, close up and potter round its petals.
+
+Now and then a newly opened flower draws a visitor, who stops at a few flowers
+and wanders off again. Tap the lawn near a critter to make it jump.
 
 Each stage's last shape is the next one's first (a test checks this), so nothing
 ever jumps.

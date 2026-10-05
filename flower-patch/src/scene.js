@@ -1,7 +1,8 @@
 import * as THREE from 'three'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
-import { toon, outline, seeded } from './look.js'
-import { cellGeometry, COLORS, GROW_STEPS, STEPS } from './flowers.js'
+import { toon, outline } from './look.js'
+import { cellGeometry, COLORS, GROW_STEPS, PIPS, STEPS } from './flowers.js'
+import { Insects } from './insects.js'
 import { buildGarden, labels, SOIL_Y } from './garden.js'
 import { World } from './world.js'
 
@@ -20,63 +21,8 @@ const PUFF = new THREE.SphereGeometry(1, 6, 4)
 const PETAL = new THREE.CircleGeometry(1, 7)
 const SPARK = new THREE.OctahedronGeometry(1, 0)
 const RING = new THREE.RingGeometry(0.8, 1, 32).rotateX(-Math.PI / 2)
-const WING = new THREE.CircleGeometry(1, 12).scale(1, 0.75, 1).translate(1, 0, 0)
-const BODY = new THREE.CapsuleGeometry(1, 2, 2, 6)
 const EMPTY = new THREE.BufferGeometry()
 const MARK = new RoundedBoxGeometry(0.92, 0.01, 0.92, 2, 0.12)
-const BUTTERFLY_COLORS = [0xffb3d1, 0xfff0a0, 0xb8e0ff, 0xd9c2ff, 0xffd0a8, 0xffffff]
-
-class Flyer {
-  // a butterfly, or a bee when `bee` is set, circling a point in the garden
-  constructor(parent, color, bee, seed) {
-    this.group = new THREE.Group()
-    parent.add(this.group)
-    this.bee = bee
-    const wingMat = bee ? new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.75, side: THREE.DoubleSide }) : toon(color, { rim: 0.3 }).clone()
-    wingMat.side = THREE.DoubleSide
-    const size = bee ? 0.045 : 0.085
-    this.wings = [-1, 1].map((s) => {
-      const pivot = new THREE.Group()
-      const w = new THREE.Mesh(WING, wingMat)
-      w.rotation.x = -Math.PI / 2
-      w.scale.setScalar(size)
-      pivot.add(w)
-      pivot.scale.x = s
-      this.group.add(pivot)
-      return pivot
-    })
-    const body = new THREE.Mesh(BODY, toon(bee ? 0xffc93a : 0x5a4050))
-    body.scale.set(bee ? 0.03 : 0.012, bee ? 0.022 : 0.03, bee ? 0.03 : 0.012)
-    body.rotation.x = Math.PI / 2
-    this.group.add(body)
-    if (bee) {
-      const stripe = new THREE.Mesh(new THREE.TorusGeometry(1, 0.35, 5, 12), toon(0x3a2a2a))
-      stripe.scale.setScalar(0.03)
-      this.group.add(stripe)
-    }
-    const rand = seeded(seed)
-    this.phase = rand() * 10
-    this.speed = (bee ? 1.6 : 0.7) * (0.8 + rand() * 0.4)
-    this.radius = [0.35 + rand() * 0.5, 0.3 + rand() * 0.4]
-    this.home = new THREE.Vector3()
-    this.k = 0
-  }
-
-  update(dt, time) {
-    this.k = Math.min(1, this.k + dt * 0.8)
-    const t = time * this.speed + this.phase
-    const x = this.home.x + Math.cos(t) * this.radius[0]
-    const z = this.home.z + Math.sin(t * 1.3) * this.radius[1]
-    const y = this.home.y + 0.45 + Math.sin(t * 2.1) * 0.08 + (1 - this.k) * 1.5
-    const dx = -Math.sin(t) * this.radius[0], dz = Math.cos(t * 1.3) * this.radius[1] * 1.3
-    this.group.position.set(x, y, z)
-    this.group.rotation.y = Math.atan2(dx, dz)
-    const flap = Math.sin(time * (this.bee ? 60 : 16) + this.phase) * (this.bee ? 0.5 : 0.9)
-    for (const w of this.wings) w.rotation.z = flap
-  }
-
-  dispose() { this.group.removeFromParent() }
-}
 
 export class GardenScene {
   constructor(container) {
@@ -103,6 +49,7 @@ export class GardenScene {
     this.world = new THREE.Group()
     this.scene.add(this.world)
     this.around = new World(this.scene)
+    this.insects = new Insects(this.scene, this.insectGarden())
     this.ray = new THREE.Raycaster()
     this.plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -SOIL_Y)
     this.time = 0
@@ -120,12 +67,10 @@ export class GardenScene {
   // flowers: the flower of each bed; fixed: the cells planted at the start
   load(board, flowers, fixed, { seed = 1 } = {}) {
     this.world.clear()
-    for (const f of this.flyers ?? []) f.dispose()
+    this.insects.clear()
     this.board = board
     this.flowers = flowers
     this.fx = []
-    this.flyers = []
-    this.bedFlyers = new Map()
     this.glowTarget = 0
     this.elevationTarget = ELEVATION
     const garden = buildGarden(board, flowers, seed)
@@ -300,6 +245,8 @@ export class GardenScene {
       this.burst(c.i)
       this.shadowFrames = 3
       this.onPop?.(c.i, g.stage, g.rank)
+      // now and then a new flower draws a visitor
+      if (g.stage === 'bud' && Math.random() < 0.18) this.insects.visit()
     }
   }
 
@@ -319,21 +266,44 @@ export class GardenScene {
       }
       bed.target = target
       if (quiet) { bed.grow = target; u.grow.value = target; u.reach.value = 99 }
-      // a butterfly comes to visit every complete bed
-      const wants = target > 0 && this.bedFlyers.size < 7
-      if (wants && !this.bedFlyers.has(b)) {
-        const f = new Flyer(this.world, BUTTERFLY_COLORS[b % BUTTERFLY_COLORS.length], false, b * 31 + 7)
-        f.home.copy(this.bedCenter(b))
-        if (quiet) f.k = 1
-        this.bedFlyers.set(b, f)
-        this.flyers.push(f)
-      } else if (!target && this.bedFlyers.has(b)) {
-        const f = this.bedFlyers.get(b)
-        f.dispose()
-        this.flyers = this.flyers.filter((x) => x !== f)
-        this.bedFlyers.delete(b)
-      }
+      // every bed in flower keeps a butterfly; it flies off if the bed is broken
+      if (target > 0 && !this.insects.has(b)) this.insects.add('butterfly', { home: b, settled: quiet })
+      else if (!target && this.insects.has(b)) this.insects.release(b)
     })
+  }
+
+  // Where insects can go: flowers to land on, places to wander, and the way in and out.
+  insectGarden() {
+    const scene = this
+    const toWorld = (v) => scene.world.localToWorld(v)
+    return {
+      ground: SOIL_Y,
+      // the top of a random flower, in a given bed or anywhere
+      flowerSpot(home) {
+        if (!scene.board) return null
+        const open = scene.cells.filter((c) => c.value && c.stage !== 'sprout' && !c.grow && (home === null || scene.board.bedOf[c.i] === home))
+        if (!open.length) return null
+        const c = open[Math.floor(Math.random() * open.length)]
+        const [px, pz] = PIPS[c.value][Math.floor(Math.random() * c.value)]
+        const p = scene.center(c.i).add(new THREE.Vector3(px, (c.stage === 'bloom' ? 0.27 : 0.22), pz))
+        return toWorld(p)
+      },
+      wanderSpot(home) {
+        const { width, height } = scene.board
+        const p = home === null
+          ? new THREE.Vector3((Math.random() - 0.5) * width, SOIL_Y + 0.45, (Math.random() - 0.5) * height)
+          : scene.bedCenter(home).add(new THREE.Vector3((Math.random() - 0.5) * 0.8, 0.45, (Math.random() - 0.5) * 0.8))
+        return toWorld(p)
+      },
+      entrySpot() {
+        const a = Math.random() * Math.PI * 2, r = Math.max(scene.board.width, scene.board.height) * 0.55 + 0.6
+        return new THREE.Vector3(Math.cos(a) * r, 1.3, Math.sin(a) * r)
+      },
+      exitSpot(from) {
+        const a = Math.atan2(from.z, from.x) + (Math.random() - 0.5), r = Math.max(scene.board.width, scene.board.height) * 0.75 + 1.5
+        return new THREE.Vector3(Math.cos(a) * r, 1.4, Math.sin(a) * r)
+      },
+    }
   }
 
   bedCenter(b) {
@@ -382,12 +352,9 @@ export class GardenScene {
     this.glowTarget = 1
     this.elevationTarget = FINALE_ELEVATION
     this.petals = 6
-    for (let k = 0; k < 3; k++) {
-      const f = new Flyer(this.world, 0, true, 90 + k * 13)
-      f.home.set((k - 1) * 1.2, SOIL_Y, 0)
-      f.radius = [this.board.width * 0.3, this.board.height * 0.3]
-      this.flyers.push(f)
-    }
+    // a crowd of visitors comes to see
+    const crowd = ['bee', 'bee', 'butterfly', 'bee', 'ladybird', 'butterfly', 'bee']
+    crowd.forEach((kind, k) => setTimeout(() => this.insects.add(kind), 600 + k * 450))
   }
 
   /* ---------- picking ---------- */
@@ -563,7 +530,7 @@ export class GardenScene {
         bed.material.userData.grow.value = bed.grow
       }
     }
-    for (const f of this.flyers) f.update(dt, this.time)
+    this.insects.update(dt, this.time)
     this.around.update(dt, this.time)
     if (busy) this.shadowFrames = 2
     if (this.shadowFrames > 0) {
