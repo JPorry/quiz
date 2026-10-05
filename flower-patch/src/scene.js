@@ -25,11 +25,12 @@ const RING = new THREE.RingGeometry(0.8, 1, 32).rotateX(-Math.PI / 2)
 const HUMP = new THREE.SphereGeometry(1, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2)
 // how far below the soil a sprout starts
 const BURIED = 0.3
-// a sprout waking up: the soil swells, cracks, the sprout peeks out with its
-// eyes shut and stretches up, then blinks awake and wiggles (seconds)
+// a sprout waking up: the soil swells, cracks, the seedling pushes up with its
+// leaves folded, then opens them wide and wiggles (seconds)
 const SWELL = 0.38
 const RISE = 0.75
-const BLINK = SWELL + RISE + 0.2
+const BLINK = SWELL + RISE + 0.15
+const OPEN_LEAVES = 0.35
 const EMPTY = new THREE.BufferGeometry()
 const MARK = new RoundedBoxGeometry(0.92, 0.01, 0.92, 2, 0.12)
 
@@ -183,9 +184,9 @@ export class GardenScene {
         // a new seed pops up as a sprout first, and grows on from there
         this.retire(c)
         Object.assign(c, { value: s.value, stage: 'sprout', wilt: s.wilt, grow: null, pop: 1 })
-        this.show(c.plant, cellGeometry(type, 'sprout', s.value, s.wilt, undefined, true))
+        this.show(c.plant, cellGeometry(type, 'sprout', s.value, s.wilt, undefined, 1))
         this.wake(c)
-        if (s.stage !== 'sprout') c.pending = { at: this.time + BLINK + 0.35 + rank.get(i) * 0.11, change: () => this.advance(c, type, s, rank.get(i)) }
+        if (s.stage !== 'sprout') c.pending = { at: this.time + BLINK + OPEN_LEAVES + 0.35 + rank.get(i) * 0.11, change: () => this.advance(c, type, s, rank.get(i)) }
         return
       }
       if (s.stage === 'bloom' && c.stage !== 'bloom') {
@@ -573,14 +574,17 @@ export class GardenScene {
           c.plant.group.scale.set(1 - stretch * 0.4, 1 + stretch, 1 - stretch * 0.4)
         }
         if (w.t >= BLINK) {
-          // it blinks awake and gives a happy little wiggle
+          // it opens its leaves out wide, then gives a happy little wiggle
           const type = this.flowers[this.board.bedOf[c.i]]
-          if (c.stage === 'sprout') this.show(c.plant, cellGeometry(type, 'sprout', c.value, c.wilt))
-          this.endWake(c)
-          c.pop = 0
-          c.popFrom = 0.94
-          c.joy = 0
-          this.onAwake?.(c.i, c.value)
+          const k = Math.min(1, (w.t - BLINK) / OPEN_LEAVES)
+          if (c.stage === 'sprout') this.show(c.plant, cellGeometry(type, 'sprout', c.value, c.wilt, undefined, 1 - (1 - (1 - k) ** 2)))
+          if (!w.opened) { w.opened = true; this.onAwake?.(c.i, c.value) }
+          if (k >= 1) {
+            this.endWake(c)
+            c.pop = 0
+            c.popFrom = 0.94
+            c.joy = 0
+          }
         }
         busy = true
       }

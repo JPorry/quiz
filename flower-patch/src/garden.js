@@ -418,19 +418,18 @@ export function labels(cells, width, height) {
   const parts = []
   for (const i of cells) {
     const x = (i % width) + 0.5 - width / 2, z = Math.floor(i / width) + 0.5 - height / 2
-    // a chunky label: a cream board with a coral border, a painted smiling
-    // sprout and a bow, on a wooden stake, leaning back to face the camera
+    // a chunky label: a cream board with a coral border, a painted seedling
+    // and a bow, on a wooden stake, leaning back to face the camera
     const sign = []
     const add = (geometry, color, position, scale, rotation) => sign.push(part(geometry, color, position, scale, rotation))
     add(RIM, 0xb98458, [0, 0.03, 0], [0.03, 0.08, 0.026])
     add(RIM, 0xff8a7a, [0, 0.13, 0], [0.24, 0.15, 0.036])
     add(RIM, 0xfff6e6, [0, 0.13, 0.013], [0.2, 0.112, 0.032])
-    add(SPHERE, 0x6fcf52, [0, 0.12, 0.032], [0.034, 0.031, 0.007])
-    add(SPHERE, 0x5fc24a, [-0.026, 0.158, 0.032], [0.024, 0.011, 0.007], [0, 0, 0.45])
-    add(SPHERE, 0x9fe57a, [0.024, 0.16, 0.032], [0.024, 0.011, 0.007], [0, 0, -0.5])
+    // the painted seedling: a little stem, two big round leaves, two small ones
+    add(RIM, 0x7acb58, [0, 0.1, 0.032], [0.008, 0.05, 0.006])
     for (const s of [-1, 1]) {
-      add(SPHERE, 0x3a2e3e, [s * 0.012, 0.125, 0.04], [0.005, 0.0065, 0.003])
-      add(SPHERE, 0xff9fb2, [s * 0.022, 0.115, 0.039], [0.0065, 0.0037, 0.003])
+      add(SPHERE, 0x68c950, [s * 0.026, 0.128, 0.034], [0.026, 0.017, 0.007], [0, 0, s * -0.35])
+      add(SPHERE, 0x8fe06a, [s * 0.012, 0.15, 0.036], [0.016, 0.012, 0.007], [0, 0, s * -0.9])
       // a bow on the top corner
       add(SPHERE, 0xff6fa8, [0.09 + s * 0.026, 0.208, 0.01], [0.029, 0.018, 0.013], [0, 0, s * 0.4])
     }
