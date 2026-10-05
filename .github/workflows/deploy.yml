@@ -31,6 +31,7 @@ jobs:
             tidal-garden/package-lock.json
             bunny-burrows/package-lock.json
             tiny-isles/package-lock.json
+            flower-patch/package-lock.json
 
       - name: Set up GitHub Pages
         uses: actions/configure-pages@v6
@@ -81,6 +82,21 @@ jobs:
 
       - name: Publish Tiny Isles under /tiny-isles/
         run: cp -R tiny-isles/dist dist/tiny-isles
+
+      - name: Install Flower Patch dependencies
+        working-directory: flower-patch
+        run: npm ci --no-audit --no-fund
+
+      - name: Test Flower Patch
+        working-directory: flower-patch
+        run: npm test
+
+      - name: Build Flower Patch
+        working-directory: flower-patch
+        run: npm run build
+
+      - name: Publish Flower Patch under /flower-patch/
+        run: cp -R flower-patch/dist dist/flower-patch
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5
