@@ -25,6 +25,9 @@ export const PIPS = {
   5: [[-D, -D], [D, -D], [0, 0], [-D, D], [D, D]],
   6: [[-0.2, -0.24], [0.2, -0.24], [-0.2, 0], [0.2, 0], [-0.2, 0.24], [0.2, 0.24]],
 }
+// MOCKUP: ?mock=color tints each number; ?mock=leaves grows one plant with N leaves
+export const MOCK = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('mock') : null
+export const NUM = { 1: 0xff5a5a, 2: 0xff9a2e, 3: 0xffd83a, 4: 0x4aa8ff, 5: 0xa66bff, 6: 0xff6fc8 }
 // fewer sprouts grow bigger, so a single one fills its cell like a big pip
 const SCALE = { 1: 1.55, 2: 1.3, 3: 1.18, 4: 1.12, 5: 1.02, 6: 0.95 }
 // Buds are all one size, whatever their number.
@@ -204,7 +207,8 @@ const K = 1.8
 // flower's colour, petals grow out of it and wrap round it, and the seedling's
 // leaves slide down to become the bud's rosette. Lavender and forget-me-nots
 // grow a cluster of little beads instead.
-function morph(add, type, spin, g, wilt, fold = 0) {
+function morph(add, type, spin, g, wilt, fold = 0, value = 1) {
+  const tint = MOCK === 'color' ? NUM[value] : null
   const c = COLORS[type] ?? COLORS.daisy
   const cluster = CLUSTER.has(type)
   const wrap = new THREE.Color(c.petal).lerp(new THREE.Color(0xffffff), 0.25).getHex()
@@ -245,7 +249,7 @@ function morph(add, type, spin, g, wilt, fold = 0) {
     const a = spin + (k / 3) * Math.PI * 2
     const to = { p: [Math.cos(a) * 0.035 * K, 0.014 * K, Math.sin(a) * 0.035 * K], s: [0.042 * K, 0.014 * K, 0.03 * K], tilt: 0.25 }
     const turn = lerp(-from.a, -a, unfurl)
-    add(PETAL, mix(from.color, c.leaf, unfurl), from.p.map((v, i) => lerp(v, to.p[i], unfurl)), from.s.map((v, i) => lerp(v, to.s[i], unfurl)), [0, turn, lerp(from.tilt, to.tilt, unfurl)])
+    add(PETAL, mix(tint ? new THREE.Color(from.color).lerp(new THREE.Color(tint), from.color === SPROUT ? 0.6 : 0.15).getHex() : from.color, c.leaf, unfurl), from.p.map((v, i) => lerp(v, to.p[i], unfurl)), from.s.map((v, i) => lerp(v, to.s[i], unfurl)), [0, turn, lerp(from.tilt, to.tilt, unfurl)])
   }
   const tuck = 1 - smooth(0, 0.5, g)
   if (tuck > 0.01) {
@@ -262,7 +266,8 @@ function morph(add, type, spin, g, wilt, fold = 0) {
   // the middle bead of a cluster
   const body = cluster ? { y: 0.11 * K, r: [0.038 * K, 0.036 * K, 0.038 * K], color: beadColors[0] } : { y: 0.092 * K, r: [0.072 * K, 0.074 * K, 0.072 * K], color: c.petal }
   const by = L(0.088 + fold * 0.012, body.y)
-  add(ROUND, mix(SPROUT_LIGHT, body.color, blush), [0, by, 0], [L(0.02, body.r[0]), L(0.026, body.r[1]), L(0.02, body.r[2])])
+  const tip = tint ? 2 : 1
+  add(ROUND, mix(tint ?? SPROUT_LIGHT, body.color, blush), [0, by, 0], [L(0.02 * tip, body.r[0]), L(0.026 * tip, body.r[1]), L(0.02 * tip, body.r[2])])
   // a green cup grows under the bud
   if (!cluster) {
     const cup = smooth(0.35, 1, g)
@@ -289,6 +294,30 @@ function morph(add, type, spin, g, wilt, fold = 0) {
     const color = { daisy: 0xffd34d, sunflower: 0x9a6a3a, buttercup: 0xffaa33 }[type] ?? wrap
     if (tip > 0.01) add(PETAL, color, [0, 0.164 * K, 0], [0.02 * K * tip, 0.014 * K * tip, 0.02 * K * tip])
   }
+}
+
+// MOCKUP: one seedling whose number of leaves is its seed: a single round leaf,
+// a pair, a clover, a four-leaf clover, a five-leaf star, a six-leaf rosette.
+// Every leaf is a plump heart of two lobes.
+function leafy(add, n, spin, fold, wilt) {
+  add(STEM, SPROUT_STEM, [0, -0.02, 0], [0.014, 0.085, 0.014])
+  // the leaves meet in the middle like a clover's, close enough to read as one plant
+  const lobe = n === 1 ? 0.07 : n === 6 ? 0.048 : 0.055
+  for (let k = 0; k < n; k++) {
+    const a = spin + (k / n) * Math.PI * 2
+    const tilt = wilt ? -0.3 : lerp(n === 1 ? 0.1 : 0.2, 1.2, fold)
+    const r = n === 1 ? 0 : Math.max(lobe * 1.05, n * lobe * 0.38)
+    const cx = Math.cos(a) * r * (1 - fold * 0.6), cz = Math.sin(a) * r * (1 - fold * 0.6)
+    const y = 0.07 + Math.sin(tilt) * r * 0.3
+    const color = k % 2 ? SPROUT : SPROUT_LEAF
+    for (const side of [-1, 1]) {
+      const px = -Math.sin(a) * lobe * 0.55 * side, pz = Math.cos(a) * lobe * 0.55 * side
+      add(PETAL, color, [cx + px, y, cz + pz], [lobe * 1.05, lobe * 0.3, lobe * 0.85], [0, -a, tilt])
+    }
+    // a pale vein down the middle of the heart
+    add(PETAL, SPROUT_LIGHT, [cx - Math.cos(a) * lobe * 0.2, y + lobe * 0.2, cz - Math.sin(a) * lobe * 0.2], [lobe * 0.7, lobe * 0.12, lobe * 0.16], [0, -a, tilt])
+  }
+  if (n > 1) add(ROUND, SPROUT_LIGHT, [0, 0.085, 0], [0.026, 0.026, 0.026])
 }
 
 // A bud opening into its flower, b from 0 (exactly the finished bud of morph)
@@ -393,6 +422,16 @@ export function cellGeometry(type, stage, value, wilt = false, step = stage === 
   if (cache.has(key)) return cache.get(key)
   const all = []
   const flat = []
+  if (MOCK === 'leaves' && stage === 'sprout') {
+    const m = new THREE.Matrix4().makeScale(2.3, 2.3, 2.3)
+    if (wilt) m.multiply(new THREE.Matrix4().makeScale(1.1, 0.72, 1.1))
+    const { parts, add } = builder(m, wilt)
+    leafy(add, value, value * 0.7 + 0.4, fold, wilt)
+    const shapes = { body: merge(parts), face: null }
+    shapes.body.computeBoundingSphere()
+    cache.set(key, shapes)
+    return shapes
+  }
   const g = stage === 'bud' ? step / GROW_STEPS : 0
   const toBud = Math.min(1, g * 2), opening = Math.max(0, g * 2 - 1)
   const s = stage === 'bloom' ? GROWN : lerp(SCALE[value], GROWN, toBud)
@@ -406,7 +445,7 @@ export function cellGeometry(type, stage, value, wilt = false, step = stage === 
     const { parts, flats, add } = builder(m, wilt)
     if (stage === 'bloom') bloom(add, type, spin, 1, lerp(OPEN, BLOOM[value], smooth(0, 1, step / STEPS)), k)
     else if (opening > 0) bloom(add, type, spin, opening, OPEN, k)
-    else morph(add, type, spin, toBud, wilt, fold)
+    else morph(add, type, spin, toBud, wilt, fold, value)
     all.push(...parts)
     flat.push(...flats)
   })
