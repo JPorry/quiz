@@ -59,9 +59,10 @@ const SPROUT_LIGHT = 0xbdf28a
 const SPROUT_LEAF = 0x5fc24a
 const FACE = 0x3a2e3e
 const CHEEK = 0xff9fb2
-const MOUND = 0x5e3a24
-const EARTH = 0x7a4e33
-const SOIL_RING = new THREE.TorusGeometry(1, 0.42, 8, 18).rotateX(Math.PI / 2)
+// crumbs of earth match the soil's own colour, so they read as part of it
+const EARTH = 0x8a5b3a
+const EARTH_LIGHT = 0x9c6a45
+const CRUMB = new THREE.IcosahedronGeometry(1, 1)
 const STRAW = new THREE.Color(0xc9a45c)
 
 // A part placed in plant space, then carried to its spot in the cell.
@@ -193,7 +194,7 @@ const CLUSTER = new Set(['lavender', 'forgetmenot'])
 // buds are drawn this much bigger than the sprout's own units, as chunky as it
 const K = 1.8
 // how high the middle of a sprout's body sits: low, so it is half in the soil
-const SEAT = 0.034
+const SEAT = 0.03
 
 // A plant on its way from sprout to bud, g from 0 to 1. It is one creature the
 // whole way, every part carried continuously from one shape to the other:
@@ -216,16 +217,16 @@ function morph(add, type, spin, g, wilt) {
   const beadColors = type === 'lavender' ? [c.petal, 0xbb9af2] : [0xffb3d1, c.petal]
   const blush = smooth(0.15, 0.85, g)
   const L = (a, b) => lerp(a, b, g)
-  // the soil mound sinks away
-  // the sprout sits half buried, a little ring of loose earth hugging it; the
-  // earth settles back as the bud rises out of it
-  const mound = 1 - smooth(0, 0.7, g)
-  if (mound > 0.01) {
-    add(SPHERE, MOUND, [0, -0.004, 0], [0.11 * mound, 0.02, 0.11 * mound])
-    add(SOIL_RING, EARTH, [0, 0.008, 0], [0.095 * mound, 0.07 * mound, 0.095 * mound])
-    for (let k = 0; k < 4; k++) {
-      const a = spin + k * 1.7
-      add(BALL, k % 2 ? EARTH : MOUND, [Math.cos(a) * 0.115 * mound, 0.004, Math.sin(a) * 0.11 * mound], [0.016 * mound, 0.01 * mound, 0.014 * mound])
+  // The sprout pushes up through the soil, its lower half still buried, with a
+  // few crumbs of the same earth heaved up around it. They settle back into
+  // the soil as the bud rises out of it.
+  const heave = 1 - smooth(0, 0.6, g)
+  if (heave > 0.01) {
+    for (let k = 0; k < 5; k++) {
+      const a = spin + k * 1.27
+      const d = 0.1 + (k % 2) * 0.014
+      const r = (0.028 - (k % 3) * 0.005) * heave
+      add(CRUMB, k % 2 ? EARTH : EARTH_LIGHT, [Math.cos(a) * d, -0.004, Math.sin(a) * d * 0.9], [r * 1.3, r * 0.8, r], [0.3, a, 0.2])
     }
   }
   // leaves unfurl from the soil

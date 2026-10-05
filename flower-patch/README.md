@@ -31,8 +31,15 @@ bed is a planter: soil sunk inside a terracotta brick wall of four courses laid
 like a real wall, each shifted half a brick, with cream mortar between, running
 from the lawn to a rim well above the soil. Pips sit a little in from each
 plot's edges, so sprouts, buds and labels always stay inside the wall, with a strip of striped lawn between beds, so the
-regions read at a glance. Faint dashed furrows split a bed into its plots, and
-a white picket fence, bushes, mushrooms, and a watering can sit around the edge.
+regions read at a glance.
+
+The soil is a real surface, not a picture (`soilSurface` in `src/garden.js`):
+every plot is a soft, rounded mound of earth, highest in the middle where its
+plants grow, dipping into a furrow where it meets the next plot and settling
+lower against the wall, with small lumps all over. It is shaded by its own
+shape (furrows and the foot of the wall darker, crowns lighter), mottled with
+damper and drier patches, and scattered with little clods. When a bed flowers,
+the same mounds turn into soft green cushions of moss. A white picket fence, bushes, mushrooms, and a watering can sit around the edge.
 Rows stretch a little to make up for the tilt, so plots look square and the
 garden fills a tall phone.
 
@@ -50,8 +57,9 @@ Each sprout is a soft mochi-round seedling with two tiny leaves tucked on top,
 big shiny eyes, rosy cheeks and a little smile, and it breathes gently. Plants grow through three stages and keep the
 pips the whole way:
 
-1. **Sprout:** a round, smiling seedling sitting half buried in the soil, a little
-   ring of loose earth hugging it, the same for every bed.
+1. **Sprout:** a round, smiling seedling pushing up through the top of its
+   mound, its lower half still buried, with a few crumbs of the same earth
+   heaved up around it. The same for every bed.
    It pops up with a squash and stretch when planted.
 2. **Flower:** once a bed holds 1 to N with no clashes, it bursts into flower. A
    beat after the tap, a wave runs through the bed from the plot just planted,
