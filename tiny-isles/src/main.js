@@ -2,6 +2,7 @@ import { POOLS } from './levels.js'
 import { buildBoard, blockedBy, degrees, status as boardStatus } from './logic.js'
 import { IslandScene } from './scene.js'
 import { Sounds } from './sounds.js'
+import { TouchFx } from './touch.js'
 import './style.css'
 
 const STORAGE_KEY = 'tiny-isles.v2'
@@ -63,6 +64,7 @@ const save = () => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(save
 
 const sounds = new Sounds()
 const scene = new IslandScene($('stage'))
+const touch = new TouchFx($('stage'))
 // every plank that lands plinks a little higher than the last
 let lastPlank = 0
 scene.onPlank = (along) => {
@@ -186,7 +188,8 @@ canvas.addEventListener('pointerdown', (ev) => {
   canvas.setPointerCapture(ev.pointerId)
   const island = scene.islandAt(p)
   drag = { id: ev.pointerId, island, start: p, last: p, cut: new Set(), sx: ev.clientX, sy: ev.clientY, moved: false, edge: null, progress: 0, shown: 0, snapped: false }
-  if (island !== null) { scene.bounce(island); sounds.press() }
+  touch.ripple(ev.clientX, ev.clientY, island !== null)
+  if (island !== null) { scene.bounce(island); sounds.press() } else touch.startSwipe(ev.clientX, ev.clientY)
 })
 
 canvas.addEventListener('pointermove', (ev) => {
@@ -195,7 +198,8 @@ canvas.addEventListener('pointermove', (ev) => {
   if (!p) return
   if (Math.hypot(ev.clientX - drag.sx, ev.clientY - drag.sy) > 9) drag.moved = true
   if (drag.island === null) {
-    if (drag.moved) cutAcross(drag.last, p)
+    touch.extend(ev.clientX, ev.clientY)
+    if (drag.moved) cutAcross(drag.last, p, ev)
     drag.last = p
     return
   }
@@ -216,13 +220,14 @@ canvas.addEventListener('pointermove', (ev) => {
 // single or double, each as its own step to undo.
 const side = (p, a, b) => (b.x - a.x) * (p.z - a.z) - (b.z - a.z) * (p.x - a.x)
 const crosses = (p1, p2, q1, q2) => side(p1, q1, q2) * side(p2, q1, q2) < 0 && side(q1, p1, p2) * side(q2, p1, p2) < 0
-function cutAcross(from, to) {
+function cutAcross(from, to, ev) {
   for (const e of board.edges) {
     if (!counts[e.index] || drag.cut.has(e.index)) continue
     const [a, b] = scene.ends(e.index)
     if (!crosses(from, to, a, b)) continue
     drag.cut.add(e.index)
     sounds.snip()
+    touch.cut(ev.clientX, ev.clientY)
     scene.droplets(to, 6)
     apply(e.index, 0)
   }
@@ -360,6 +365,7 @@ function frame(now) {
     updateDrag(dt)
     scene.update(dt)
     scene.render()
+    if (touch.busy || touch.drawn) { touch.update(dt); touch.drawn = touch.busy }
   }
   requestAnimationFrame(frame)
 }
@@ -384,5 +390,6 @@ window.__isles = {
   scene, start, apply,
   get counts() { return counts },
   get board() { return board },
-  advance(seconds) { for (let t = 0; t < seconds; t += 1 / 30) { updateDrag(1 / 30); scene.update(1 / 30) } scene.render() },
+  advance(seconds) { for (let t = 0; t < seconds; t += 1 / 30) { updateDrag(1 / 30); scene.update(1 / 30); touch.update(1 / 30) } scene.render() },
+  touch,
 }
