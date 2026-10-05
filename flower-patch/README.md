@@ -57,9 +57,9 @@ little plant on a short stem: two big, round seed leaves low and wide, two
 smaller, paler leaves standing up between them, and a curled new leaf in the
 middle. From above the rosette reads as one round pip. Every number also has its
 own colour, carried by the seedling's bud tip and its little upright leaves, and
-by the dots on its seed packet: 1 red, 2 orange, 3 lemon, 4 sky blue, 5 violet,
-6 white. They differ in lightness as well as hue (every pair is at least 50
-apart in CIELAB ΔE), so a bed reads as a set of colours and a doubled number
+by the dots on its seed packet, in soft pastels: 1 strawberry, 2 apricot,
+3 butter, 4 baby blue, 5 lilac, 6 white. They differ in lightness as well as
+hue (every pair is at least 42 apart in CIELAB ΔE), so a bed reads as a set of colours and a doubled number
 stands out; the die layout still tells them apart for colour-blind players. As
 a sprout grows into a bud and opens, it keeps its number's colour all the way
 into full bloom. Seedlings breathe
@@ -128,9 +128,11 @@ number's colour, inner petals in a lighter or deeper shade of it, and a golden
 eye picked to stand out against it. So a finished bed is one kind of flower in
 1 to N different colours, and the numbers still read in full bloom. A bed's
 green carpet is strewn with petals in its numbers' colours. They are built to
-look cosy, like a box of sweets: plump round petals, big soft centres, short
-chunky stems and round leaves, with no spikes or thin slivers (and no faces).
-Each flower sits in a little green cup.
+look soft, round and bulky, like plush toys: every petal is a plump pillow
+nearly as thick as it is wide, petals crowd and overlap so each head reads as
+one rounded bloom with a scalloped edge, and centres are big soft domes with a
+little glossy shine. Short chunky stems and round leaves, no spikes or thin
+slivers (and no faces). Each flower sits in a little green cup.
 
 Beds that touch, even at a corner, never share a kind of flower
 (`assignFlowers` in `src/logic.js`). A single-plot bed always grows a sunflower.

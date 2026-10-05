@@ -13,7 +13,7 @@ const SPHERE = new THREE.SphereGeometry(1, 8, 6)
 const ROUND = new THREE.SphereGeometry(1, 16, 12)
 const STEM = new THREE.CylinderGeometry(1, 1, 1, 5).translate(0, 0.5, 0)
 // petals and centres are smooth and round
-const PETAL = new THREE.SphereGeometry(1, 10, 7)
+const PETAL = new THREE.SphereGeometry(1, 14, 10)
 
 // Where the plants go in a cell (x, z), like a die's pips.
 const D = 0.22
@@ -27,10 +27,11 @@ export const PIPS = {
 }
 // Every seed number has its own colour, carried by the sprout's bud tip and
 // its little upright leaves, and by the dots on its seed packet. They are far
-// apart in hue and in lightness (red, orange, lemon, sky, violet, white), so
+// apart in hue and in lightness (soft pastels: strawberry, apricot, butter,
+// baby blue, lilac, white), so
 // no two are easily confused, even for colour-blind players; the die layout
 // still tells them apart too.
-export const NUM = { 1: 0xe8333c, 2: 0xff9014, 3: 0xffe83a, 4: 0x3aa8ff, 5: 0x8a4dff, 6: 0xffffff }
+export const NUM = { 1: 0xff8a9a, 2: 0xff9f55, 3: 0xfff27a, 4: 0x7fc3ff, 5: 0xbc8cff, 6: 0xffffff }
 // fewer sprouts grow bigger, so a single one fills its cell like a big pip
 const SCALE = { 1: 1.55, 2: 1.3, 3: 1.18, 4: 1.12, 5: 1.02, 6: 0.95 }
 // Buds are all one size, whatever their number.
@@ -64,6 +65,8 @@ export const FLOWERS_ALL = Object.keys(COLORS)
 // its kind, with a lighter and a deeper shade of it for the inner petals and a
 // golden eye that stands out against it.
 const tone = (hex, to, k) => new THREE.Color(hex).lerp(new THREE.Color(to), k).getHex()
+// the same hue, a little deeper and richer, never muddy
+const shade = (hex, dl) => { const h = new THREE.Color(hex).getHSL({}); return new THREE.Color().setHSL(h.h, Math.min(1, h.s + 0.1), h.l + dl).getHex() }
 const palettes = new Map()
 export function palette(type, value) {
   const key = `${type}|${value}`
@@ -74,11 +77,11 @@ export function palette(type, value) {
     palettes.set(key, {
       petal,
       leaf: base.leaf,
-      light: pale ? 0xf4f1ff : tone(petal, 0xffffff, 0.38),
-      dark: pale ? 0xc9c0e0 : tone(petal, 0x2a1a40, 0.35),
+      light: pale ? 0xf4f1ff : tone(petal, 0xffffff, 0.32),
+      dark: pale ? 0xd6cfe8 : shade(petal, -0.14),
       // the eye: gold, or deeper amber where the petals are yellow or white
-      eye: value === 3 || value === 6 ? 0xffa630 : value === 2 ? 0xffe066 : 0xffd34d,
-      carpet: '#' + tone(petal, 0xffffff, pale ? 0 : 0.2).toString(16).padStart(6, '0'),
+      eye: value === 3 || value === 6 ? 0xffbb55 : value === 2 ? 0xffec8a : 0xffe07a,
+      carpet: '#' + tone(petal, 0xffffff, pale ? 0 : 0.1).toString(16).padStart(6, '0'),
     })
   }
   return palettes.get(key)
@@ -118,88 +121,98 @@ function petal(add, color, a, r, y, [len, thick, wid], tilt, geometry = SPHERE) 
 const lerp = (a, b, k) => a + (b - a) * k
 
 // A flower head sitting at height y, half open at `open` 0 and fully at 1.
-// Every flower is built from plump, rounded petals and big soft centres, so
-// the garden looks like a box of sweets: no spikes, no thin slivers.
+// Every flower is soft, round and bulky, like a plush toy: each petal is a
+// plump pillow nearly as thick as it is wide, petals crowd and overlap so the
+// head reads as one rounded bloom with a scalloped edge, and the centre is a
+// big soft dome with a little shine. No spikes, no thin slivers, no faces.
 function head(add, type, y, open, spin, value = 1) {
   const c = palette(type, value)
-  const ring = (n, color, r, size, closed, opened, at = y, offset = 0) => {
-    for (let k = 0; k < n; k++) petal(add, color, spin + offset + (k / n) * Math.PI * 2, r, at, size, lerp(closed, opened, open), PETAL)
+  // n pillowy petals of length len and width wid, puff times as thick as wide
+  const ring = (n, color, r, [len, wid], closed, opened, at = y, offset = 0, puff = 0.65) => {
+    for (let k = 0; k < n; k++) petal(add, color, spin + offset + (k / n) * Math.PI * 2, r, at, [len, wid * puff, wid], lerp(closed, opened, open), PETAL)
   }
-  const dome = (color, at, r, flat = 0.6) => add(PETAL, color, [0, at, 0], [r, r * flat, r])
+  const dome = (color, at, r, flat = 0.75) => add(ROUND, color, [0, at, 0], [r, r * flat, r])
+  // a glossy highlight on a centre, drawn without an outline
+  const shine = (at, r, flat = 0.75) => { if (open > 0.5) add(ROUND, 0xffffff, [-r * 0.32, at + r * flat * 0.62, -r * 0.32], [r * 0.3, r * 0.16, r * 0.24], [0, 0.7, 0], true) }
   switch (type) {
     case 'tulip':
-      // a plump cup that never quite opens: three petals outside, three in
-      ring(3, c.petal, 0.006, [0.06, 0.05, 0.05], 1.42, 1.0)
-      ring(3, c.light, 0.004, [0.055, 0.045, 0.045], 1.5, 1.15, y + 0.006, Math.PI / 3)
-      if (open > 0.5) dome(c.eye, y + 0.03, 0.018)
+      // a plump egg of a cup that never quite opens
+      ring(3, c.petal, 0.004, [0.058, 0.058], 1.45, 1.05, y, 0, 0.82)
+      ring(3, c.light, 0.002, [0.052, 0.052], 1.55, 1.2, y + 0.008, Math.PI / 3, 0.82)
+      if (open > 0.5) { dome(c.eye, y + 0.032, 0.018); shine(y + 0.032, 0.018) }
       break
     case 'marigold':
-      // a puffy pompom of round petals
-      ring(9, c.petal, 0.02, [0.04, 0.032, 0.036], 1.2, 0.28)
-      ring(7, c.light, 0.012, [0.034, 0.03, 0.032], 1.35, 0.7, y + 0.016, 0.35)
-      dome(c.eye, y + 0.03, 0.03, 0.8)
+      // a puffy pompom: two layers of fat round petals heaped into a ball
+      ring(8, c.petal, 0.016, [0.04, 0.042], 1.1, 0.3, y, 0, 0.78)
+      ring(6, c.light, 0.01, [0.034, 0.036], 1.3, 0.75, y + 0.018, 0.4, 0.82)
+      dome(c.petal, y + 0.036, 0.028, 0.9)
+      shine(y + 0.036, 0.028, 0.9)
       break
     case 'buttercup':
-      // five round, glossy cupped petals around a big soft eye
-      ring(5, c.petal, 0.006, [0.05, 0.028, 0.05], 1.3, 0.55)
-      dome(c.eye, y + 0.012, 0.026)
-      dome(0xfff6c8, y + 0.022, 0.012)
+      // five round, cupped pillows around a big soft eye
+      ring(5, c.petal, 0.008, [0.05, 0.054], 1.25, 0.5)
+      dome(c.eye, y + 0.018, 0.03)
+      shine(y + 0.018, 0.03)
       break
     case 'daisy':
-      // eight chubby white petals and a big golden button
-      ring(8, open > 0.4 ? c.petal : c.light, 0.022, [0.055, 0.018, 0.034], 1.3, 0.12)
-      dome(c.eye, y + 0.012, 0.036, 0.7)
-      dome(0xffe27a, y + 0.024, 0.02)
+      // eight chubby petals and a big round button
+      ring(8, open > 0.4 ? c.petal : c.light, 0.02, [0.05, 0.036], 1.3, 0.14, y, 0, 0.72)
+      dome(c.eye, y + 0.016, 0.036)
+      shine(y + 0.016, 0.036)
       break
     case 'forgetmenot':
-      // a posy of three round florets, pink in bud
+      // a posy of three round florets of fat little beads
       for (let f = 0; f < 3; f++) {
         const a = spin + (f / 3) * Math.PI * 2
-        const fx = Math.cos(a) * 0.04, fz = Math.sin(a) * 0.04, fy = y + (f === 0 ? 0.012 : 0)
-        if (open < 0.5) { add(PETAL, c.light, [fx, fy + 0.01, fz], [0.032, 0.03, 0.032]); continue }
+        const fx = Math.cos(a) * 0.042, fz = Math.sin(a) * 0.042, fy = y + (f === 0 ? 0.014 : 0)
+        if (open < 0.5) { add(ROUND, c.light, [fx, fy + 0.012, fz], [0.034, 0.032, 0.034]); continue }
         for (let k = 0; k < 5; k++) {
           const pa = a + (k / 5) * Math.PI * 2
-          add(PETAL, c.petal, [fx + Math.cos(pa) * 0.027, fy, fz + Math.sin(pa) * 0.027], [0.027, 0.014, 0.027])
+          add(ROUND, c.petal, [fx + Math.cos(pa) * 0.026, fy + 0.004, fz + Math.sin(pa) * 0.026], [0.03, 0.022, 0.03])
         }
-        add(PETAL, c.eye, [fx, fy + 0.009, fz], [0.014, 0.011, 0.014])
+        add(ROUND, c.eye, [fx, fy + 0.016, fz], [0.016, 0.013, 0.016])
       }
       break
     case 'cornflower':
-      // six round blue petals with a white halo and a deep blue middle
-      ring(6, c.petal, 0.012, [0.055, 0.026, 0.048], 1.3, 0.3)
-      ring(6, c.light, 0.006, [0.026, 0.02, 0.024], 1.4, 0.55, y + 0.01, Math.PI / 6)
-      dome(c.dark, y + 0.018, 0.022, 0.8)
+      // six round petals, a ring of soft beads and a deep middle
+      ring(6, c.petal, 0.01, [0.05, 0.048], 1.25, 0.3)
+      ring(6, c.light, 0.006, [0.024, 0.026], 1.4, 0.55, y + 0.016, Math.PI / 6, 0.85)
+      dome(c.dark, y + 0.024, 0.024, 0.85)
+      shine(y + 0.024, 0.024, 0.85)
       break
     case 'lavender': {
-      // a plump purple puff of little beads, pale until it opens
+      // a plump puff of round beads, pale until it opens
       const size = lerp(0.8, 1.15, open)
       const color = open < 0.5 ? c.light : c.petal
       for (let k = 0; k < 7; k++) {
         const a = spin + (k / 7) * Math.PI * 2
-        add(PETAL, k % 2 ? color : c.light, [Math.cos(a) * 0.034 * size, y + 0.012, Math.sin(a) * 0.034 * size], [0.024 * size, 0.022 * size, 0.024 * size])
+        add(ROUND, k % 2 ? color : c.light, [Math.cos(a) * 0.034 * size, y + 0.012, Math.sin(a) * 0.034 * size], [0.027 * size, 0.025 * size, 0.027 * size])
       }
-      add(PETAL, c.dark, [0, y + 0.03 * size, 0], [0.03 * size, 0.028 * size, 0.03 * size])
-      add(PETAL, c.light, [-0.008, y + 0.05 * size, -0.006], [0.01, 0.008, 0.01])
+      add(ROUND, c.petal, [0, y + 0.032 * size, 0], [0.033 * size, 0.031 * size, 0.033 * size])
+      shine(y + 0.032 * size, 0.033 * size, 0.94)
       break
     }
     case 'pansy':
-      // five big round petals overlapping, with a golden eye
-      ring(2, c.light, 0.008, [0.058, 0.02, 0.06], 1.3, 0.35, y + 0.004, -Math.PI / 2 - 0.5)
-      ring(3, c.petal, 0.008, [0.056, 0.022, 0.058], 1.3, 0.3, y + 0.01, Math.PI / 2 - 2.1)
-      if (open > 0.5) add(PETAL, c.dark, [0, y + 0.02, 0.01], [0.026, 0.006, 0.026])
-      dome(c.eye, y + 0.024, 0.014)
+      // five big, round, overlapping pillows with a soft blotch and an eye
+      ring(2, c.light, 0.006, [0.058, 0.062], 1.3, 0.35, y + 0.004, -Math.PI / 2 - 0.5, 0.6)
+      ring(3, c.petal, 0.006, [0.056, 0.06], 1.3, 0.3, y + 0.012, Math.PI / 2 - 2.1, 0.6)
+      if (open > 0.5) add(ROUND, c.dark, [0, y + 0.026, 0.008], [0.026, 0.008, 0.026])
+      dome(c.eye, y + 0.03, 0.016)
+      shine(y + 0.03, 0.016)
       break
     case 'rose':
-      // a round cabbage rose: rings of cupped petals around a tight swirl
-      ring(5, c.petal, 0.022, [0.05, 0.036, 0.048], 1.25, 0.6)
-      ring(4, c.light, 0.012, [0.04, 0.034, 0.04], 1.45, 1.05, y + 0.014, 0.6)
-      dome(c.dark, y + 0.032, 0.026, 0.9)
+      // a round cabbage rose: three rings of cupped pillows heaped into a ball
+      ring(6, c.petal, 0.02, [0.048, 0.052], 1.2, 0.55, y, 0, 0.7)
+      ring(5, c.light, 0.01, [0.04, 0.044], 1.4, 1.0, y + 0.016, 0.6, 0.75)
+      ring(3, c.petal, 0.004, [0.03, 0.034], 1.5, 1.3, y + 0.032, 1.1, 0.8)
+      dome(c.light, y + 0.042, 0.018, 0.9)
       break
     case 'sunflower':
-      // ten round golden petals around a big brown button
-      ring(10, c.petal, 0.04, [0.06, 0.016, 0.034], 1.3, 0.1)
-      dome(0x7a4a26, y + 0.008, 0.06, 0.45)
-      dome(0x8a5a2b, y + 0.018, 0.04, 0.45)
+      // ten chubby petals around a big, soft, toasty button
+      ring(10, c.petal, 0.04, [0.055, 0.034], 1.3, 0.1, y, 0, 0.72)
+      dome(0xa8774e, y + 0.012, 0.058, 0.5)
+      dome(0xc08c5c, y + 0.024, 0.04, 0.5)
+      shine(y + 0.024, 0.04, 0.5)
       break
   }
 }
@@ -381,12 +394,12 @@ function bloom(add, type, spin, b, size, k, value = 1) {
   const h = size / (GROWN * spread(type)) * smooth(0, 0.75, b)
   if (h < 0.002) return
   const headParts = []
-  const into = (geometry, color, position, scale, rotation) => headParts.push([geometry, color, position, scale, rotation])
+  const into = (geometry, color, position, scale, rotation, flat) => headParts.push([geometry, color, position, scale, rotation, flat])
   // a little green cup holds the flower
   into(PETAL, 0x62b552, [0, -0.004, 0], [0.026, 0.016, 0.026])
   head(into, type, 0.01, open, spin, value)
-  for (const [geometry, color, [x, y, z], [sx, sy, sz], rotation] of headParts) {
-    add(geometry, color, [x * h, top + y * h, z * h], [sx * h, sy * h, sz * h], rotation)
+  for (const [geometry, color, [x, y, z], [sx, sy, sz], rotation, flat] of headParts) {
+    add(geometry, color, [x * h, top + y * h, z * h], [sx * h, sy * h, sz * h], rotation, flat)
   }
 }
 
