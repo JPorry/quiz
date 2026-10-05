@@ -28,10 +28,12 @@ export const PIPS = {
 }
 // fewer sprouts grow bigger, so a single one fills its cell like a big pip
 const SCALE = { 1: 1.55, 2: 1.3, 3: 1.18, 4: 1.12, 5: 1.02, 6: 0.95 }
-// Grown plants are all one size, whatever their number: every flower head
-// reaches HEAD from its middle (in cell widths).
+// Buds are all one size, whatever their number.
 const GROWN = 1.15
-const HEAD = 0.165
+// In full bloom the plots no longer matter: each flower head reaches this far
+// from its middle (in cell widths), as big as its plot allows and more,
+// overlapping its neighbours into one lush carpet.
+const BLOOM = { 1: 0.42, 2: 0.34, 3: 0.31, 4: 0.3, 5: 0.28, 6: 0.25 }
 
 export const COLORS = {
   tulip: { petal: 0xff6f86, inner: 0xff9aab, leaf: 0x6fbf6a, carpet: '#ff8fa0' },
@@ -55,6 +57,8 @@ const SPROUT_LEAF = 0x5fc24a
 const FACE = 0x3a2e3e
 const CHEEK = 0xff9fb2
 const MOUND = 0x5e3a24
+const EARTH = 0x7a4e33
+const SOIL_RING = new THREE.TorusGeometry(1, 0.42, 8, 18).rotateX(Math.PI / 2)
 const STRAW = new THREE.Color(0xc9a45c)
 
 // A part placed in plant space, then carried to its spot in the cell.
@@ -184,7 +188,9 @@ const mix = (a, b, k) => {
 }
 const CLUSTER = new Set(['lavender', 'forgetmenot'])
 // buds are drawn this much bigger than the sprout's own units, as chunky as it
-const K = 1.35
+const K = 1.95
+// how high the middle of a sprout's body sits: low, so it is half in the soil
+const SEAT = 0.034
 
 // A plant on its way from sprout to bud, g from 0 to 1. It is one creature the
 // whole way, every part carried continuously from one shape to the other:
@@ -208,23 +214,32 @@ function morph(add, type, spin, g, wilt) {
   const blush = smooth(0.15, 0.85, g)
   const L = (a, b) => lerp(a, b, g)
   // the soil mound sinks away
+  // the sprout sits half buried, a little ring of loose earth hugging it; the
+  // earth settles back as the bud rises out of it
   const mound = 1 - smooth(0, 0.7, g)
-  if (mound > 0.01) add(SPHERE, MOUND, [0, 0, 0], [0.118 * mound, 0.028 * mound, 0.118 * mound])
+  if (mound > 0.01) {
+    add(SPHERE, MOUND, [0, -0.004, 0], [0.12 * mound, 0.02, 0.12 * mound])
+    add(SOIL_RING, EARTH, [0, 0.008, 0], [0.098 * mound, 0.07 * mound, 0.098 * mound])
+    for (let k = 0; k < 4; k++) {
+      const a = spin + k * 1.7
+      add(BALL, k % 2 ? EARTH : MOUND, [Math.cos(a) * 0.13 * mound, 0.004, Math.sin(a) * 0.12 * mound], [0.016 * mound, 0.01 * mound, 0.014 * mound])
+    }
+  }
   // leaves unfurl from the soil
   const unfurl = smooth(0.1, 0.9, g)
   if (unfurl > 0.01) {
     for (let k = 0; k < 3; k++) {
       const a = spin + (k / 3) * Math.PI * 2
-      const r = lerp(0.02, 0.06 * K, unfurl)
-      add(PETAL, c.leaf, [Math.cos(a) * r, 0.018 * K, Math.sin(a) * r], [0.06 * K * unfurl, 0.016 * K, 0.04 * K * unfurl], [0, -a, lerp(1.2, 0.25, unfurl)])
+      const r = lerp(0.02, 0.045 * K, unfurl)
+      add(PETAL, c.leaf, [Math.cos(a) * r, 0.014 * K, Math.sin(a) * r], [0.05 * K * unfurl, 0.014 * K, 0.034 * K * unfurl], [0, -a, lerp(1.2, 0.25, unfurl)])
     }
   }
   // the body becomes the bud, or the middle bead of a cluster
   const body = cluster ? { y: 0.11 * K, r: [0.038 * K, 0.036 * K, 0.038 * K], color: beadColors[0] } : { y: 0.092 * K, r: [0.072 * K, 0.074 * K, 0.072 * K], color: c.petal }
-  const by = L(0.074, body.y)
+  const by = L(SEAT, body.y)
   add(ROUND, mix(SPROUT, body.color, blush), [0, by, 0], [L(0.098, body.r[0]), L(0.08, body.r[1]), L(0.092, body.r[2])])
   const belly = 1 - smooth(0, 0.6, g)
-  if (belly > 0.01) add(ROUND, mix(SPROUT_LIGHT, body.color, blush), [0, lerp(0.07, by, g), 0.042 * belly], [0.07 * belly, 0.056 * belly, 0.052 * belly])
+  if (belly > 0.01) add(ROUND, mix(SPROUT_LIGHT, body.color, blush), [0, lerp(SEAT - 0.004, by, g), 0.042 * belly], [0.07 * belly, 0.056 * belly, 0.052 * belly])
   // a green cup grows under the bud
   if (!cluster) {
     const cup = smooth(0.35, 1, g)
@@ -242,7 +257,7 @@ function morph(add, type, spin, g, wilt) {
       : { p: [Math.cos(a) * 0.05 * K, 0.08 * K, Math.sin(a) * 0.05 * K], s: [0.04 * K, 0.06 * K, 0.045 * K], tilt: 0.18, color: wrap }
     if (k < 2) {
       const sa = k === 0 ? 0.25 : Math.PI - 0.25
-      const from = { p: [Math.cos(sa) * 0.032, 0.176, -Math.sin(sa) * 0.01], s: [0.04, 0.014, 0.026], tilt: 0.55, color: k === 0 ? SPROUT_LIGHT : SPROUT_LEAF }
+      const from = { p: [Math.cos(sa) * 0.032, SEAT + 0.102, -Math.sin(sa) * 0.01], s: [0.04, 0.014, 0.026], tilt: 0.55, color: k === 0 ? SPROUT_LIGHT : SPROUT_LEAF }
       const turn = lerp(-sa, -a, smooth(0, 0.7, g))
       add(SPHERE, mix(from.color, to.color, blush), from.p.map((v, i) => lerp(v, to.p[i], g)), from.s.map((v, i) => lerp(v, to.s[i], g)), [0, turn, lerp(from.tilt, to.tilt, g)])
     } else {
@@ -252,7 +267,7 @@ function morph(add, type, spin, g, wilt) {
   }
   // the little stem on top draws in, and a curl (or a peek of the flower's middle) appears
   const stem = 1 - smooth(0, 0.5, g)
-  if (stem > 0.01) add(STEM, SPROUT, [0, L(0.14, body.y + body.r[1]), 0], [0.008 * stem, 0.03 * stem, 0.008 * stem])
+  if (stem > 0.01) add(STEM, SPROUT, [0, L(SEAT + 0.066, body.y + body.r[1]), 0], [0.008 * stem, 0.03 * stem, 0.008 * stem])
   if (!cluster) {
     const tip = smooth(0.5, 1, g)
     const color = { daisy: 0xffd34d, sunflower: 0x9a6a3a, buttercup: 0xffaa33 }[type] ?? wrap
@@ -261,7 +276,7 @@ function morph(add, type, spin, g, wilt) {
   // the face: big shiny eyes, rosy cheeks and a smile, high on the front so the
   // tilted camera sees it. It closes its eyes as it changes, and the face fades.
   const face = (color, position, scale, rotation) => add(BALL, color, position, scale, rotation, true)
-  const lift = by - 0.074
+  const lift = by - 0.074 // the face was drawn for a body centred at 0.074
   const open = 1 - smooth(0, 0.3, g)
   const fade = 1 - smooth(0.15, 0.45, g)
   if (fade <= 0.01) return
@@ -281,7 +296,7 @@ function morph(add, type, spin, g, wilt) {
 // shrinks and its outer petals fold back and fade, while the flower's own
 // petals grow and unfurl from inside it. The green cup slips down to hold the
 // flower, and the leaves stay round its foot.
-function bloom(add, type, spin, b) {
+function bloom(add, type, spin, b, value, k) {
   const c = COLORS[type] ?? COLORS.daisy
   const cluster = CLUSTER.has(type)
   const wrap = new THREE.Color(c.petal).lerp(new THREE.Color(0xffffff), 0.25).getHex()
@@ -291,11 +306,12 @@ function bloom(add, type, spin, b) {
   // the leaves, as on the bud
   for (let k = 0; k < 3; k++) {
     const a = spin + (k / 3) * Math.PI * 2
-    add(PETAL, c.leaf, [Math.cos(a) * 0.06 * K, 0.018 * K, Math.sin(a) * 0.06 * K], [0.06 * K, 0.016 * K, 0.04 * K], [0, -a, 0.25])
+    add(PETAL, c.leaf, [Math.cos(a) * 0.045 * K, 0.014 * K, Math.sin(a) * 0.045 * K], [0.05 * K, 0.014 * K, 0.034 * K], [0, -a, 0.25])
   }
   // the stem rises, carrying everything above it
   const body = cluster ? { y: 0.11 * K, r: [0.038 * K, 0.036 * K, 0.038 * K], color: beadColors[0] } : { y: 0.092 * K, r: [0.072 * K, 0.074 * K, 0.072 * K], color: c.petal }
-  const tall = 0.15 * (type === 'lavender' ? 1.2 : 1)
+  // neighbouring flowers stand at slightly different heights so they overlap cleanly
+  const tall = (0.15 + (k % 3) * 0.014) * (type === 'lavender' ? 1.2 : 1)
   const top = lerp(body.y, tall, lift)
   const up = top - body.y
   const stem = smooth(0, 0.3, b)
@@ -328,9 +344,8 @@ function bloom(add, type, spin, b) {
     const color = { daisy: 0xffd34d, sunflower: 0x9a6a3a, buttercup: 0xffaa33 }[type] ?? wrap
     if (tip > 0.01) add(PETAL, color, [0, 0.164 * K + up, 0], [0.02 * K * tip, 0.014 * K * tip, 0.02 * K * tip])
   }
-  // the flower grows and unfurls from inside; every kind opens to the same
-  // size, big and chunky
-  const h = HEAD / (GROWN * spread(type)) * smooth(0, 0.75, b)
+  // the flower grows and unfurls from inside, big enough to fill its plot
+  const h = BLOOM[value] / (GROWN * spread(type)) * smooth(0, 0.75, b)
   if (h < 0.002) return
   const headParts = []
   const into = (geometry, color, position, scale, rotation) => headParts.push([geometry, color, position, scale, rotation])
@@ -380,7 +395,7 @@ export function cellGeometry(type, stage, value, wilt = false, step = stage === 
     if (wilt && stage === 'sprout') m.multiply(new THREE.Matrix4().makeScale(1.1, 0.72, 1.1))
     else if (wilt) m.multiply(new THREE.Matrix4().makeRotationAxis(new THREE.Vector3(Math.cos(spin), 0, Math.sin(spin)), 0.75))
     const { parts, flats, add } = builder(m, wilt)
-    if (stage === 'bloom') bloom(add, type, spin, step / STEPS)
+    if (stage === 'bloom') bloom(add, type, spin, step / STEPS, value, k)
     else morph(add, type, spin, g, wilt)
     all.push(...parts)
     flat.push(...flats)

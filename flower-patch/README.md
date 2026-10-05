@@ -49,7 +49,8 @@ Each sprout is a soft mochi-round seedling with two tiny leaves tucked on top,
 big shiny eyes, rosy cheeks and a little smile, and it breathes gently. Plants grow through three stages and keep the
 pips the whole way:
 
-1. **Sprout:** a round, smiling seedling on a little mound, the same for every bed.
+1. **Sprout:** a round, smiling seedling sitting half buried in the soil, a little
+   ring of loose earth hugging it, the same for every bed.
    It pops up with a squash and stretch when planted.
 2. **Bud:** once a bed holds 1 to N with no clashes, it bursts into bud. A beat
    after the tap, a wave runs through the bed from the plot just planted, and
@@ -80,8 +81,12 @@ tulip, marigold, buttercup, daisy, forget-me-not, cornflower, lavender, pansy an
 rose. They are built to look cosy, like a box of sweets: plump round petals,
 big soft centres, short chunky stems and round leaves, in warm colours, with no
 spikes or thin slivers (and no faces). A bud sits in a little green cup like a
-lollipop. Every kind opens to the same big, chunky size, whatever its shape or
-its plot's number, so the finished garden is an even carpet of flowers. Beds that touch, even at a corner, never share a flower, and colours are
+lollipop. Buds are all one big, chunky size. In full bloom the plots no longer
+matter: every kind of flower opens as big as its plot allows and more (the
+fewer in a plot, the bigger), overlapping its neighbours at slightly different
+heights, so the finished garden is one lush carpet of flowers.
+
+Beds that touch, even at a corner, never share a flower, and colours are
 picked far apart on the colour wheel (`assignFlowers` in `src/logic.js`). A
 single-plot bed always grows a sunflower.
 
