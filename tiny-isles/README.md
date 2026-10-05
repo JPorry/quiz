@@ -107,14 +107,28 @@ wobbles. Undo and Restart (tap twice) sit below the sea, and the back button
 
 ## Home
 
-The home screen opens on today's three puzzles as cards, each with a little
-map of its islands (and the bridges laid so far), its name, its island count, a
-fog tag when some numbers are hidden, and Play, Resume or Solved. Below, every
-earlier day is a row of three pills, filled once solved and tinted once
-started, so missed puzzles are easy to spot and pick up. A streak counts the
-days in a row with at least one puzzle solved. Bridges are saved as they are
-laid, so any puzzle can be left and picked up later, and a solved one opens
-finished (Restart plays it again). Puzzles are addressed as `#/<day>/<tier>`.
+The home screen is a little live sea with today's three islands set in a
+staircase, easy at the front up to hard at the back. Each island has a floating
+label with its difficulty, name, a cloud when it has fog, and Play, Resume or
+Solved. Tapping the island or its label opens the puzzle. The islands' cities
+show how each puzzle is going: a cottage when untouched, a town once started, a
+skyline when solved. Above the sea sit the bobbing title, today's date, a streak
+chip (days in a row with a puzzle solved) and three shells that fill in as
+today's puzzles are solved; below it, a greeting that follows the day's
+progress and an Earlier days button counting the puzzles still open on past
+days.
+
+Earlier days (`#/days`) is a calendar, newest month first. Each day shows three
+dots, filled in the difficulty's colour once that puzzle is solved and grey
+once started; finished days turn green and today is ringed. Tapping a day opens
+a sheet with its three puzzles as cards, each with a little map of its islands
+(and the bridges laid so far). Back from a puzzle returns wherever it was
+opened from.
+
+Bridges are saved as they are laid, so any puzzle can be left and picked up
+later, and a solved one opens finished (Restart plays it again). Puzzles are
+addressed as `#/<day>/<tier>`. The home screen and the puzzle screen share one
+renderer, which moves between them; nothing is drawn on the calendar.
 
 ## Levels
 

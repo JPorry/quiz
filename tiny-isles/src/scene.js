@@ -421,10 +421,24 @@ export class IslandScene {
     this.time = 0
     this.dusk = 0
     this.duskTarget = 0
-    new ResizeObserver(() => this.resize()).observe(container)
+    this.observer = new ResizeObserver(() => this.resize())
+    this.observer.observe(container)
   }
 
-  load(board, { seed = 1 } = {}) {
+  // The home screen and the puzzle screen share one sea: it moves between them.
+  mount(container) {
+    if (container === this.container) return
+    this.observer.unobserve(this.container)
+    this.container = container
+    container.prepend(this.renderer.domElement)
+    this.observer.observe(container)
+    this.resize()
+  }
+
+  // badges: false hides the number badges (the home screen's islands have none);
+  // headroom is how much sky to keep above the back row, for labels
+  load(board, { seed = 1, badges = true, headroom = 0.9 } = {}) {
+    this.headroom = headroom
     this.world.clear()
     this.board = board
     this.fx = []
@@ -461,6 +475,7 @@ export class IslandScene {
       badge.scale.setScalar(0.42)
       badge.position.set(p.x + r * 0.95, 0.3, p.z + r * 0.75)
       badge.renderOrder = 10
+      badge.visible = badges
       this.world.add(badge)
       const entry = { b, r, group, city, island, badge, canvas, tex, bounce: -1, key: '' }
       if (b.fog) {
@@ -716,7 +731,7 @@ export class IslandScene {
     this.camera.updateMatrixWorld()
     const hw = this.width * CX / 2 + 0.4, hd = this.height * this.CZ / 2 + 0.3
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity
-    for (const [x, y, z] of [[-hw, 0, -hd], [hw, 0, -hd], [-hw, 0, hd], [hw, 0, hd], [-hw, 0.9, -hd + 0.6], [hw, 0.9, -hd + 0.6]]) {
+    for (const [x, y, z] of [[-hw, 0, -hd], [hw, 0, -hd], [-hw, 0, hd], [hw, 0, hd], [-hw, this.headroom, -hd + 0.6], [hw, this.headroom, -hd + 0.6]]) {
       const v = new THREE.Vector3(x, y, z).applyMatrix4(this.camera.matrixWorldInverse)
       minX = Math.min(minX, v.x); maxX = Math.max(maxX, v.x)
       minY = Math.min(minY, v.y); maxY = Math.max(maxY, v.y)
