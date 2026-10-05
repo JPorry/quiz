@@ -12,7 +12,7 @@ import { part, merge } from './look.js'
 const SPHERE = new THREE.SphereGeometry(1, 8, 6)
 // round parts shade a little underneath, where they sit on what holds them
 const ROUND = (() => {
-  const g = new THREE.SphereGeometry(1, 16, 12)
+  const g = new THREE.SphereGeometry(1, 12, 9)
   const p = g.attributes.position
   const shade = new Float32Array(p.count)
   for (let i = 0; i < p.count; i++) shade[i] = 1 - Math.max(0, -p.getY(i)) * 0.3
@@ -21,11 +21,11 @@ const ROUND = (() => {
 })()
 const STEM = new THREE.CylinderGeometry(1, 1, 1, 5).translate(0, 0.5, 0)
 // petals and centres are smooth and round
-const PETAL = new THREE.SphereGeometry(1, 14, 10)
+const PETAL = new THREE.SphereGeometry(1, 10, 7)
 // An inflated petal, like a little balloon: narrow where it joins the flower,
 // swelling to a wide, round, puffy tip. It lies along x, base at -1, tip at 1.
 const PUFF = (() => {
-  const g = new THREE.SphereGeometry(1, 22, 14)
+  const g = new THREE.SphereGeometry(1, 12, 8)
   const p = g.attributes.position
   // each petal darkens towards its base and underneath, where it tucks into the
   // flower and under its neighbours, so petals stand apart from each other
@@ -445,6 +445,12 @@ function spread(type) {
 export const STEPS = 16
 
 const cache = new Map()
+// In-between shapes (a sprout waking, a bud forming) are only needed for a
+// moment, so only the most recent few are kept; older ones are freed. Keeping
+// every one ran to hundreds of megabytes over a garden, enough for a phone to
+// drop the page. Resting shapes are always kept.
+const passing = new Map()
+const PASSING = 72
 
 // How many in-between shapes a sprout passes through on its way to an open
 // flower: the first half grows it into a bud, the second half opens the bud.
@@ -464,6 +470,13 @@ export function cellGeometry(type, stage, value, wilt = false, step = stage === 
   if (stage === 'sprout') step = 0
   const key = `${stage === 'sprout' ? 'sprout' : type}|${stage}|${value}|${wilt}|${step}|${fold}`
   if (cache.has(key)) return cache.get(key)
+  if (passing.has(key)) {
+    const shapes = passing.get(key)
+    passing.delete(key)
+    passing.set(key, shapes)
+    return shapes
+  }
+  const resting = fold === 0 && (stage === 'sprout' || (stage === 'bud' && step === GROW_STEPS) || (stage === 'bloom' && (step === 0 || step === STEPS)))
   const all = []
   const flat = []
   const g = stage === 'bud' ? step / GROW_STEPS : 0
@@ -487,7 +500,42 @@ export function cellGeometry(type, stage, value, wilt = false, step = stage === 
   const shapes = { body: merge(all), face: flat.length ? merge(flat) : null }
   shapes.body.computeBoundingSphere()
   shapes.face?.computeBoundingSphere()
-  cache.set(key, shapes)
+  if (resting) cache.set(key, shapes)
+  else {
+    passing.set(key, shapes)
+    if (passing.size > PASSING) {
+      // the GPU copy is freed; if a plant still shows it, it is simply sent again
+      const [oldest, old] = passing.entries().next().value
+      passing.delete(oldest)
+      old.body.dispose()
+      old.face?.dispose()
+    }
+  }
+  return shapes
+}
+
+// The finale's growth from an open flower to full bloom, as one shape that
+// blends on the graphics card: the open flowers, with the full-bloom flowers
+// as a morph target (they are built from the very same parts, so they line up
+// vertex for vertex). Setting the mesh's morph influence from 0 to 1 grows
+// them smoothly without rebuilding anything mid-animation.
+const morphs = new Map()
+export function bloomMorph(type, value, wilt = false) {
+  const key = `${type}|${value}|${wilt}`
+  if (morphs.has(key)) return morphs.get(key)
+  const from = cellGeometry(type, 'bloom', value, wilt, 0)
+  const to = cellGeometry(type, 'bloom', value, wilt, STEPS)
+  const blend = (a, b) => {
+    if (!a || !b || a.attributes.position.count !== b.attributes.position.count) return b ?? a
+    const g = a.clone()
+    g.morphAttributes.position = [b.attributes.position]
+    g.morphAttributes.normal = [b.attributes.normal]
+    g.computeBoundingSphere()
+    g.boundingSphere.radius = Math.max(g.boundingSphere.radius, b.boundingSphere.radius)
+    return g
+  }
+  const shapes = { body: blend(from.body, to.body), face: blend(from.face, to.face), morph: true }
+  morphs.set(key, shapes)
   return shapes
 }
 

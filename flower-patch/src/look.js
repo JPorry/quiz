@@ -25,7 +25,9 @@ export function toon(color = 0xffffff, { vertexColors = false, rim = 0.22, emiss
       #include <opaque_fragment>`,
     )
   }
-  m.customProgramCacheKey = () => `toon-${key}`
+  // only the rim is baked into the shader; colours are uniforms, so every toon
+  // material with the same rim shares one compiled program
+  m.customProgramCacheKey = () => `toon-${rim.toFixed(2)}`
   toons.set(key, m)
   return m
 }
@@ -68,15 +70,26 @@ export function outline(color, width) {
   m.onBeforeCompile = (shader) => {
     shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', `vec3 transformed = position + normal * ${width.toFixed(4)};`)
   }
-  m.customProgramCacheKey = () => `outline-${key}`
+  m.customProgramCacheKey = () => `outline-${width.toFixed(4)}`
   outlines.set(key, m)
   return m
 }
 
 // A coloured part: geometry placed by position, scale and rotation.
+// Each source shape is flattened once (no index, just what parts need) and then
+// copied, which keeps baking hundreds of parts quick.
+const bases = new WeakMap()
+function base(geometry) {
+  let g = bases.get(geometry)
+  if (!g) {
+    g = geometry.index ? geometry.toNonIndexed() : geometry.clone()
+    for (const name of Object.keys(g.attributes)) if (name !== 'position' && name !== 'normal' && name !== 'shade') g.deleteAttribute(name)
+    bases.set(geometry, g)
+  }
+  return g
+}
 export function part(geometry, color, [x, y, z] = [0, 0, 0], [sx, sy, sz] = [1, 1, 1], [rx, ry, rz] = [0, 0, 0]) {
-  const g = (geometry.index ? geometry.toNonIndexed() : geometry.clone())
-  for (const name of Object.keys(g.attributes)) if (name !== 'position' && name !== 'normal' && name !== 'shade') g.deleteAttribute(name)
+  const g = base(geometry).clone()
   g.applyMatrix4(new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, rz)), new THREE.Vector3(sx, sy, sz)))
   const c = new THREE.Color(color)
   const colors = new Float32Array(g.attributes.position.count * 3)

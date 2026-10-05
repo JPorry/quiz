@@ -1,8 +1,8 @@
 import * as THREE from 'three'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
 import { toon, outline, clay } from './look.js'
-import { cellGeometry, GROW_STEPS, NUM, PIPS, plantTop, STEPS } from './flowers.js'
-import { Insects } from './insects.js'
+import { bloomMorph, cellGeometry, GROW_STEPS, NUM, PIPS, plantTop, STEPS } from './flowers.js'
+import { Insects, KINDS } from './insects.js'
 import { buildGarden, SOIL_Y, WIND } from './garden.js'
 import { World } from './world.js'
 
@@ -77,11 +77,44 @@ export class GardenScene {
     this.elevation = ELEVATION
     this.elevationTarget = ELEVATION
     this.plantMaterial = clay()
+    // a speck hidden under the lawn that uses the finale's morphing shapes, so
+    // that shader is compiled up front rather than in the middle of the finale
+    const speck = new THREE.BoxGeometry(0.001, 0.001, 0.001)
+    speck.morphAttributes.position = [speck.attributes.position]
+    speck.morphAttributes.normal = [speck.attributes.normal]
+    this.warmers = [new THREE.Mesh(speck, this.plantMaterial)]
     this.plantLine = outline(LINE, 0.004)
     this.faceMaterial = new THREE.MeshBasicMaterial({ vertexColors: true })
+    this.warmers.push(new THREE.Mesh(this.warmers[0].geometry, this.faceMaterial))
+    for (const m of this.warmers) {
+      m.position.y = -0.5
+      m.frustumCulled = false
+      m.updateMorphTargets()
+      this.scene.add(m)
+    }
     this.humpMaterial = toon(0xa3714b, { rim: 0.25 })
     this.markMaterial = new THREE.MeshBasicMaterial({ color: 0xff5a4a, transparent: true, opacity: 0.38, depthWrite: false })
     new ResizeObserver(() => this.resize()).observe(container)
+  }
+
+  // Compiles, once, every shader the game may need later: the visitors, the
+  // bursts of petals and sparkles, the rings and wind wisps, and the morphing
+  // flowers of the finale. Done up front, so no moment mid-play (above all the
+  // finale) stalls while the graphics card compiles one.
+  warmShaders() {
+    if (this.warmed) return
+    this.warmed = true
+    const temp = new THREE.Scene()
+    for (const Kind of Object.values(KINDS)) new Kind(temp, {})
+    temp.add(
+      new THREE.Mesh(PETAL, new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })),
+      new THREE.Mesh(SPARK, toon(0xffffff)),
+      new THREE.Mesh(RING, new THREE.MeshBasicMaterial({ color: 0xfff6dc, transparent: true, opacity: 0.85, depthWrite: false })),
+      new THREE.Mesh(STREAK, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide })),
+      ...this.warmers.map((m) => m.clone()),
+    )
+    temp.traverse((o) => { o.visible = true; if (o.isMesh) o.frustumCulled = false })
+    this.renderer.compile(temp, this.camera, this.scene)
   }
 
   // flowers: the flower of each bed; fixed: the cells planted at the start
@@ -99,6 +132,10 @@ export class GardenScene {
     const garden = buildGarden(board, flowers, fixed, seed)
     this.world.add(garden.group)
     this.beds = garden.beds.map((b) => ({ ...b, grow: 0, target: 0 }))
+    // the finale's shapes are built a little at a time while the garden is
+    // played, so the last move flows straight into full bloom without a stall
+    this.warmShaders()
+    this.warm = [...new Set(Array.from(board.solution ?? [], (v, i) => `${flowers[board.bedOf[i]]}|${v}`))].map((k) => k.split('|'))
     this.cells = Array.from({ length: board.cells }, (_, i) => {
       const group = new THREE.Group()
       group.position.copy(this.center(i))
@@ -142,17 +179,21 @@ export class GardenScene {
     return { group, mesh, line, face }
   }
 
-  show(slot, shapes) {
+  show(slot, shapes, morph = 0) {
     slot.mesh.geometry = shapes.body
     slot.line.geometry = shapes.body
     slot.face.geometry = shapes.face ?? EMPTY
+    for (const m of [slot.mesh, slot.face]) {
+      m.updateMorphTargets()
+      if (m.morphTargetInfluences) m.morphTargetInfluences[0] = morph
+    }
     slot.group.visible = true
   }
 
   // The plants in a cell shrink away into the soil.
   retire(c) {
     if (!c.plant.group.visible) return
-    this.show(c.ghost, { body: c.plant.mesh.geometry, face: c.plant.face.geometry })
+    this.show(c.ghost, { body: c.plant.mesh.geometry, face: c.plant.face.geometry }, c.plant.mesh.morphTargetInfluences?.[0] ?? 0)
     c.ghost.group.scale.copy(c.plant.group.scale)
     c.ghost.group.position.y = c.plant.group.position.y
     c.gone = 0
@@ -252,7 +293,7 @@ export class GardenScene {
       c.grow = { type, stage: 'bud', steps: GROW_STEPS, k: 0, dur: 1.9, step: -1, rank, morph: true }
     } else if (s.stage === 'bloom' && from !== 'bloom') {
       // the open flower grows bigger still, one continuous change
-      c.grow = { type, stage: 'bloom', steps: STEPS, k: 0, dur: 1.2, step: -1, rank, morph: true }
+      c.grow = { type, stage: 'bloom', steps: STEPS, k: 0, dur: 1.2, step: -1, rank, morph: true, blend: true }
     } else if (s.stage === 'sprout' && from !== 'sprout') {
       // a bed that is no longer complete: its flowers close and shrink back into sprouts
       c.grow = { type, stage: 'bud', steps: GROW_STEPS, k: 0, dur: 0.8, step: -1, rank, morph: true, back: true }
@@ -271,7 +312,11 @@ export class GardenScene {
     // a morph eases in and out, like something alive; an opening eases out
     const e = g.morph ? g.k * g.k * (3 - 2 * g.k) : 1 - (1 - g.k) ** 2
     const step = Math.round((g.back ? 1 - e : e) * steps)
-    if (step !== g.step) {
+    if (g.blend) {
+      // the finale grows on the graphics card, one smooth blend, no rebuilding
+      if (g.step < 0) { g.step = 0; this.show(c.plant, bloomMorph(g.type, c.value, c.wilt), e) }
+      for (const m of [c.plant.mesh, c.plant.face]) if (m.morphTargetInfluences) m.morphTargetInfluences[0] = e
+    } else if (step !== g.step) {
       g.step = step
       this.show(c.plant, cellGeometry(g.type, g.stage ?? c.stage, c.value, c.wilt, step))
     }
@@ -626,6 +671,7 @@ export class GardenScene {
 
   update(dt) {
     this.time += dt
+    if (this.warm?.length) { const [type, value] = this.warm.pop(); bloomMorph(type, Number(value)) }
     this.wind()
     if (!this.board) return
     this.glow = THREE.MathUtils.damp(this.glow, this.glowTarget, 1.2, dt)
