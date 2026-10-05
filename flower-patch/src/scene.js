@@ -21,10 +21,15 @@ const PUFF = new THREE.SphereGeometry(1, 6, 4)
 const PETAL = new THREE.CircleGeometry(1, 7)
 const SPARK = new THREE.OctahedronGeometry(1, 0)
 const RING = new THREE.RingGeometry(0.8, 1, 32).rotateX(-Math.PI / 2)
-const SEED = new THREE.SphereGeometry(1, 8, 6).scale(0.75, 1, 0.75)
-// how far below the soil a sprout starts, and how long its seed takes to fall
-const BURIED = 0.32
-const SEED_FALL = 0.38
+// a dome of soil that swells up where a sprout is about to break through
+const HUMP = new THREE.SphereGeometry(1, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2)
+// how far below the soil a sprout starts
+const BURIED = 0.3
+// a sprout waking up: the soil swells, cracks, the sprout peeks out with its
+// eyes shut and stretches up, then blinks awake and wiggles (seconds)
+const SWELL = 0.38
+const RISE = 0.75
+const BLINK = SWELL + RISE + 0.2
 const EMPTY = new THREE.BufferGeometry()
 const MARK = new RoundedBoxGeometry(0.92, 0.01, 0.92, 2, 0.12)
 
@@ -64,6 +69,7 @@ export class GardenScene {
     this.plantMaterial = toon(0xffffff, { vertexColors: true, rim: 0.2 })
     this.plantLine = outline(LINE, 0.006)
     this.faceMaterial = new THREE.MeshBasicMaterial({ vertexColors: true })
+    this.humpMaterial = toon(0xa3714b, { rim: 0.25 })
     this.markMaterial = new THREE.MeshBasicMaterial({ color: 0xff5a4a, transparent: true, opacity: 0.38, depthWrite: false })
     new ResizeObserver(() => this.resize()).observe(container)
   }
@@ -134,7 +140,7 @@ export class GardenScene {
     c.ghost.group.scale.copy(c.plant.group.scale)
     c.ghost.group.position.y = c.plant.group.position.y
     c.gone = 0
-    c.emerge = null
+    this.endWake(c)
     c.plant.group.visible = false
   }
 
@@ -164,7 +170,8 @@ export class GardenScene {
         return
       }
       if (quiet) {
-        Object.assign(c, { value: s.value, stage: s.stage, wilt: s.wilt, grow: null, pop: 1, emerge: null })
+        this.endWake(c)
+        Object.assign(c, { value: s.value, stage: s.stage, wilt: s.wilt, grow: null, pop: 1 })
         c.plant.group.position.y = 0
         this.show(c.plant, cellGeometry(type, s.stage, s.value, s.wilt))
         c.plant.group.scale.setScalar(1)
@@ -175,11 +182,10 @@ export class GardenScene {
       if (seedling) {
         // a new seed pops up as a sprout first, and grows on from there
         this.retire(c)
-        Object.assign(c, { value: s.value, stage: 'sprout', wilt: s.wilt, grow: null, pop: 1, emerge: -SEED_FALL })
-        this.show(c.plant, cellGeometry(type, 'sprout', s.value, s.wilt))
-        c.plant.group.position.y = -BURIED
-        this.sow(c.i, s.value)
-        if (s.stage !== 'sprout') c.pending = { at: this.time + 1 + rank.get(i) * 0.11, change: () => this.advance(c, type, s, rank.get(i)) }
+        Object.assign(c, { value: s.value, stage: 'sprout', wilt: s.wilt, grow: null, pop: 1 })
+        this.show(c.plant, cellGeometry(type, 'sprout', s.value, s.wilt, undefined, true))
+        this.wake(c)
+        if (s.stage !== 'sprout') c.pending = { at: this.time + BLINK + 0.35 + rank.get(i) * 0.11, change: () => this.advance(c, type, s, rank.get(i)) }
         return
       }
       if (s.stage === 'bloom' && c.stage !== 'bloom') {
@@ -330,11 +336,29 @@ export class GardenScene {
     return PIPS[value].map(([x, z]) => p.clone().add(new THREE.Vector3(x, 0, z)))
   }
 
-  // a seed drops into each pip's spot
-  sow(i, value) {
-    for (const p of this.pips(i, value)) {
-      this.spawn(SEED, 0xe2bf86, p.clone().add(new THREE.Vector3(0, 0.42, 0)), new THREE.Vector3(0, -0.4, 0), 0.034, { life: 1, gravity: 6, spin: 4, seed: true })
-    }
+  // The soil swells into a little dome over each pip, where a sprout is about
+  // to wake up and break through.
+  wake(c) {
+    this.endWake(c)
+    c.wake = { t: 0, cracked: false }
+    c.plant.group.position.y = -BURIED
+    c.humps = this.pips(c.i, c.value).map((p, k) => {
+      const m = new THREE.Mesh(HUMP, this.humpMaterial)
+      m.position.copy(p).add(new THREE.Vector3(0, -0.012, 0))
+      m.scale.setScalar(0.001)
+      m.rotation.y = k * 1.3
+      m.castShadow = true
+      m.receiveShadow = true
+      this.world.add(m)
+      return m
+    })
+  }
+
+  endWake(c) {
+    for (const m of c.humps ?? []) m.removeFromParent()
+    c.humps = null
+    c.wake = null
+    c.plant.group.position.y = 0
   }
 
   // a few crumbs of earth heave up where the soil is broken, and fall back
@@ -523,20 +547,47 @@ export class GardenScene {
         if (c.gone >= 1) c.ghost.group.visible = false
         busy = true
       }
-      if (c.emerge !== null && c.emerge !== undefined) {
-        // the seed has gone in; the sprout pushes up out of the soil
-        const was = c.emerge
-        c.emerge = Math.min(1, c.emerge + dt / 0.85)
-        if (was < 0 && c.emerge >= 0) { this.crumbs(c.i, c.value); this.onSprout?.(c.i, c.value) }
-        const k = Math.max(0, c.emerge)
-        // rising with a little overshoot, then settling into its place
-        const e = 1 + 2.2 * (k - 1) ** 3 + 1.2 * (k - 1) ** 2
-        c.plant.group.position.y = -BURIED * (1 - e)
-        if (c.emerge >= 1) { c.emerge = null; c.plant.group.position.y = 0; c.pop = 0; c.popFrom = 0.93 }
+      if (c.wake) {
+        const w = c.wake
+        w.t += dt
+        if (w.t < SWELL) {
+          // the soil swells up into a little dome, trembling just before it cracks
+          const k = w.t / SWELL
+          const grow = 1 - (1 - k) ** 3
+          const shiver = k > 0.6 ? Math.sin(w.t * 70) * 0.06 * (k - 0.6) / 0.4 : 0
+          for (const m of c.humps) m.scale.set(0.11 * grow * (1 + shiver), 0.08 * grow, 0.11 * grow * (1 - shiver))
+        } else if (!w.cracked) {
+          // it cracks open, a few crumbs tumble off, and the sprout peeks out
+          w.cracked = true
+          for (const m of c.humps) m.removeFromParent()
+          c.humps = []
+          this.crumbs(c.i, c.value)
+          this.onSprout?.(c.i, c.value)
+        }
+        if (w.t >= SWELL) {
+          // eyes still shut, it stretches slowly up out of the ground
+          const k = Math.min(1, (w.t - SWELL) / RISE)
+          const e = 1 - (1 - k) ** 3
+          c.plant.group.position.y = -BURIED * (1 - e)
+          const stretch = Math.sin(k * Math.PI) * 0.14
+          c.plant.group.scale.set(1 - stretch * 0.4, 1 + stretch, 1 - stretch * 0.4)
+        }
+        if (w.t >= BLINK) {
+          // it blinks awake and gives a happy little wiggle
+          const type = this.flowers[this.board.bedOf[c.i]]
+          if (c.stage === 'sprout') this.show(c.plant, cellGeometry(type, 'sprout', c.value, c.wilt))
+          this.endWake(c)
+          c.pop = 0
+          c.popFrom = 0.94
+          c.joy = 0
+          this.onAwake?.(c.i, c.value)
+        }
         busy = true
       }
       const sprout = c.stage === 'sprout'
-      if (c.grow?.morph) {
+      if (c.wake && c.wake.t >= SWELL) {
+        // stretching up out of the soil, handled above
+      } else if (c.grow?.morph) {
         // changing shape, handled above
       } else if (c.pop < 1) {
         // a springy pop, stretching up and squashing back
@@ -557,8 +608,13 @@ export class GardenScene {
         c.group.rotation.z = Math.sin(k * Math.PI * 4) * (1 - k) * 0.25
         if (k >= 1) c.wobble = -1
       } else {
-        // a gentle breeze
-        c.group.rotation.z = Math.sin(this.time * 1.3 + c.phase) * 0.025
+        // a gentle breeze, and a happy wiggle just after waking
+        let wiggle = 0
+        if (c.joy !== undefined && c.joy < 1) {
+          c.joy = Math.min(1, c.joy + dt / 0.7)
+          wiggle = Math.sin(c.joy * Math.PI * 4) * (1 - c.joy) * 0.16
+        }
+        c.group.rotation.z = wiggle + Math.sin(this.time * 1.3 + c.phase) * 0.025
         c.group.rotation.x = Math.sin(this.time * 0.9 + c.phase * 0.7) * 0.02
       }
     }

@@ -59,11 +59,12 @@ pips the whole way:
 
 1. **Sprout:** a round, smiling seedling pushing up through the top of its
    mound, its lower half still buried, with a few crumbs of the same earth
-   heaved up around it. The same for every bed. Planting is a little scene in
-   the soil: a seed drops into each pip's spot and sinks in, the earth breaks
-   with a few crumbs that stay inside the plot, and the sprout pushes up out of
-   the ground with a soft pop and settles. A dug-up sprout sinks back into the
-   soil.
+   heaved up around it. The same for every bed. Planting wakes the sprouts
+   up: the soil swells into a little dome over each pip, trembles and cracks
+   open with a few crumbs, and each sprout peeks out with its eyes shut and
+   stretches slowly up out of the ground. Then it blinks awake with a chirp and
+   gives a happy little wiggle. Everything happens inside the plot. A dug-up
+   sprout sinks back into the soil.
    It pops up with a squash and stretch when planted.
 2. **Flower:** once a bed holds 1 to N with no clashes, it bursts into flower. A
    beat after the tap, a wave runs through the bed from the plot just planted,

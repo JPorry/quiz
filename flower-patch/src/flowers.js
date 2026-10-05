@@ -210,7 +210,7 @@ const SEAT = 0.03
 // joins them); it closes its eyes; the mound sinks away as leaves unfurl from
 // the soil and a green cup grows under the bud. Lavender and forget-me-nots
 // sprout a cluster of little beads instead.
-function morph(add, type, spin, g, wilt) {
+function morph(add, type, spin, g, wilt, sleepy = false) {
   const c = COLORS[type] ?? COLORS.daisy
   const cluster = CLUSTER.has(type)
   const wrap = new THREE.Color(c.petal).lerp(new THREE.Color(0xffffff), 0.25).getHex()
@@ -285,7 +285,7 @@ function morph(add, type, spin, g, wilt) {
   const fade = 1 - smooth(0.15, 0.45, g)
   if (fade <= 0.01) return
   for (const s of [-1, 1]) {
-    if (wilt || open < 0.35) face(FACE, [s * 0.032, 0.101 + lift, 0.081], [0.017 * fade, 0.005, 0.006], [-0.5, 0, 0])
+    if (wilt || sleepy || open < 0.35) face(FACE, [s * 0.032, 0.101 + lift, 0.081], [0.017 * fade, 0.005, 0.006], [-0.5, 0, 0])
     else {
       face(FACE, [s * 0.032, 0.103 + lift, 0.079], [0.016, 0.02 * open, 0.009], [-0.5, 0, 0])
       face(0xffffff, [s * 0.032 + 0.006, 0.112 + lift, 0.084], [0.0055 * open, 0.0055 * open, 0.003])
@@ -388,9 +388,10 @@ export const GROW_STEPS = 24
 //   bloom   the garden is solved. `step` (0 to STEPS) grows the open flower
 //           bigger still, until the flowers overlap into one carpet.
 // Each stage's last shape is the next one's first, so nothing ever jumps.
-export function cellGeometry(type, stage, value, wilt = false, step = stage === 'bud' ? GROW_STEPS : STEPS) {
+// A sleepy sprout has its eyes shut: it is just waking up out of the soil.
+export function cellGeometry(type, stage, value, wilt = false, step = stage === 'bud' ? GROW_STEPS : STEPS, sleepy = false) {
   if (stage === 'sprout') step = 0
-  const key = `${stage === 'sprout' ? 'sprout' : type}|${stage}|${value}|${wilt}|${step}`
+  const key = `${stage === 'sprout' ? 'sprout' : type}|${stage}|${value}|${wilt}|${step}|${sleepy}`
   if (cache.has(key)) return cache.get(key)
   const all = []
   const flat = []
@@ -407,7 +408,7 @@ export function cellGeometry(type, stage, value, wilt = false, step = stage === 
     const { parts, flats, add } = builder(m, wilt)
     if (stage === 'bloom') bloom(add, type, spin, 1, lerp(OPEN, BLOOM[value], smooth(0, 1, step / STEPS)), k)
     else if (opening > 0) bloom(add, type, spin, opening, OPEN, k)
-    else morph(add, type, spin, toBud, wilt)
+    else morph(add, type, spin, toBud, wilt, sleepy && stage === 'sprout')
     all.push(...parts)
     flat.push(...flats)
   })
