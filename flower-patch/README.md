@@ -51,29 +51,28 @@ and a paddling duck. Bunnies hop about and stop to look around, a snail glides
 along, and ladybirds scurry in loops, each with a soft round shadow. Tap a
 critter and it jumps. Everything is chunky and round with sticker outlines.
 
-A seed shows as chubby round green sprouts laid out like a die's pips
-(`src/flowers.js`), one round sprout per pip, so the number never needs a label.
-Each sprout is a soft mochi-round seedling with two tiny leaves tucked on top,
-big shiny eyes, rosy cheeks and a little smile, and it breathes gently. Plants grow through three stages and keep the
-pips the whole way:
+A seed shows as tiny green seedlings laid out like a die's pips
+(`src/flowers.js`), one per pip, so the number never needs a label. Each is a
+little plant on a short stem: two big, round seed leaves low and wide, two
+smaller, paler leaves standing up between them, and a curled new leaf in the
+middle. From above the rosette reads as one round pip. Seedlings breathe
+gently. Plants grow through three stages and keep the pips the whole way:
 
-1. **Sprout:** a round, smiling seedling pushing up through the top of its
-   mound, its lower half still buried, with a few crumbs of the same earth
-   heaved up around it. The same for every bed. Planting wakes the sprouts
-   up: the soil swells into a little dome over each pip, trembles and cracks
-   open with a few crumbs, and each sprout peeks out with its eyes shut and
-   stretches slowly up out of the ground. Then it blinks awake with a chirp and
-   gives a happy little wiggle. Everything happens inside the plot. A dug-up
-   sprout sinks back into the soil.
-   It pops up with a squash and stretch when planted.
+1. **Sprout:** the seedling, with a few crumbs of earth heaved up round its
+   foot, the same for every bed. Planting wakes it up: the soil swells into a
+   little dome over each pip, trembles and cracks open with a few crumbs, and
+   each seedling pushes slowly up out of the ground with its leaves folded up
+   tight. Then it opens them out wide with a chirp and gives a happy little
+   wiggle. Everything happens inside the plot. A dug-up seedling sinks back into
+   the soil. A wilting one lets its leaves droop.
 2. **Flower:** once a bed holds 1 to N with no clashes, it bursts into flower. A
    beat after the tap, a wave runs through the bed from the plot just planted,
    and each sprout *becomes* an open flower in one continuous change (24
    in-between shapes). First it grows into a fat bud (`morph` in
-   `src/flowers.js`): its body swells, rises and ripens through fresh yellows and
-   peaches into the flower's colour, its two little leaves slide down and wrap
-   round it as the outer petals, it closes its eyes, and the mound sinks away as
-   leaves unfurl and a green cup grows under it. Then the bud opens (`bloom`): a
+   `src/flowers.js`): the curled middle leaf swells, rises and ripens through
+   fresh yellows and peaches into the flower's colour, petals grow out of it and
+   wrap round it, the seedling's leaves slide down to become the bud's rosette,
+   and a green cup grows under it. Then the bud opens (`bloom`): a
    stem lifts it as the wrapped petals fold back and fade and the flower's own
    petals unfurl from inside. The flowers stay modest and all one size, so the
    dice faces still read. It lands with a little boing, a spray of petals and
