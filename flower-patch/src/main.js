@@ -182,6 +182,8 @@ function flyFlower(i, color) {
 
 // Every plant that grows up pops with a note, climbing as the wave runs through
 // its bed; the last one in a bed rings the bed's chime and sends a flower up.
+scene.onSprout = (i, value) => sounds.sprout(value)
+
 scene.onPop = (i, stage, rank) => {
   if (stage === 'bloom') {
     const now = performance.now()
@@ -220,7 +222,7 @@ function plant(i) {
   }
   history.push([i, before])
   values[i] = next
-  if (next) { sounds.plant(next); buzz(10); scene.puff(i) } else { sounds.dig(); buzz(8); scene.puff(i, 0x8a5a3b, 5) }
+  if (next) { sounds.plant(next); buzz(10) } else { sounds.dig(); buzz(8); scene.puff(i) }
   const { bad, fresh } = refresh(false, i)
   if (next && bad.has(i)) {
     sounds.droop()
@@ -292,7 +294,7 @@ $('undo').onclick = () => {
   const [i, before] = history.pop()
   values[i] = before
   sounds.undo()
-  scene.puff(i, 0x8a5a3b, 4)
+  scene.puff(i)
   refresh(false, i)
   say('Undone.')
 }

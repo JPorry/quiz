@@ -73,13 +73,24 @@ class Insect {
   place(p) { this.pos.copy(p) }
 
   // steer smoothly toward the target, slowing as it arrives
-  steer(dt, speed, ground) {
-    const to = this.target.clone().sub(this.pos)
+  steer(dt, speed, ground, cruise = ground + 0.55) {
+    // Fly above the flowers, and only come down once right over the target, so
+    // nothing passes through a flower on the way. Climb before setting off.
+    const dx = this.target.x - this.pos.x, dz = this.target.z - this.pos.z
+    const across = Math.hypot(dx, dz)
+    const aim = this.target.clone()
+    if (across > 0.12 && this.state !== 'leave') aim.y = Math.max(this.target.y, cruise)
+    const to = aim.sub(this.pos)
     const dist = to.length()
-    const want = dist > 0.001 ? to.multiplyScalar(Math.min(speed, dist * 2.2) / dist) : to
-    this.vel.x = damp(this.vel.x, want.x, 3, dt)
-    this.vel.y = damp(this.vel.y, want.y, 3, dt)
-    this.vel.z = damp(this.vel.z, want.z, 3, dt)
+    const want = dist > 0.001 ? to.multiplyScalar(Math.min(speed, dist * 1.6) / dist) : to
+    if (across > 0.12 && this.pos.y < cruise - 0.08 && this.state !== 'leave') {
+      const climbed = THREE.MathUtils.clamp((this.pos.y - (cruise - 0.3)) / 0.22, 0.15, 1)
+      want.x *= climbed
+      want.z *= climbed
+    }
+    this.vel.x = damp(this.vel.x, want.x, 1.8, dt)
+    this.vel.y = damp(this.vel.y, want.y, 1.8, dt)
+    this.vel.z = damp(this.vel.z, want.z, 1.8, dt)
     this.pos.addScaledVector(this.vel, dt)
     const flat = Math.hypot(this.vel.x, this.vel.z)
     if (flat > 0.02) {
@@ -88,7 +99,7 @@ class Insect {
       this.bank = damp(this.bank, THREE.MathUtils.clamp(-turn * 0.8, -0.45, 0.45), 4, dt)
     } else this.bank = damp(this.bank, 0, 4, dt)
     this.shadow.position.set(this.pos.x, ground + 0.004, this.pos.z)
-    return dist
+    return this.pos.distanceTo(this.target)
   }
 
   pose(bob = 0) {
@@ -145,23 +156,23 @@ class Butterfly extends Insect {
     if (this.state === 'rest') {
       // sitting on a flower, slowly fanning its wings
       this.timer -= dt
-      open = 0.15 + (0.5 + 0.5 * Math.sin(time * 2.2 + this.phase)) * 1.05
+      open = 0.15 + (0.5 + 0.5 * Math.sin(time * 1.1 + this.phase)) * 1.05
       this.pose(0)
       if (this.timer <= 0) this.takeOff(garden)
     } else {
       if (!this.target) this.pickTarget(garden)
-      const speed = this.state === 'leave' ? 1.1 : 0.85
+      const speed = this.state === 'leave' ? 0.6 : 0.4
       const dist = this.steer(dt, speed, garden.ground)
       // flap in bursts, glide in between
       if (this.gliding > 0) {
         this.gliding -= dt
         open = 0.42 + Math.sin(time * 3 + this.phase) * 0.08
-        if (this.gliding <= 0) this.burst = 0.6 + Math.random() * 0.8
+        if (this.gliding <= 0) this.burst = 0.9 + Math.random() * 1.2
       } else {
-        this.beat += dt * 10
+        this.beat += dt * 3.2
         open = 0.2 + (0.5 + 0.5 * Math.sin(this.beat * Math.PI * 2)) * 1.0
         this.burst -= dt
-        if (this.burst <= 0 && this.vel.y <= 0.1) this.gliding = 0.25 + Math.random() * 0.4
+        if (this.burst <= 0 && this.vel.y <= 0.1) this.gliding = 0.5 + Math.random() * 0.7
       }
       // a soft bob in time with the wings
       const bob = Math.sin(this.beat * Math.PI * 2 - 1) * 0.012
@@ -178,7 +189,7 @@ class Butterfly extends Insect {
   pickTarget(garden) {
     const spot = garden.flowerSpot(this.home)
     if (!spot) { this.target = garden.wanderSpot(this.home); this.wander = true; return }
-    this.target = spot.clone().add(new THREE.Vector3(0, 0.02, 0))
+    this.target = spot.clone().add(new THREE.Vector3(0, 0.03, 0))
     this.wander = false
   }
 
@@ -250,7 +261,7 @@ class Bee extends Insect {
     if (hovering) {
       // hovering over a flower, drifting in a tiny figure of eight
       this.timer -= dt
-      const t = time * 2.4 + this.phase
+      const t = time * 1.1 + this.phase
       this.pos.x = this.target.x + Math.sin(t) * 0.02
       this.pos.z = this.target.z + Math.sin(t * 2) * 0.012
       this.pos.y = this.target.y + Math.sin(t * 1.7) * 0.012
@@ -261,7 +272,7 @@ class Bee extends Insect {
         if (this.visitor && this.visits >= 3) { this.state = 'leave'; this.target = garden.exitSpot(this.pos) } else { this.state = 'fly'; this.pickTarget(garden) }
       }
     } else {
-      const dist = this.steer(dt, this.state === 'leave' ? 1.4 : 1.15, garden.ground)
+      const dist = this.steer(dt, this.state === 'leave' ? 0.7 : 0.5, garden.ground)
       if (this.state === 'leave') {
         if (dist < 0.3 || this.leaving > 0) this.leaving = Math.min(1, this.leaving + dt * 1.5)
         if (this.leaving >= 1) this.state = 'gone'
@@ -273,15 +284,15 @@ class Bee extends Insect {
         garden.onLand?.(this)
       }
     }
-    this.pose(Math.sin(time * 9 + this.phase) * 0.006)
+    this.pose(Math.sin(time * 3 + this.phase) * 0.008)
     // fast, shimmering wing beats
-    const beat = Math.sin(time * 70 + this.phase)
-    for (const { hinge, k } of this.wings) hinge.rotation.z = k * (0.25 + beat * 0.45)
+    const beat = Math.sin(time * 14 + this.phase)
+    for (const { hinge, k } of this.wings) hinge.rotation.z = k * (0.3 + beat * 0.3)
   }
 
   pickTarget(garden) {
     const spot = garden.flowerSpot(this.home)
-    this.target = spot ? spot.clone().add(new THREE.Vector3(0, 0.07, 0)) : garden.wanderSpot(this.home)
+    this.target = spot ? spot.clone().add(new THREE.Vector3(0, 0.12, 0)) : garden.wanderSpot(this.home)
   }
 }
 
@@ -325,12 +336,12 @@ class Ladybird extends Insect {
   update(dt, time, garden) {
     this.ground = garden.ground
     this.fade = Math.min(1, this.fade + dt * 1.5)
-    if (!this.target) this.target = (garden.flowerSpot(this.home) ?? garden.wanderSpot(this.home)).clone()
+    if (!this.target) this.target = (garden.flowerSpot(this.home)?.add(new THREE.Vector3(0, 0.015, 0)) ?? garden.wanderSpot(this.home)).clone()
     if (this.state === 'rest') {
       // settled: shell closed, pottering in a small circle on the petals
       this.timer -= dt
       this.lift = damp(this.lift, 0, 6, dt)
-      const t = time * 0.8 + this.phase
+      const t = time * 0.35 + this.phase
       this.pos.x = this.target.x + Math.cos(t) * 0.035
       this.pos.z = this.target.z + Math.sin(t) * 0.035
       this.yaw = t + Math.PI
@@ -342,8 +353,8 @@ class Ladybird extends Insect {
       this.pose(0)
     } else {
       this.lift = damp(this.lift, 1, 6, dt)
-      const dist = this.target ? this.steer(dt, this.state === 'leave' ? 1 : 0.7, garden.ground) : 1
-      this.pose(Math.sin(time * 12 + this.phase) * 0.008)
+      const dist = this.target ? this.steer(dt, this.state === 'leave' ? 0.55 : 0.35, garden.ground) : 1
+      this.pose(Math.sin(time * 4 + this.phase) * 0.008)
       if (this.state === 'leave') {
         if (dist < 0.3 || this.leaving > 0) this.leaving = Math.min(1, this.leaving + dt * 1.5)
         if (this.leaving >= 1) this.state = 'gone'
@@ -356,7 +367,7 @@ class Ladybird extends Insect {
     }
     // the shell lifts and the wings buzz while flying
     for (const { hinge, k } of this.shell) hinge.rotation.z = k * this.lift * 0.6
-    const beat = Math.sin(time * 60 + this.phase)
+    const beat = Math.sin(time * 12 + this.phase)
     for (const { hinge, k } of this.wings) {
       hinge.visible = this.lift > 0.2
       hinge.rotation.z = k * (0.2 + beat * 0.5) * this.lift

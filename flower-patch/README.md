@@ -59,7 +59,11 @@ pips the whole way:
 
 1. **Sprout:** a round, smiling seedling pushing up through the top of its
    mound, its lower half still buried, with a few crumbs of the same earth
-   heaved up around it. The same for every bed.
+   heaved up around it. The same for every bed. Planting is a little scene in
+   the soil: a seed drops into each pip's spot and sinks in, the earth breaks
+   with a few crumbs that stay inside the plot, and the sprout pushes up out of
+   the ground with a soft pop and settles. A dug-up sprout sinks back into the
+   soil.
    It pops up with a squash and stretch when planted.
 2. **Flower:** once a bed holds 1 to N with no clashes, it bursts into flower. A
    beat after the tap, a wave runs through the bed from the plot just planted,
@@ -84,8 +88,10 @@ pips the whole way:
    petals drift down, and a crowd of bees, butterflies and ladybirds comes to see.
 
 Little visitors live in the garden (`src/insects.js`), each a chubby toy with a
-face, a sticker outline and a soft round shadow, flying with smooth steered
-motion that turns and banks gently:
+face, a sticker outline and a soft round shadow, flying slowly with smooth
+steered motion that turns and banks gently. They cruise above the flowers and
+only come down when right over the one they are visiting, landing on the real
+top of its head, so they never pass through a flower:
 
 - **Butterflies** have round, spotted wings. They flap in little bursts and
   glide between them, land on flowers and slowly fan their wings. Every bed in
