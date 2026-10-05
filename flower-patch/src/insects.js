@@ -377,7 +377,7 @@ class Ladybird extends Insect {
   }
 }
 
-const KINDS = { butterfly: Butterfly, bee: Bee, ladybird: Ladybird }
+export const KINDS = { butterfly: Butterfly, bee: Bee, ladybird: Ladybird }
 
 /* ---------- the swarm ---------- */
 
