@@ -17,14 +17,14 @@ const STEM = new THREE.CylinderGeometry(1, 1, 1, 5).translate(0, 0.5, 0)
 const PETAL = new THREE.SphereGeometry(1, 10, 7)
 
 // Where the plants go in a cell (x, z), like a die's pips.
-const D = 0.25
+const D = 0.22
 export const PIPS = {
   1: [[0, 0]],
   2: [[-D, -D], [D, D]],
   3: [[-D, -D], [0, 0], [D, D]],
   4: [[-D, -D], [D, -D], [-D, D], [D, D]],
   5: [[-D, -D], [D, -D], [0, 0], [-D, D], [D, D]],
-  6: [[-0.22, -0.27], [0.22, -0.27], [-0.22, 0], [0.22, 0], [-0.22, 0.27], [0.22, 0.27]],
+  6: [[-0.2, -0.24], [0.2, -0.24], [-0.2, 0], [0.2, 0], [-0.2, 0.24], [0.2, 0.24]],
 }
 // fewer sprouts grow bigger, so a single one fills its cell like a big pip
 const SCALE = { 1: 1.55, 2: 1.3, 3: 1.18, 4: 1.12, 5: 1.02, 6: 0.95 }
@@ -188,7 +188,7 @@ const mix = (a, b, k) => {
 }
 const CLUSTER = new Set(['lavender', 'forgetmenot'])
 // buds are drawn this much bigger than the sprout's own units, as chunky as it
-const K = 1.95
+const K = 1.8
 // how high the middle of a sprout's body sits: low, so it is half in the soil
 const SEAT = 0.034
 
@@ -218,11 +218,11 @@ function morph(add, type, spin, g, wilt) {
   // earth settles back as the bud rises out of it
   const mound = 1 - smooth(0, 0.7, g)
   if (mound > 0.01) {
-    add(SPHERE, MOUND, [0, -0.004, 0], [0.12 * mound, 0.02, 0.12 * mound])
-    add(SOIL_RING, EARTH, [0, 0.008, 0], [0.098 * mound, 0.07 * mound, 0.098 * mound])
+    add(SPHERE, MOUND, [0, -0.004, 0], [0.11 * mound, 0.02, 0.11 * mound])
+    add(SOIL_RING, EARTH, [0, 0.008, 0], [0.095 * mound, 0.07 * mound, 0.095 * mound])
     for (let k = 0; k < 4; k++) {
       const a = spin + k * 1.7
-      add(BALL, k % 2 ? EARTH : MOUND, [Math.cos(a) * 0.13 * mound, 0.004, Math.sin(a) * 0.12 * mound], [0.016 * mound, 0.01 * mound, 0.014 * mound])
+      add(BALL, k % 2 ? EARTH : MOUND, [Math.cos(a) * 0.115 * mound, 0.004, Math.sin(a) * 0.11 * mound], [0.016 * mound, 0.01 * mound, 0.014 * mound])
     }
   }
   // leaves unfurl from the soil
@@ -230,8 +230,8 @@ function morph(add, type, spin, g, wilt) {
   if (unfurl > 0.01) {
     for (let k = 0; k < 3; k++) {
       const a = spin + (k / 3) * Math.PI * 2
-      const r = lerp(0.02, 0.045 * K, unfurl)
-      add(PETAL, c.leaf, [Math.cos(a) * r, 0.014 * K, Math.sin(a) * r], [0.05 * K * unfurl, 0.014 * K, 0.034 * K * unfurl], [0, -a, lerp(1.2, 0.25, unfurl)])
+      const r = lerp(0.02, 0.035 * K, unfurl)
+      add(PETAL, c.leaf, [Math.cos(a) * r, 0.014 * K, Math.sin(a) * r], [0.042 * K * unfurl, 0.014 * K, 0.03 * K * unfurl], [0, -a, lerp(1.2, 0.25, unfurl)])
     }
   }
   // the body becomes the bud, or the middle bead of a cluster
@@ -306,7 +306,7 @@ function bloom(add, type, spin, b, value, k) {
   // the leaves, as on the bud
   for (let k = 0; k < 3; k++) {
     const a = spin + (k / 3) * Math.PI * 2
-    add(PETAL, c.leaf, [Math.cos(a) * 0.045 * K, 0.014 * K, Math.sin(a) * 0.045 * K], [0.05 * K, 0.014 * K, 0.034 * K], [0, -a, 0.25])
+    add(PETAL, c.leaf, [Math.cos(a) * 0.035 * K, 0.014 * K, Math.sin(a) * 0.035 * K], [0.042 * K, 0.014 * K, 0.03 * K], [0, -a, 0.25])
   }
   // the stem rises, carrying everything above it
   const body = cluster ? { y: 0.11 * K, r: [0.038 * K, 0.036 * K, 0.038 * K], color: beadColors[0] } : { y: 0.092 * K, r: [0.072 * K, 0.074 * K, 0.072 * K], color: c.petal }

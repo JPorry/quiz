@@ -27,9 +27,10 @@ hooks for checks: `start(index)`, `solve(leave)` and `advance(seconds)`.
 ## How it looks
 
 The garden is a tilted diorama seen through a fixed orthographic camera. Each
-bed is a raised bed of soil walled in terracotta brick: three courses laid like a
-real wall, each shifted half a brick, with cream mortar between, running from the
-lawn up to just above the soil, with a strip of striped lawn between beds, so the
+bed is a planter: soil sunk inside a terracotta brick wall of four courses laid
+like a real wall, each shifted half a brick, with cream mortar between, running
+from the lawn to a rim well above the soil. Pips sit a little in from each
+plot's edges, so sprouts, buds and labels always stay inside the wall, with a strip of striped lawn between beds, so the
 regions read at a glance. Faint dashed furrows split a bed into its plots, and
 a white picket fence, bushes, mushrooms, and a watering can sit around the edge.
 Rows stretch a little to make up for the tilt, so plots look square and the
