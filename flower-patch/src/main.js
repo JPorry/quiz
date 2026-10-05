@@ -28,24 +28,41 @@ const blend = (a, b, k) => {
   const m = (s) => Math.round(ch(a, s) + (ch(b, s) - ch(a, s)) * k) << s
   return m(16) | m(8) | m(0)
 }
-// A little bag of seeds: a plump paper sack in the seed's own soft colour,
-// gathered at the neck with twine and a bow, a seedling peeking out of the
-// top and a cream label showing the die face.
+// A little bag of seeds, drawn like a sticker: a chubby cloth sack in the
+// seed's own soft colour with a soft sheen, a scalloped frill gathered at the
+// neck with a ribbon bow, a seedling peeking out of the top, and a round
+// stitched tag on the front showing the die face.
 const bag = (n) => {
-  const body = hex(blend(NUM[n], 0xffffff, n === 6 ? 0 : 0.5))
-  const fold = hex(blend(NUM[n], 0xffffff, n === 6 ? 0.2 : 0.25))
-  const line = hex(blend(n === 6 ? 0xc9bfa8 : NUM[n], 0x5a3a2a, 0.45))
-  return `<svg class="bag" viewBox="0 0 48 58" aria-hidden="true" style="--line:${line}">
-    <g class="sprout"><path d="M24 15 C24 11 24 9 24 7" stroke="#5fae4b" stroke-width="2" stroke-linecap="round" fill="none"/>
-      <ellipse cx="19.6" cy="7.2" rx="4.4" ry="2.8" fill="#7fcf5c" stroke="#3f7a35" stroke-width="1.1" transform="rotate(-25 19.6 7.2)"/>
-      <ellipse cx="28.4" cy="6.6" rx="4.4" ry="2.8" fill="#9be070" stroke="#3f7a35" stroke-width="1.1" transform="rotate(25 28.4 6.6)"/></g>
-    <path class="frill" d="M12 18 Q13 11 17 14 Q20 9 24 13 Q28 9 31 14 Q35 11 36 18 Z" fill="${fold}" stroke="${line}" stroke-width="1.4" stroke-linejoin="round"/>
-    <path d="M14 19 C9 26 6 36 7 45 C8 53 15 56 24 56 C33 56 40 53 41 45 C42 36 39 26 34 19 Z" fill="${body}" stroke="${line}" stroke-width="1.5" stroke-linejoin="round"/>
-    <path d="M10 44 C11 51 17 53 24 53" stroke="#fff" stroke-opacity=".45" stroke-width="2.4" stroke-linecap="round" fill="none"/>
-    <path d="M13 19.5 Q24 23 35 19.5" stroke="#b98a5a" stroke-width="2.6" stroke-linecap="round" fill="none"/>
-    <path d="M24 21 q-6 -5 -6 1 q0 3 6 -1 q6 4 6 1 q0 -6 -6 -1z" fill="#d9a066" stroke="#8a5a3b" stroke-width="1"/>
-    <rect x="13" y="28" width="22" height="21" rx="7" fill="#fffaf2" stroke="${line}" stroke-width="1.2"/>
-    <g transform="translate(24 38.5) scale(8.2)">${PIPS[n].map(([x, z]) => `<circle cx="${x * 2.2}" cy="${z * 2.2}" r="${n === 1 ? 0.36 : 0.24}" fill="${hex(NUM[n])}" stroke="${line}" stroke-width=".09"/>`).join('')}</g>
+  const c = NUM[n], pale = n === 6
+  const body = hex(pale ? 0xfffdf8 : blend(c, 0xffffff, 0.3))
+  const light = hex(pale ? 0xffffff : blend(c, 0xffffff, 0.72))
+  const deep = hex(pale ? 0xeee3cf : blend(c, 0x8a4a6a, 0.14))
+  const frill = hex(pale ? 0xffffff : blend(c, 0xffffff, 0.55))
+  const line = hex(pale ? 0xb7a585 : blend(c, 0x5a3a3a, 0.5))
+  const ribbon = n === 1 ? '#fff0d4' : '#ff8fb8'
+  const ribbonLine = n === 1 ? line : '#c9567f'
+  const dot = hex(pale ? 0xe0c27a : blend(c, 0x8a4a6a, 0.1))
+  return `<svg class="bag" viewBox="0 0 48 60" aria-hidden="true">
+    <defs><radialGradient id="bag${n}" cx="36%" cy="34%" r="75%"><stop offset="0" stop-color="${light}"/><stop offset=".55" stop-color="${body}"/><stop offset="1" stop-color="${deep}"/></radialGradient></defs>
+    <ellipse cx="24" cy="57" rx="15" ry="2.6" fill="#2f5a25" opacity=".16"/>
+    <g class="sprout"><path d="M24 16 C24 12 24 10 24 8" stroke="#5fae4b" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+      <path d="M24 9 C20 4 15 6 15.5 9 C16 12 21 11 24 9Z" fill="#86d464" stroke="#3f7a35" stroke-width="1.1" stroke-linejoin="round"/>
+      <path d="M24 8.5 C27 3 33 4.5 32.6 7.8 C32.2 11 27 10.6 24 8.5Z" fill="#a6e67c" stroke="#3f7a35" stroke-width="1.1" stroke-linejoin="round"/></g>
+    <path d="M15 22 C8 28 5 38 6 46 C7 54 15 57 24 57 C33 57 41 54 42 46 C43 38 40 28 33 22 Z" fill="url(#bag${n})" stroke="${line}" stroke-width="1.4" stroke-linejoin="round"/>
+    <path d="M17.5 24 C14 30 12.5 36 12.5 41 M30.5 24 C34 30 35.5 36 35.5 41" stroke="${line}" stroke-opacity=".22" stroke-width="1.2" stroke-linecap="round" fill="none"/>
+    <ellipse cx="13.6" cy="34" rx="2.4" ry="5" fill="#fff" opacity=".55" transform="rotate(18 13.6 34)"/>
+    <circle cx="15.6" cy="27.6" r="1.2" fill="#fff" opacity=".7"/>
+    <path class="frill" d="M13.5 22 C10 18.5 12 13.5 16 15.4 C16.4 10.8 21.4 10.4 22 14 C23.4 10 28 10.2 27.6 14.1 C29 10.6 33.8 11.4 32.6 15.6 C36.4 14 38.4 18.6 34.5 22 Z" fill="${frill}" stroke="${line}" stroke-width="1.3" stroke-linejoin="round"/>
+    <path d="M17 18 C17.5 19.5 18 20.5 19 21.5 M24.6 17 C24.6 18.5 24.6 20 24.6 21.6 M31 18 C30.6 19.5 30 20.5 29.2 21.5" stroke="${line}" stroke-opacity=".28" stroke-width="1" stroke-linecap="round" fill="none"/>
+    <path d="M13.8 22.4 Q24 26.4 34.2 22.4" stroke="${ribbonLine}" stroke-width="4.4" stroke-linecap="round" fill="none"/>
+    <path d="M13.8 22.4 Q24 26.4 34.2 22.4" stroke="${ribbon}" stroke-width="2.6" stroke-linecap="round" fill="none"/>
+    <path d="M24 24.6 C20 20 14.8 21.6 16.6 25.4 C18 28.2 22 26.6 24 24.6Z M24 24.6 C28 20 33.2 21.6 31.4 25.4 C30 28.2 26 26.6 24 24.6Z" fill="${ribbon}" stroke="${ribbonLine}" stroke-width="1.1" stroke-linejoin="round"/>
+    <path d="M22.6 25.6 L20.4 30.4 M25.4 25.6 L27.6 30.4" stroke="${ribbonLine}" stroke-width="2.6" stroke-linecap="round"/>
+    <path d="M22.6 25.6 L20.4 30.4 M25.4 25.6 L27.6 30.4" stroke="${ribbon}" stroke-width="1.2" stroke-linecap="round"/>
+    <circle cx="24" cy="24.8" r="2.1" fill="${ribbon}" stroke="${ribbonLine}" stroke-width="1"/>
+    <circle cx="24" cy="42" r="10.4" fill="#fffdf7" stroke="${line}" stroke-width="1.2"/>
+    <circle cx="24" cy="42" r="8.4" fill="none" stroke="${line}" stroke-opacity=".35" stroke-width=".9" stroke-dasharray="1.6 1.5"/>
+    <g transform="translate(24 42) scale(6.6)">${PIPS[n].map(([x, z]) => `<circle cx="${x * 2.2}" cy="${z * 2.2}" r="${n === 1 ? 0.36 : 0.25}" fill="${dot}"/>`).join('')}</g>
   </svg>`
 }
 // seeds that hop out of the bag when it is picked

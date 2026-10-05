@@ -63,9 +63,9 @@ footer { padding: 4px 12px max(14px, env(safe-area-inset-bottom)); display: grid
   background: none; box-shadow: none; -webkit-tap-highlight-color: transparent;
 }
 .packet:active { transform: none; box-shadow: none; }
-.packet .bag { width: 46px; height: 56px; overflow: visible; transform-origin: 50% 95%; transition: transform .25s cubic-bezier(.3, 1.6, .5, 1); filter: drop-shadow(0 3px 0 rgba(60, 90, 40, .18)); }
-.packet .bag .sprout { transform-origin: 24px 15px; transform: scale(.55) translateY(6px); transition: transform .3s cubic-bezier(.3, 1.8, .5, 1); }
-.packet .bag .frill { transform-origin: 24px 18px; transition: transform .25s; }
+.packet .bag { width: 48px; height: 60px; overflow: visible; transform-origin: 50% 95%; transition: transform .25s cubic-bezier(.3, 1.6, .5, 1); }
+.packet .bag .sprout { transform-origin: 24px 16px; transform: scale(.7) translateY(3px); transition: transform .3s cubic-bezier(.3, 1.8, .5, 1); }
+.packet .bag .frill { transform-origin: 24px 21px; transition: transform .25s; }
 .packet span:last-child { font: 600 13px var(--display); color: var(--ink-soft); line-height: 1; margin-top: 1px; }
 /* a soft spot of light under the bag that's in hand */
 .packet::before {
@@ -90,7 +90,7 @@ footer { padding: 4px 12px max(14px, env(safe-area-inset-bottom)); display: grid
   100% { transform: translateY(-5px) scale(1.08); }
 }
 @keyframes sprout-wave {
-  0% { transform: scale(.55) translateY(6px); }
+  0% { transform: scale(.7) translateY(3px); }
   40% { transform: scale(1.25) rotate(-14deg); }
   65% { transform: scale(.95) rotate(10deg); }
   85% { transform: scale(1.05) rotate(-4deg); }
