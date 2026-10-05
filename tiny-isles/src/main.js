@@ -1,63 +1,97 @@
-import { POOLS } from './levels.js'
-import { buildBoard, blockedBy, degrees, status as boardStatus } from './logic.js'
+import { buildBoard, blockedBy, degrees, solve, status as boardStatus } from './logic.js'
+import { TIERS, TIER_NAMES, puzzle, today, dayOf, dayLabel, dateOf } from './puzzles.js'
 import { IslandScene } from './scene.js'
 import { Sounds } from './sounds.js'
 import { TouchFx } from './touch.js'
 import './style.css'
 
-const STORAGE_KEY = 'tiny-isles.v2'
-const POOL_NAMES = { easy: 'Easy', medium: 'Medium', hard: 'Hard' }
-// every level in play order, easy to hard, each knowing which pool it is in
-const LEVELS = Object.entries(POOLS).flatMap(([pool, levels]) => levels.map((level, k) => ({ ...level, pool, number: k + 1, fog: level.burrows.some((b) => b[3]) })))
+// Tiny Isles is a daily puzzle: every day brings an easy, a medium and a hard
+// sea of islands to join. The home screen shows today's three and every earlier
+// day, so missed ones can be played any time. Progress is kept per puzzle.
+
+const STORAGE_KEY = 'tiny-isles.v3'
 
 const ICON = {
-  prev: '<path d="M15 18l-6-6 6-6"/>',
-  next: '<path d="M9 6l6 6-6 6"/>',
+  back: '<path d="M15 18l-6-6 6-6"/>',
   undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
   restart: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>',
-  close: '<path d="M6 6l12 12M18 6 6 18"/>',
   cloud: '<path d="M7 18h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.3 1.5A3.3 3.3 0 0 0 7 18z"/>',
   check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  close: '<path d="M6 6l12 12M18 6 6 18"/>',
+  play: '<path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/>',
+  calendar: '<rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
+  shell: '<path d="M12 20c-4.5 0-8-3.4-8-7.5C4 8 7.6 4 12 4s8 4 8 8.5c0 4.1-3.5 7.5-8 7.5z"/><path d="M12 20V8M8.5 19l1.5-9.5M15.5 19 14 9.5M5.5 16.5 8 11M18.5 16.5 16 11"/>',
+  flame: '<path d="M12 3c1 3.5 5 5.5 5 10a5 5 0 0 1-10 0c0-2.2 1-3.8 2.3-5 .2 1.7 1 2.8 2.2 3.2C11 9 10.8 6 12 3z"/>',
   sound: '<path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/>',
   mute: '<path d="M11 5 6 9H2v6h4l5 4z"/><path d="m22 9-6 6M16 9l6 6"/>',
 }
 const icon = (name) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[name]}</svg>`
 
 document.querySelector('#app').innerHTML = `
-  <div class="app">
-    <header>
-      <button class="badge" id="num" aria-label="Choose a level">1</button>
-      <div class="titles"><h1 id="name"></h1><p id="prog"></p></div>
-      <button class="round" id="sound" aria-label="Sound">${icon('sound')}</button>
-      <button class="round" id="prev" aria-label="Previous level">${icon('prev')}</button>
-      <button class="round" id="next" aria-label="Next level">${icon('next')}</button>
-    </header>
-    <div class="stage" id="stage"></div>
-    <footer>
-      <p class="say" id="say" aria-live="polite"></p>
-      <div class="row">
-        <button class="chip" id="undo">${icon('undo')}<span>Undo</span></button>
-        <button class="chip" id="restart">${icon('restart')}<span>Restart</span></button>
+  <div class="app" id="shell" data-screen="home">
+    <main class="home" id="home">
+      <div class="clouds" aria-hidden="true"><i></i><i></i><i></i></div>
+      <header class="homehead">
+        <div class="brand">
+          <h1 class="title" aria-label="Tiny Isles">${[...'Tiny Isles'].map((c, i) => (c === ' ' ? '<span class="gap"></span>' : `<span style="--i:${i}">${c}</span>`)).join('')}</h1>
+          <p class="date" id="date"></p>
+        </div>
+        <button class="round" id="sound" aria-label="Sound">${icon('sound')}</button>
+      </header>
+      <div class="chips">
+        <span class="tag-chip streak" id="streak"></span>
+        <span class="tag-chip shells" id="shells"></span>
       </div>
-    </footer>
-    <section class="picker" id="picker" hidden>
-      <div class="sheet">
-        <div class="sheethead"><h2>Choose a puzzle</h2><button class="round" id="closepicker" aria-label="Close">${icon('close')}</button></div>
-        <div class="tabs" id="tabs" role="tablist"></div>
-        <div class="grid" id="grid"></div>
-        <p class="legend">${icon('cloud')} Fog hides some islands' numbers.</p>
+      <div class="homestage" id="homestage"><div class="labels" id="labels"></div></div>
+      <footer class="homefoot">
+        <p class="hello" id="hello"></p>
+        <button class="chip daysbutton" id="open-days">${icon('calendar')}<span>Earlier days</span><b class="count" id="catchup" hidden></b></button>
+      </footer>
+    </main>
+    <section class="dayspage" id="dayspage">
+      <header class="dayshead">
+        <button class="round" id="days-back" aria-label="Back home">${icon('back')}</button>
+        <div class="titles"><h1>Earlier days</h1><p id="dayssummary"></p></div>
+      </header>
+      <div class="months" id="months"></div>
+      <div class="daysheet" id="daysheet" hidden>
+        <div class="sheet">
+          <div class="sheethead"><h2 id="sheetdate"></h2><button class="round" id="sheetclose" aria-label="Close">${icon('close')}</button></div>
+          <div class="cards" id="cards"></div>
+        </div>
       </div>
     </section>
-    <section class="win" id="win" hidden>
-      <h2>All connected!</h2>
-      <p id="winmeta"></p>
-      <button class="chip go" id="winnext">Next level</button>
-    </section>
+    <div class="game" id="game">
+      <header>
+        <button class="round" id="home-button" aria-label="Back">${icon('back')}</button>
+        <div class="titles"><h1 id="name"></h1><p id="prog"></p></div>
+        <button class="round" id="sound2" aria-label="Sound">${icon('sound')}</button>
+      </header>
+      <div class="stage" id="stage"></div>
+      <footer>
+        <p class="say" id="say" aria-live="polite"></p>
+        <div class="row">
+          <button class="chip" id="undo">${icon('undo')}<span>Undo</span></button>
+          <button class="chip" id="restart">${icon('restart')}<span>Restart</span></button>
+        </div>
+      </footer>
+      <section class="win" id="win" hidden>
+        <h2>All connected!</h2>
+        <p id="winmeta"></p>
+        <div class="row">
+          <button class="chip" id="winhome">Home</button>
+          <button class="chip go" id="winnext">Next</button>
+        </div>
+      </section>
+    </div>
   </div>`
 const $ = (id) => document.getElementById(id)
 
+// done: the bridges of every solved puzzle; progress: the bridges laid so far on
+// puzzles still being worked on. Both are keyed by puzzle id ("<day>-<tier>").
 function loadSaved() {
-  try { return { level: 0, done: [], ...JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}') } } catch { return { level: 0, done: [] } }
+  const empty = { done: {}, progress: {} }
+  try { return { ...empty, ...JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}') } } catch { return empty }
 }
 const saved = loadSaved()
 const save = () => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(saved)) } catch { /* private windows */ } }
@@ -74,32 +108,223 @@ scene.onPlank = (along) => {
   sounds.lay(along)
 }
 scene.onOpen = (lanes) => sounds.open(lanes)
-let levelIndex = Math.min(saved.level ?? 0, LEVELS.length - 1)
+
+/* ---------- the home screen ---------- */
+
+let current = null // the puzzle being played
 let board, counts, history, won, built, tiers
 
-function start(index) {
-  levelIndex = (index + LEVELS.length) % LEVELS.length
-  saved.level = levelIndex
-  save()
-  board = buildBoard({ ...LEVELS[levelIndex], source: 0 })
-  counts = board.edges.map(() => 0)
+const state = (id) => (saved.done[id] ? 'done' : saved.progress[id]?.some((n) => n) ? 'started' : 'new')
+
+// A little map of a puzzle: its islands, and its bridges once some are laid.
+function miniMap(p) {
+  const counts = saved.done[p.id] ?? saved.progress[p.id]
+  const s = 10
+  const w = p.width * s, h = p.height * s
+  const at = (i) => [p.burrows[i][1] * s + s / 2, p.burrows[i][0] * s + s / 2]
+  let lines = ''
+  if (counts) {
+    buildBoard(p).edges.forEach((e) => {
+      if (!counts[e.index]) return
+      const [x1, y1] = at(e.a), [x2, y2] = at(e.b)
+      lines += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke-width="${counts[e.index] === 2 ? 3.2 : 1.6}"/>`
+    })
+  }
+  const dots = p.burrows.map(([, , , f], i) => {
+    const [x, y] = at(i)
+    return `<circle cx="${x}" cy="${y}" r="3.3" class="${f ? 'fog' : ''}"/>`
+  }).join('')
+  return `<svg class="map" viewBox="-2 -2 ${w + 4} ${h + 4}" aria-hidden="true"><g class="bridges">${lines}</g>${dots}</svg>`
+}
+
+function streak(now) {
+  // days in a row, back from today (or yesterday, if today is still to come),
+  // with at least one puzzle solved
+  const solved = (day) => TIERS.some((t) => saved.done[`${day}-${t}`])
+  let day = solved(now) ? now : now - 1
+  let n = 0
+  while (day >= 1 && solved(day)) { n++; day-- }
+  return n
+}
+
+// Today's three islands sit on the home screen's sea in a little staircase,
+// easy at the front up to hard at the back. Each city shows how its puzzle is
+// going: a cottage when untouched, a town once started, a skyline when solved.
+const HOME = { width: 3, height: 3, burrows: [[2, 0, 3], [1, 1, 5], [0, 2, 7]] }
+const HOME_TIER = { new: 0, started: 3, done: 8 }
+
+function greeting() {
+  const h = new Date().getHours()
+  return h < 5 ? 'Good night' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'
+}
+
+function drawHome() {
+  const now = today()
+  $('date').textContent = dateOf(now).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' })
+  const states = TIERS.map((tier) => state(`${now}-${tier}`))
+  scene.mount($('homestage'))
+  scene.load(buildBoard(HOME), { seed: now, badges: false, headroom: 1.6 })
+  scene.setIslands(TIERS.map((tier, i) => ({ tier: HOME_TIER[states[i]], have: 0, done: states[i] === 'done', over: false })))
+  scene.setBridges([])
+  $('labels').innerHTML = TIERS.map((tier, i) => {
+    const p = puzzle(now, tier)
+    const st = states[i]
+    const action = { done: `${icon('check')} Solved`, started: `${icon('play')} Resume`, new: `${icon('play')} Play` }[st]
+    return `<button class="label ${st}" data-tier="${tier}" data-day="${now}" style="--i:${i}" aria-label="${TIER_NAMES[tier]}: ${p.name}, ${p.burrows.length} islands${p.fog ? ', with fog' : ''}, ${st === 'done' ? 'solved' : st === 'started' ? 'started' : 'not started'}">
+      <span class="ltier">${TIER_NAMES[tier]}${p.fog ? ` ${icon('cloud')}` : ''}</span>
+      <span class="lname">${p.name}</span>
+      <span class="lgo">${action}</span>
+    </button>`
+  }).join('')
+  placeLabels()
+  const solvedToday = states.filter((s) => s === 'done').length
+  const n = streak(now)
+  $('streak').innerHTML = `${icon('flame')} ${n} day${n === 1 ? '' : 's'}`
+  $('streak').hidden = n < 1
+  $('shells').innerHTML = TIERS.map((t, i) => `<i class="${t} ${states[i]}">${icon('shell')}</i>`).join('') + `<span>${solvedToday}/3 today</span>`
+  $('hello').textContent = `${greeting()}! ${[
+    'Three new islands rose from the sea today. Tap one to start building.',
+    'One down, two to go. The others are waiting for bridges.',
+    'Two joined up! One last island to go today.',
+    'All of today’s islands are joined. New ones arrive tomorrow!',
+  ][solvedToday]}`
+  let missed = 0
+  for (let day = 1; day < now; day++) missed += TIERS.filter((t) => !saved.done[`${day}-${t}`]).length
+  $('catchup').hidden = !missed
+  $('catchup').textContent = missed > 99 ? '99+' : missed
+}
+
+// the labels float above their islands
+function placeLabels() {
+  const box = $('homestage').getBoundingClientRect()
+  document.querySelectorAll('.label').forEach((el, i) => {
+    const is = scene.islands?.[i]
+    if (!is) return
+    const p = is.group.position.clone()
+    p.y = 0.75 + is.r * 0.6
+    const { x, y } = scene.toScreen(p)
+    el.style.left = `${x - box.left}px`
+    el.style.top = `${y - box.top}px`
+  })
+}
+
+/* ---------- earlier days: a calendar, month by month ---------- */
+
+function drawDays() {
+  const now = today()
+  const months = []
+  for (let day = now; day >= 1; day--) {
+    const date = dateOf(day)
+    const key = `${date.getUTCFullYear()}-${date.getUTCMonth()}`
+    if (!months.length || months.at(-1).key !== key) months.push({ key, date, days: [] })
+  }
+  let solved = 0
+  for (let day = 1; day <= now; day++) solved += TIERS.filter((t) => saved.done[`${day}-${t}`]).length
+  $('dayssummary').textContent = `${solved} of ${now * 3} puzzles solved`
+  const weekdays = [...Array(7)].map((_, k) => new Date(Date.UTC(2024, 0, 1 + k)).toLocaleDateString(undefined, { weekday: 'narrow', timeZone: 'UTC' }))
+  $('months').innerHTML = months.map(({ date }) => {
+    const y = date.getUTCFullYear(), m = date.getUTCMonth()
+    const first = new Date(Date.UTC(y, m, 1))
+    const length = new Date(Date.UTC(y, m + 1, 0)).getUTCDate()
+    const blanks = (first.getUTCDay() + 6) % 7 // weeks start on Monday
+    const cells = [...Array(blanks)].map(() => '<span class="cell blank"></span>')
+    for (let d = 1; d <= length; d++) {
+      const day = dayOf(new Date(y, m, d))
+      if (day < 1 || day > now) { cells.push(`<span class="cell off">${d}</span>`); continue }
+      const sts = TIERS.map((t) => state(`${day}-${t}`))
+      const all = sts.every((x) => x === 'done')
+      cells.push(`<button class="cell${all ? ' complete' : ''}${day === now ? ' today' : ''}" data-day="${day}" aria-label="${dayLabel(day, now)}: ${sts.filter((x) => x === 'done').length} of 3 solved"><b>${d}</b><span class="dots">${TIERS.map((t, i) => `<i class="${t} ${sts[i]}"></i>`).join('')}</span></button>`)
+    }
+    return `<section class="month"><h2>${first.toLocaleDateString(undefined, { month: 'long', year: 'numeric', timeZone: 'UTC' })}</h2>
+      <div class="week">${weekdays.map((w) => `<span>${w}</span>`).join('')}</div>
+      <div class="cal">${cells.join('')}</div></section>`
+  }).join('')
+}
+
+function openDay(day) {
+  $('sheetdate').textContent = day === today() ? 'Today' : dateOf(day).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' })
+  $('cards').innerHTML = TIERS.map((tier) => {
+    const p = puzzle(day, tier)
+    const st = state(p.id)
+    const label = { done: `${icon('check')} Solved`, started: 'Resume', new: 'Play' }[st]
+    return `<button class="card ${st}" data-tier="${tier}" data-day="${day}" aria-label="${TIER_NAMES[tier]}: ${p.name}, ${p.burrows.length} islands${p.fog ? ', with fog' : ''}">
+      <span class="tier">${TIER_NAMES[tier]}</span>
+      ${miniMap(p)}
+      <span class="pname">${p.name}</span>
+      <span class="meta"><span>${p.burrows.length} islands</span>${p.fog ? `<span class="fogtag">${icon('cloud')} Fog</span>` : ''}</span>
+      <span class="status">${label}</span>
+    </button>`
+  }).join('')
+  $('daysheet').hidden = false
+}
+
+const play = (day, tier) => { sounds.unlock(); location.hash = `#/${day}/${tier}` }
+$('labels').addEventListener('click', (ev) => {
+  const b = ev.target.closest('[data-tier]')
+  if (b) play(b.dataset.day, b.dataset.tier)
+})
+$('cards').addEventListener('click', (ev) => {
+  const b = ev.target.closest('[data-tier]')
+  if (b) play(b.dataset.day, b.dataset.tier)
+})
+$('months').addEventListener('click', (ev) => {
+  const c = ev.target.closest('.cell[data-day]')
+  if (c) { sounds.unlock(); sounds.press(); openDay(Number(c.dataset.day)) }
+})
+$('open-days').onclick = () => { sounds.unlock(); location.hash = '#/days' }
+$('days-back').onclick = () => { location.hash = '' }
+$('sheetclose').onclick = () => { $('daysheet').hidden = true }
+$('daysheet').onclick = (ev) => { if (ev.target === $('daysheet')) $('daysheet').hidden = true }
+
+/* ---------- moving between screens ---------- */
+
+// #/<day>/<tier> plays a puzzle, #/days is the calendar, anything else is home.
+// The phone's back gesture steps back through them.
+let backTo = ''
+function route() {
+  const m = location.hash.match(/^#\/(\d+)\/(easy|medium|hard)$/)
+  const day = m && Number(m[1])
+  const screen = m && day >= 1 && day <= today() ? 'game' : location.hash === '#/days' ? 'days' : 'home'
+  const was = $('shell').dataset.screen
+  $('shell').dataset.screen = screen
+  if (screen === 'game') {
+    if (was !== 'game') backTo = was === 'days' ? '#/days' : ''
+    scene.mount($('stage'))
+    start(day, m[2])
+    return
+  }
+  current = null
+  if (screen === 'days') { $('daysheet').hidden = true; drawDays() } else drawHome()
+}
+addEventListener('hashchange', route)
+$('home-button').onclick = () => { location.hash = backTo }
+
+/* ---------- playing a puzzle ---------- */
+
+function start(day, tier) {
+  current = puzzle(day, tier)
+  board = buildBoard({ ...current, source: 0 })
+  const solved = saved.done[current.id]
+  const kept = solved ?? saved.progress[current.id]
+  counts = kept && kept.length === board.edges.length ? kept.slice() : board.edges.map(() => 0)
   history = []
-  won = false
+  won = Boolean(solved)
   built = 0
   tiers = board.burrows.map(() => 0)
   $('win').hidden = true
-  const level = LEVELS[levelIndex]
-  $('num').textContent = level.number
-  $('num').dataset.pool = level.pool
-  $('name').textContent = level.name
-  scene.load(board, { seed: 5 + levelIndex * 7 })
+  $('name').textContent = current.name
+  $('game').dataset.tier = tier
+  scene.load(board, { seed: day * 3 + TIERS.indexOf(tier) })
   refresh(true)
-  if (levelIndex === 0) say('Drag from an island toward a neighbour to build a bridge. The number is how many bridges it wants.')
-  else if (level.fog && !saved.seenFog) {
+  const first = !Object.keys(saved.done).length && !Object.keys(saved.progress).length
+  if (won) say('Solved! Restart to play it again.')
+  else if (first) say('Drag from an island toward a neighbour to build a bridge. The number is how many bridges it wants.')
+  else if (current.fog && !saved.seenFog) {
     saved.seenFog = true
     save()
     say('Fog hides some islands’ numbers. Work them out from their neighbours: the fog lifts when everything joins up.')
-  } else say(level.fog ? 'Fog hides some numbers. Every island still wants exactly its number of bridges.' : 'Every island wants its number of bridges, and all of them must join up.')
+  } else if (counts.some((n) => n)) say('Welcome back. Your bridges are just as you left them.')
+  else say(current.fog ? 'Fog hides some numbers. Every island still wants exactly its number of bridges.' : 'Every island wants its number of bridges, and all of them must join up.')
 }
 
 const say = (text) => { $('say').textContent = text }
@@ -117,7 +342,7 @@ function refresh(quiet = false) {
   const known = board.burrows.filter((b) => !b.fog)
   const fogNote = known.length < board.burrows.length && !won ? ` · ${board.burrows.length - known.length} in fog` : ''
   const counted = won ? board.burrows : known
-  $('prog').textContent = `${POOL_NAMES[LEVELS[levelIndex].pool]} · ${counted.filter(happy).length} of ${counted.length} ${fogNote ? '' : 'islands '}happy${fogNote}`
+  $('prog').textContent = `${dayLabel(current.day)} · ${TIER_NAMES[current.tier]} · ${counted.filter(happy).length}/${counted.length} happy${fogNote}`
   $('undo').disabled = !history.length || won
   return st
 }
@@ -137,6 +362,7 @@ function apply(edge, next) {
   }
   history.push([edge, before])
   counts[edge] = next
+  keep()
   const e = board.edges[edge]
   scene.bounce(e.a)
   scene.bounce(e.b)
@@ -154,18 +380,43 @@ function apply(edge, next) {
   return true
 }
 
+// remember the bridges laid so far, so a puzzle can be picked up later
+function keep() {
+  if (counts.some((n) => n)) saved.progress[current.id] = counts.slice()
+  else delete saved.progress[current.id]
+  save()
+}
+
+// the next puzzle to suggest after a win: the next unsolved one that day, else today's
+function nextPuzzle() {
+  for (const day of [current.day, today()]) {
+    const tier = TIERS.find((t) => !saved.done[`${day}-${t}`])
+    if (tier) return { day, tier }
+  }
+  return null
+}
+
 function win() {
   won = true
-  refresh(true)
-  if (!saved.done.includes(LEVELS[levelIndex].id)) saved.done.push(LEVELS[levelIndex].id)
+  saved.done[current.id] = counts.slice()
+  delete saved.progress[current.id]
   save()
+  refresh(true)
   say('Every island is connected. Look at those cities!')
+  const shown = current.id
   setTimeout(() => {
+    if (current?.id !== shown) return
     sounds.win()
     scene.celebrate()
     setTimeout(() => {
-      const level = LEVELS[levelIndex]
-      $('winmeta').textContent = `${board.burrows.length} islands and ${counts.reduce((a, b) => a + b, 0)} bridges in ${level.name}.${level.fog ? ' The fog has lifted!' : ''}`
+      if (current?.id !== shown) return
+      const next = nextPuzzle()
+      $('winmeta').textContent = `${board.burrows.length} islands and ${counts.reduce((a, b) => a + b, 0)} bridges in ${current.name}.${current.fog ? ' The fog has lifted!' : ''}`
+      $('winnext').hidden = !next
+      if (next) {
+        $('winnext').textContent = next.day === current.day ? `Next: ${TIER_NAMES[next.tier]}` : `Today’s ${TIER_NAMES[next.tier]}`
+        $('winnext').onclick = () => { location.hash = `#/${next.day}/${next.tier}` }
+      }
       $('win').hidden = false
     }, 2200)
   }, 600)
@@ -182,9 +433,15 @@ canvas.style.touchAction = 'none'
 
 canvas.addEventListener('pointerdown', (ev) => {
   sounds.unlock()
-  if (won) return
   const p = scene.toWorld(ev.clientX, ev.clientY)
   if (!p) return
+  if (!current) {
+    // on the home screen, tapping one of today's islands opens its puzzle
+    const island = scene.islandAt(p)
+    if (island !== null) { scene.bounce(island); sounds.press(); setTimeout(() => play(today(), TIERS[island]), 180) }
+    return
+  }
+  if (won) return
   canvas.setPointerCapture(ev.pointerId)
   const island = scene.islandAt(p)
   drag = { id: ev.pointerId, island, start: p, last: p, cut: new Set(), sx: ev.clientX, sy: ev.clientY, moved: false, edge: null, progress: 0, shown: 0, snapped: false }
@@ -271,7 +528,7 @@ canvas.addEventListener('pointercancel', (ev) => { if (drag?.id === ev.pointerId
 
 // The bridge follows the finger plank by plank, and past halfway it snaps across.
 function updateDrag(dt) {
-  if (!drag || drag.island === null || drag.edge === null) return
+  if (!current || !drag || drag.island === null || drag.edge === null) return
   const n = counts[drag.edge]
   if (n === 2) {
     // a third drag takes the bridge down: no preview, just the snap
@@ -296,45 +553,15 @@ function updateDrag(dt) {
 }
 
 /* ---------- buttons ---------- */
-$('prev').onclick = () => { sounds.unlock(); start(levelIndex - 1) }
-$('next').onclick = () => { sounds.unlock(); start(levelIndex + 1) }
-$('winnext').onclick = () => start(levelIndex + 1)
+$('winhome').onclick = () => { location.hash = '' }
 $('undo').onclick = () => {
   if (!history.length || won) return
   const [edge, before] = history.pop()
   counts[edge] = before
+  keep()
   sounds.undo()
   refresh()
 }
-/* ---------- choosing a level ---------- */
-let pickerPool = 'easy'
-function drawPicker() {
-  $('tabs').innerHTML = Object.entries(POOL_NAMES).map(([pool, label]) => {
-    const levels = LEVELS.filter((l) => l.pool === pool)
-    const done = levels.filter((l) => saved.done.includes(l.id)).length
-    return `<button role="tab" class="tab" data-pool="${pool}" aria-selected="${pool === pickerPool}">${label}<small>${done}/${levels.length}</small></button>`
-  }).join('')
-  $('grid').innerHTML = LEVELS.map((l, i) => [l, i]).filter(([l]) => l.pool === pickerPool).map(([l, i]) => {
-    const done = saved.done.includes(l.id)
-    return `<button class="tile${done ? ' done' : ''}${i === levelIndex ? ' here' : ''}" data-index="${i}" aria-label="${l.name}${l.fog ? ', with fog' : ''}${done ? ', solved' : ''}">
-      <span>${l.number}</span>${l.fog ? `<i class="fog">${icon('cloud')}</i>` : ''}${done ? `<i class="tick">${icon('check')}</i>` : ''}</button>`
-  }).join('')
-}
-function openPicker() {
-  pickerPool = LEVELS[levelIndex].pool
-  drawPicker()
-  $('picker').hidden = false
-}
-$('num').onclick = () => { sounds.unlock(); openPicker() }
-$('closepicker').onclick = () => { $('picker').hidden = true }
-$('picker').onclick = (ev) => {
-  if (ev.target === $('picker')) { $('picker').hidden = true; return }
-  const tab = ev.target.closest('.tab')
-  if (tab) { pickerPool = tab.dataset.pool; drawPicker(); return }
-  const tile = ev.target.closest('.tile')
-  if (tile) { $('picker').hidden = true; start(Number(tile.dataset.index)) }
-}
-
 let armed = false
 $('restart').onclick = () => {
   const label = $('restart').querySelector('span')
@@ -346,27 +573,36 @@ $('restart').onclick = () => {
   }
   armed = false
   label.textContent = 'Restart'
-  start(levelIndex)
+  // a solved puzzle stays solved; restarting just clears the board to play again
+  delete saved.progress[current.id]
+  const solved = saved.done[current.id]
+  delete saved.done[current.id]
+  start(current.day, current.tier)
+  if (solved) saved.done[current.id] = solved
+  save()
 }
-const syncSound = () => { $('sound').innerHTML = icon(sounds.enabled ? 'sound' : 'mute') }
-$('sound').onclick = () => { sounds.unlock(); sounds.enabled = !sounds.enabled; syncSound() }
+const syncSound = () => { for (const id of ['sound', 'sound2']) $(id).innerHTML = icon(sounds.enabled ? 'sound' : 'mute') }
+for (const id of ['sound', 'sound2']) $(id).onclick = () => { sounds.unlock(); sounds.enabled = !sounds.enabled; syncSound() }
 syncSound()
-addEventListener('keydown', (ev) => { if ((ev.ctrlKey || ev.metaKey) && ev.key === 'z') $('undo').click() })
+addEventListener('keydown', (ev) => { if ((ev.ctrlKey || ev.metaKey) && ev.key === 'z' && current) $('undo').click() })
 
 /* ---------- loop ---------- */
 let last = performance.now()
 // test captures run slowly in software rendering, so they keep their resolution
 const capture = new URLSearchParams(location.search).has('capture')
 function frame(now) {
-  if (!capture) scene.tune(now - last)
-  const dt = Math.min(0.05, (now - last) / 1000)
-  last = now
-  if (!document.hidden) {
+  // the sea is drawn on the home screen and while a puzzle is open
+  const home = $('shell').dataset.screen === 'home'
+  if ((current || home) && !document.hidden) {
+    if (!capture) scene.tune(now - last)
+    const dt = Math.min(0.05, (now - last) / 1000)
     updateDrag(dt)
     scene.update(dt)
     scene.render()
     if (touch.busy || touch.drawn) { touch.update(dt); touch.drawn = touch.busy }
+    if (home) placeLabels()
   }
+  last = now
   requestAnimationFrame(frame)
 }
 // Turning a phone rebuilds the sea to fit; bridges and cities carry over.
@@ -376,20 +612,25 @@ addEventListener('resize', () => {
   clearTimeout(resizeTimer)
   resizeTimer = setTimeout(() => {
     const now = innerHeight / innerWidth
-    if (Math.abs(now - shape) < 0.25) return
+    if (Math.abs(now - shape) < 0.25 || !current) return
     shape = now
-    scene.load(board, { seed: 5 + levelIndex * 7 })
+    scene.load(board, { seed: current.day * 3 + TIERS.indexOf(current.tier) })
     refresh(true)
   }, 300)
 })
-start(levelIndex)
+// a new day may have begun while the home screen sat open
+addEventListener('visibilitychange', () => { if (!document.hidden && !current) route() })
+route()
 requestAnimationFrame(frame)
 
 // Hooks for the visual tests.
 window.__isles = {
-  scene, start, apply,
+  scene, apply, touch,
+  start(day, tier) { location.hash = `#/${day}/${tier}`; route() },
+  home() { location.hash = ''; route() },
   get counts() { return counts },
   get board() { return board },
+  get current() { return current },
+  solution() { return solve(board)[0] },
   advance(seconds) { for (let t = 0; t < seconds; t += 1 / 30) { updateDrag(1 / 30); scene.update(1 / 30); touch.update(1 / 30) } scene.render() },
-  touch,
 }
