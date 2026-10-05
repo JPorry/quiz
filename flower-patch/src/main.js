@@ -163,8 +163,10 @@ function choose(n) {
   for (const b of $('tray').children) {
     const on = Number(b.dataset.seed) === n
     b.setAttribute('aria-pressed', String(on))
-    // the picked bag hops, wiggles and tosses out a few seeds
-    if (on) { b.classList.remove('hop'); void b.offsetWidth; b.classList.add('hop') }
+    // the picked bag hops, wiggles and tosses out a few seeds; the others let
+    // go of their hop so they settle back down with the rest
+    b.classList.remove('hop')
+    if (on) { void b.offsetWidth; b.classList.add('hop') }
   }
 }
 
