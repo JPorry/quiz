@@ -3,7 +3,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { toon, outline } from './look.js'
 import { cellGeometry, COLORS, GROW_STEPS, PIPS, plantTop, STEPS } from './flowers.js'
 import { Insects } from './insects.js'
-import { buildGarden, labels, SOIL_Y } from './garden.js'
+import { buildGarden, labels, SOIL_Y, WIND } from './garden.js'
 import { World } from './world.js'
 
 // A tilted diorama of a garden seen through a fixed orthographic camera. Every
@@ -21,12 +21,21 @@ const PUFF = new THREE.SphereGeometry(1, 6, 4)
 const PETAL = new THREE.CircleGeometry(1, 7)
 const SPARK = new THREE.OctahedronGeometry(1, 0)
 const RING = new THREE.RingGeometry(0.8, 1, 32).rotateX(-Math.PI / 2)
+// a soft, tapering streak of wind, lying flat and pointing along +x
+const STREAK = (() => {
+  const shape = new THREE.Shape()
+  shape.moveTo(-0.5, 0)
+  shape.quadraticCurveTo(0, 0.022, 0.5, 0.004)
+  shape.quadraticCurveTo(0.52, 0, 0.5, -0.004)
+  shape.quadraticCurveTo(0, -0.01, -0.5, 0)
+  return new THREE.ShapeGeometry(shape, 12).rotateX(-Math.PI / 2)
+})()
 // a dome of soil that swells up where a sprout is about to break through
 const HUMP = new THREE.SphereGeometry(1, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2)
 // how far below the soil a sprout starts
 const BURIED = 0.3
 // a sprout waking up: the soil swells, cracks, the seedling pushes up with its
-// leaves folded, then opens them wide and wiggles (seconds)
+// leaves folded, then opens them wide (seconds)
 const SWELL = 0.38
 const RISE = 0.75
 const BLINK = SWELL + RISE + 0.15
@@ -79,6 +88,9 @@ export class GardenScene {
   load(board, flowers, fixed, { seed = 1 } = {}) {
     this.world.clear()
     this.insects.clear()
+    for (const st of this.streaks ?? []) st.mesh.removeFromParent()
+    this.streaks = []
+    this.gust = null
     this.board = board
     this.flowers = flowers
     this.fx = []
@@ -412,6 +424,80 @@ export class GardenScene {
     crowd.forEach((kind, k) => setTimeout(() => this.insects.add(kind), 600 + k * 450))
   }
 
+  /* ---------- wind ---------- */
+
+  // Every so often a gust of wind blows across the garden from a random side.
+  // It travels as a wave: each plant leans away from it as it passes, sways
+  // back past upright and settles. Flowers bend more than seedlings, and a few
+  // petals and leaves are carried along with it.
+  wind() {
+    if (!this.board) return
+    this.nextGust ??= this.time + 5 + Math.random() * 6
+    this.streaks ??= []
+    if (!this.gust && this.time >= this.nextGust) {
+      const a = Math.random() * Math.PI * 2
+      const { width, height } = this.board
+      const reach = Math.hypot(width, height) / 2 + 0.5
+      this.gust = { dx: Math.cos(a), dz: Math.sin(a), start: this.time, reach, speed: 2.4, strength: 0.45 + Math.random() * 0.2 }
+      this.onGust?.(this.gust.strength)
+      // a few petals and leaves ride the gust across
+      const flowers = [...new Set(this.flowers.map((f) => COLORS[f].petal))]
+      for (let k = 0; k < 14; k++) {
+        const side = (Math.random() - 0.5) * reach * 1.6
+        const start = new THREE.Vector3(-this.gust.dx * reach + -this.gust.dz * side, SOIL_Y + 0.3 + Math.random() * 0.35, -this.gust.dz * reach + this.gust.dx * side)
+        const v = new THREE.Vector3(this.gust.dx, 0.05, this.gust.dz).multiplyScalar(this.gust.speed * (0.9 + Math.random() * 0.3))
+        const color = k % 3 === 0 ? 0x7acb58 : flowers[Math.floor(Math.random() * flowers.length)]
+        const life = (reach * 2) / this.gust.speed
+        setTimeout(() => this.spawn(PETAL, color, start, v, 0.045, { life, gravity: 0, spin: 5, basic: true, drift: 1 }), k * 70)
+      }
+      // soft white streaks of wind sweep across with the gust
+      for (let k = 0; k < 5; k++) {
+        const side = (k / 4 - 0.5) * reach * 1.4 + (Math.random() - 0.5) * 0.4
+        const mesh = new THREE.Mesh(STREAK, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }))
+        mesh.rotation.y = -a
+        this.world.add(mesh)
+        this.streaks.push({ mesh, side, lag: Math.random() * 1.2, height: SOIL_Y + 0.35 + Math.random() * 0.3, len: 1 + Math.random() * 0.7 })
+      }
+    }
+    // the streaks travel a little ahead of the gust, swelling in and fading out
+    for (let k = this.streaks.length - 1; k >= 0; k--) {
+      const st = this.streaks[k]
+      const g = this.gust
+      const run = g ? (this.time - g.start - st.lag * 0.4) * g.speed * 1.15 - g.reach : 99
+      const k01 = g ? (run + g.reach) / (g.reach * 2) : 2
+      if (!g || k01 > 1) { st.mesh.removeFromParent(); st.mesh.material.dispose(); this.streaks.splice(k, 1); continue }
+      st.mesh.visible = k01 > 0
+      st.mesh.position.set(g.dx * run - g.dz * st.side, st.height + Math.sin(this.time * 3 + k) * 0.03, g.dz * run + g.dx * st.side)
+      st.mesh.material.opacity = 0.7 * Math.sin(Math.max(0, Math.min(1, k01)) * Math.PI)
+      st.mesh.scale.set(st.len, 1, 2.2)
+    }
+    if (this.gust) {
+      const g = this.gust
+      const front = (this.time - g.start) * g.speed - g.reach
+      WIND.dir.value.set(g.dx, g.dz)
+      WIND.front.value = front
+      WIND.on.value = Math.min(1, (front + g.reach) / 1.5) * Math.max(0, Math.min(1, (g.reach + 1.5 - front) / 1.5))
+    } else WIND.on.value = 0
+    if (this.gust && (this.time - this.gust.start) * this.gust.speed > this.gust.reach * 2 + 3) {
+      this.gust = null
+      this.nextGust = this.time + 7 + Math.random() * 10
+    }
+  }
+
+  // how far the gust tips a cell's plants right now, as [rotation x, rotation z]
+  gustAt(c) {
+    const g = this.gust
+    if (!g || !c.value) return [0, 0]
+    const p = this.center(c.i)
+    const front = (this.time - g.start) * g.speed - g.reach
+    const behind = front - (p.x * g.dx + p.z * g.dz)
+    if (behind <= 0) return [0, 0]
+    // lean over as the gust arrives, sway back, and settle
+    const lean = g.strength * Math.sin(Math.min(behind / 0.5, 1) * Math.PI / 2) * Math.exp(-behind * 0.9) * Math.cos(Math.max(0, behind - 0.5) * 3.2)
+    const bend = (c.stage === 'sprout' ? 0.55 : 1) * lean
+    return [g.dz * bend, -g.dx * bend]
+  }
+
   /* ---------- picking ---------- */
 
   toWorld(clientX, clientY) {
@@ -523,6 +609,7 @@ export class GardenScene {
 
   update(dt) {
     this.time += dt
+    this.wind()
     if (!this.board) return
     this.glow = THREE.MathUtils.damp(this.glow, this.glowTarget, 1.2, dt)
     this.sun.color.setHex(0xfff3df).lerp(new THREE.Color(0xffc98a), this.glow * 0.7)
@@ -574,16 +661,14 @@ export class GardenScene {
           c.plant.group.scale.set(1 - stretch * 0.4, 1 + stretch, 1 - stretch * 0.4)
         }
         if (w.t >= BLINK) {
-          // it opens its leaves out wide, then gives a happy little wiggle
+          // it opens its leaves out wide and settles
           const type = this.flowers[this.board.bedOf[c.i]]
           const k = Math.min(1, (w.t - BLINK) / OPEN_LEAVES)
           if (c.stage === 'sprout') this.show(c.plant, cellGeometry(type, 'sprout', c.value, c.wilt, undefined, 1 - (1 - (1 - k) ** 2)))
           if (!w.opened) { w.opened = true; this.onAwake?.(c.i, c.value) }
           if (k >= 1) {
             this.endWake(c)
-            c.pop = 0
-            c.popFrom = 0.94
-            c.joy = 0
+            c.pop = 1
           }
         }
         busy = true
@@ -612,14 +697,10 @@ export class GardenScene {
         c.group.rotation.z = Math.sin(k * Math.PI * 4) * (1 - k) * 0.25
         if (k >= 1) c.wobble = -1
       } else {
-        // a gentle breeze, and a happy wiggle just after waking
-        let wiggle = 0
-        if (c.joy !== undefined && c.joy < 1) {
-          c.joy = Math.min(1, c.joy + dt / 0.7)
-          wiggle = Math.sin(c.joy * Math.PI * 4) * (1 - c.joy) * 0.16
-        }
-        c.group.rotation.z = wiggle + Math.sin(this.time * 1.3 + c.phase) * 0.025
-        c.group.rotation.x = Math.sin(this.time * 0.9 + c.phase * 0.7) * 0.02
+        // a gentle breeze, and now and then a gust that sweeps across
+        const [gx, gz] = this.gustAt(c)
+        c.group.rotation.z = Math.sin(this.time * 1.3 + c.phase) * 0.025 + gz
+        c.group.rotation.x = Math.sin(this.time * 0.9 + c.phase * 0.7) * 0.02 + gx
       }
     }
     for (const bed of this.beds) {
