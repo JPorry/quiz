@@ -2,7 +2,7 @@ import { POOLS } from './levels.js'
 import { assignFlowers, bedComplete, buildBoard, conflicts, isSolved, MAX_SEED } from './logic.js'
 import { GardenScene } from './scene.js'
 import { Sounds } from './sounds.js'
-import { COLORS, PIPS, NUM } from './flowers.js'
+import { PIPS, NUM } from './flowers.js'
 import './style.css'
 
 const STORAGE_KEY = 'flower-patch.v1'
@@ -198,7 +198,7 @@ scene.onPop = (i, stage, rank) => {
   if (rank === board.beds[bed].length - 1) {
     setTimeout(() => sounds.bed(board.beds[bed].length), 60)
     buzz([0, 15, 40, 25])
-    flyFlower(i, '#' + COLORS[flowers[bed]].petal.toString(16).padStart(6, '0'))
+    flyFlower(i, '#' + NUM[values[i]].toString(16).padStart(6, '0'))
   }
 }
 let lastBloom = 0, bloomCount = 0

@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import { toon, part, baked, canvasTexture, seeded } from './look.js'
-import { COLORS } from './flowers.js'
+import { palette } from './flowers.js'
 
 // The garden around the plants: raised beds of soil walled in brick, a striped
 // lawn between them, a picket fence, and a few things left lying about.
@@ -144,18 +144,20 @@ function soilTexture(board, seed, fixed) {
   })
 }
 
-// What a bed turns into as it flowers: a leafy carpet strewn with its petals.
+// What a bed turns into as it flowers: a leafy carpet strewn with petals in
+// the colours of its seeds (a bed of N always flowers with 1 to N).
 function carpetTexture(board, flowers, seed) {
   const rand = seeded(seed + 1)
   return canvasTexture(board.width * PX, board.height * PX, (g) => {
     for (let i = 0; i < board.cells; i++) {
       const r = Math.floor(i / board.width), c = i % board.width
-      const color = COLORS[flowers[board.bedOf[i]]].carpet
+      const size = board.beds[board.bedOf[i]].length
+      const colors = Array.from({ length: size }, (_, v) => palette(flowers[board.bedOf[i]], v + 1).carpet)
       g.fillStyle = '#5aa64f'
       g.fillRect(c * PX, r * PX, PX, PX)
       speckle(g, c * PX, r * PX, PX, PX, ['#64b358', '#509a47', '#6cbf5f'], 22, rand, 5)
       g.globalAlpha = 0.7
-      speckle(g, c * PX, r * PX, PX, PX, [color], 5, rand, 2.6)
+      speckle(g, c * PX, r * PX, PX, PX, colors, 6, rand, 2.6)
       g.globalAlpha = 1
     }
   })
