@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
 import { toon, outline, seeded } from './look.js'
-import { cellGeometry, COLORS } from './flowers.js'
+import { cellGeometry, COLORS, STEPS } from './flowers.js'
 import { buildGarden, pebbles, SOIL_Y } from './garden.js'
 import { World } from './world.js'
 
@@ -21,6 +21,7 @@ const PETAL = new THREE.CircleGeometry(1, 7)
 const SPARK = new THREE.OctahedronGeometry(1, 0)
 const WING = new THREE.CircleGeometry(1, 12).scale(1, 0.75, 1).translate(1, 0, 0)
 const BODY = new THREE.CapsuleGeometry(1, 2, 2, 6)
+const EMPTY = new THREE.BufferGeometry()
 const MARK = new RoundedBoxGeometry(0.92, 0.01, 0.92, 2, 0.12)
 const BUTTERFLY_COLORS = [0xffb3d1, 0xfff0a0, 0xb8e0ff, 0xd9c2ff, 0xffd0a8, 0xffffff]
 
@@ -110,6 +111,7 @@ export class GardenScene {
     this.elevationTarget = ELEVATION
     this.plantMaterial = toon(0xffffff, { vertexColors: true, rim: 0.2 })
     this.plantLine = outline(LINE, 0.006)
+    this.faceMaterial = new THREE.MeshBasicMaterial({ vertexColors: true })
     this.markMaterial = new THREE.MeshBasicMaterial({ color: 0xff5a4a, transparent: true, opacity: 0.38, depthWrite: false })
     new ResizeObserver(() => this.resize()).observe(container)
   }
@@ -132,18 +134,15 @@ export class GardenScene {
     this.cells = Array.from({ length: board.cells }, (_, i) => {
       const group = new THREE.Group()
       group.position.copy(this.center(i))
-      const mesh = new THREE.Mesh(undefined, this.plantMaterial)
-      mesh.castShadow = true
-      const line = new THREE.Mesh(undefined, this.plantLine)
-      group.add(mesh, line)
-      group.visible = false
       this.world.add(group)
       const mark = new THREE.Mesh(MARK, this.markMaterial)
       mark.position.copy(group.position)
       mark.position.y += 0.004
       mark.visible = false
       this.world.add(mark)
-      return { i, group, mesh, line, mark, key: '', value: 0, stage: 'sprout', k: 1, from: 0, leaving: false, wobble: -1, pending: null, phase: i * 1.7 }
+      // the plants now, and the ones they replace, shrinking away
+      const plant = this.slot(group), ghost = this.slot(group)
+      return { i, group, plant, ghost, mark, key: '', value: 0, stage: 'sprout', wilt: false, pop: 1, gone: 1, grow: null, wobble: -1, pending: null, phase: i * 1.7 }
     })
     const reach = Math.max(board.width, board.height) / 2 + 2
     Object.assign(this.sun.shadow.camera, { left: -reach, right: reach, top: reach, bottom: -reach, near: 0.5, far: 40 })
@@ -159,45 +158,120 @@ export class GardenScene {
     return new THREE.Vector3((i % width) + 0.5 - width / 2, SOIL_Y, Math.floor(i / width) + 0.5 - height / 2)
   }
 
+  slot(parent) {
+    const group = new THREE.Group()
+    const mesh = new THREE.Mesh(undefined, this.plantMaterial)
+    mesh.castShadow = true
+    const line = new THREE.Mesh(undefined, this.plantLine)
+    const face = new THREE.Mesh(undefined, this.faceMaterial)
+    group.add(mesh, line, face)
+    group.visible = false
+    parent.add(group)
+    return { group, mesh, line, face }
+  }
+
+  show(slot, shapes) {
+    slot.mesh.geometry = shapes.body
+    slot.line.geometry = shapes.body
+    slot.face.geometry = shapes.face ?? EMPTY
+    slot.group.visible = true
+  }
+
+  // The plants in a cell shrink away into the soil.
+  retire(c) {
+    if (!c.plant.group.visible) return
+    this.show(c.ghost, { body: c.plant.mesh.geometry, face: c.plant.face.geometry })
+    c.ghost.group.scale.copy(c.plant.group.scale)
+    c.gone = 0
+    c.plant.group.visible = false
+  }
+
   // states[i] = { value, stage, wilt } for every cell
   setCells(states, { quiet = false } = {}) {
     states.forEach((s, i) => {
       const c = this.cells[i]
-      const key = s.value ? `${this.flowers[this.board.bedOf[i]]}|${s.stage}|${s.value}|${s.wilt}` : ''
+      const type = this.flowers[this.board.bedOf[i]]
+      const key = s.value ? `${s.stage}|${s.value}|${s.wilt}` : ''
       c.mark.visible = !!s.wilt
       if (key === c.key) return
+      c.key = key
+      c.pending = null
       if (!s.value) {
-        c.key = ''
-        c.pending = null
-        if (c.value) { c.leaving = true; c.k = 0 }
+        if (!quiet) this.retire(c)
+        else c.plant.group.visible = false
         c.value = 0
+        c.grow = null
         return
       }
-      const change = () => {
-        const fresh = !c.value || c.leaving || s.value !== c.value
-        const grew = c.stage !== s.stage
-        c.key = key
-        c.value = s.value
-        c.stage = s.stage
-        c.leaving = false
-        const geometry = cellGeometry(this.flowers[this.board.bedOf[i]], s.stage, s.value, s.wilt)
-        c.mesh.geometry = geometry
-        c.line.geometry = geometry
-        c.group.visible = true
-        if (quiet) { c.k = 1; return }
-        c.k = 0
-        c.from = fresh ? 0 : grew ? 0.55 : 0.85
-        this.shadowFrames = 3
+      if (quiet) {
+        Object.assign(c, { value: s.value, stage: s.stage, wilt: s.wilt, grow: null, pop: 1 })
+        this.show(c.plant, cellGeometry(type, s.stage, s.value, s.wilt))
+        c.plant.group.scale.setScalar(1)
+        return
       }
-      // the finale opens the flowers in a wave from the middle of the garden
-      if (s.stage === 'bloom' && c.stage !== 'bloom' && !quiet) {
+      this.shadowFrames = 3
+      const seedling = !c.value || s.value !== c.value
+      if (seedling) {
+        // a new seed pops up as a sprout first, and grows on from there
+        this.retire(c)
+        Object.assign(c, { value: s.value, stage: 'sprout', wilt: s.wilt, grow: null, pop: 0 })
+        this.show(c.plant, cellGeometry(type, 'sprout', s.value, s.wilt))
+        if (s.stage !== 'sprout') c.pending = { at: this.time + 0.45, change: () => this.advance(c, type, s) }
+        return
+      }
+      if (s.stage === 'bloom' && c.stage !== 'bloom') {
+        // the finale opens the flowers in a wave from the middle of the garden
         const p = this.center(i)
-        c.pending = { at: this.time + 0.25 + Math.hypot(p.x, p.z) * 0.22, change }
-      } else {
-        c.pending = null
-        change()
+        c.pending = { at: this.time + 0.25 + Math.hypot(p.x, p.z) * 0.22, change: () => { this.advance(c, type, s); this.burst(c.i) } }
+        return
       }
+      this.advance(c, type, s)
     })
+  }
+
+  // Moves a cell's plants on to a new stage, growing into it step by step.
+  advance(c, type, s) {
+    const from = c.stage
+    if (s.stage === 'bloom' && from === 'sprout') {
+      // the last seed planted grows its bud first, then opens with the rest
+      this.advance(c, type, { ...s, stage: 'bud' })
+      c.pending = { at: this.time + 0.9, change: () => { this.advance(c, type, s); this.burst(c.i) } }
+      return
+    }
+    Object.assign(c, { stage: s.stage, wilt: s.wilt })
+    if (s.stage === 'bud' && from === 'sprout') {
+      // the sprout ducks into the soil and a stem rises in its place
+      this.retire(c)
+      c.grow = { type, k: 0, dur: 0.8, step: -1 }
+      c.pop = 1
+      c.plant.group.scale.setScalar(1)
+    } else if (s.stage === 'bloom' && from !== 'bloom') {
+      // the bud unfurls
+      c.grow = { type, k: 0, dur: 1, step: -1 }
+    } else if (s.stage === 'sprout' && from !== 'sprout') {
+      // a bed that is no longer complete shrinks back to sprouts
+      this.retire(c)
+      c.grow = null
+      c.pop = 0
+      this.show(c.plant, cellGeometry(type, 'sprout', c.value, s.wilt))
+    } else {
+      // a seed starts or stops wilting
+      c.grow = null
+      this.show(c.plant, cellGeometry(type, s.stage, c.value, s.wilt))
+      c.wobble = 0
+    }
+    if (c.grow) this.stepGrowth(c, 0)
+  }
+
+  stepGrowth(c, dt) {
+    const g = c.grow
+    g.k = Math.min(1, g.k + dt / g.dur)
+    const step = Math.round((1 - (1 - g.k) ** 2) * STEPS)
+    if (step !== g.step) {
+      g.step = step
+      this.show(c.plant, cellGeometry(g.type, c.stage, c.value, c.wilt, step))
+    }
+    if (g.k >= 1) c.grow = null
   }
 
   // grow: 0 bare soil, about half for a complete bed, 1 in bloom
@@ -398,24 +472,36 @@ export class GardenScene {
         const { change } = c.pending
         c.pending = null
         change()
-        this.burst(c.i)
       }
-      if (c.leaving) {
-        c.k = Math.min(1, c.k + dt / 0.22)
-        c.group.scale.setScalar(Math.max(0.001, 1 - c.k))
-        if (c.k >= 1) { c.leaving = false; c.group.visible = false }
-        busy = true
-      } else if (c.k < 1) {
-        c.k = Math.min(1, c.k + dt / 0.6)
-        c.group.scale.setScalar(Math.max(0.001, spring(c.k, c.from)))
+      if (c.grow) { this.stepGrowth(c, dt); busy = true }
+      if (c.gone < 1) {
+        // the old plants squash down and sink away
+        c.gone = Math.min(1, c.gone + dt / 0.28)
+        const k = c.gone
+        c.ghost.group.scale.set(1 + k * 0.25, Math.max(0.001, (1 - k) ** 1.5), 1 + k * 0.25)
+        if (k >= 1) c.ghost.group.visible = false
         busy = true
       }
+      const sprout = c.stage === 'sprout'
+      if (c.pop < 1) {
+        // a springy pop, stretching up and squashing back
+        c.pop = Math.min(1, c.pop + dt / 0.6)
+        const k = c.pop
+        const size = spring(k)
+        const stretch = Math.sin(k * Math.PI * 3) * (1 - k) * 0.3
+        c.plant.group.scale.set(size * (1 - stretch * 0.5), size * (1 + stretch), size * (1 - stretch * 0.5))
+        busy = true
+      } else if (sprout && c.plant.group.visible) {
+        // sprouts breathe, softly
+        const b = Math.sin(this.time * 2.2 + c.phase) * 0.035
+        c.plant.group.scale.set(1 - b * 0.5, 1 + b, 1 - b * 0.5)
+      } else c.plant.group.scale.setScalar(1)
       if (c.wobble >= 0) {
         c.wobble += dt / 0.45
         const k = Math.min(1, c.wobble)
         c.group.rotation.z = Math.sin(k * Math.PI * 4) * (1 - k) * 0.25
         if (k >= 1) c.wobble = -1
-      } else if (c.group.visible) {
+      } else {
         // a gentle breeze
         c.group.rotation.z = Math.sin(this.time * 1.3 + c.phase) * 0.025
         c.group.rotation.x = Math.sin(this.time * 0.9 + c.phase * 0.7) * 0.02
