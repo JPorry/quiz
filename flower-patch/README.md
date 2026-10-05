@@ -72,7 +72,8 @@ gently. Plants grow through three stages and keep the pips the whole way:
    tight. Then it opens them out wide with a chirp and settles. Everything happens inside the plot. A dug-up seedling sinks back into
    the soil. A wilting one lets its leaves droop.
 2. **Flower:** once a bed holds 1 to N with no clashes, it bursts into flower. A
-   beat after the tap, a wave runs through the bed from the plot just planted,
+   beat after the tap (or, if the last seed was just planted, once it has
+   woken and opened its leaves) every plant in the bed grows at the same time,
    and each sprout *becomes* an open flower in one continuous change (24
    in-between shapes). First it grows into a fat bud (`morph` in
    `src/flowers.js`): the coloured bud tip swells and rises, petals in the
@@ -82,7 +83,7 @@ gently. Plants grow through three stages and keep the pips the whole way:
    stem lifts it as the wrapped petals fold back and fade and the flower's own
    petals unfurl from inside. The flowers stay modest and all one size, so the
    dice faces still read. It lands with a little boing, a spray of petals and
-   sparkles, a ring in the soil and a note that climbs with the wave. Green
+   sparkles, a ring in the soil and a bright little chord. Green
    spreads across the bed from the plot behind a bright edge, the last pop rings
    the bed's chime, and a little flower flies up to the count of flowering beds,
    which ticks up with a bounce. A butterfly comes to visit. If the bed is broken
