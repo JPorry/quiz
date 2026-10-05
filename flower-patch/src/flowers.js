@@ -64,10 +64,10 @@ export const NUM = { 1: 0xff8a9a, 2: 0xff9f55, 3: 0xfff27a, 4: 0x7fc3ff, 5: 0xbc
 const SCALE = { 1: 1.55, 2: 1.3, 3: 1.18, 4: 1.12, 5: 1.02, 6: 0.95 }
 // Buds are all one size, whatever their number.
 const GROWN = 1.15
-// In full bloom the plots no longer matter: each flower head reaches this far
-// from its middle (in cell widths), as big as its plot allows and more,
-// overlapping its neighbours into one lush carpet.
-const BLOOM = { 1: 0.42, 2: 0.34, 3: 0.31, 4: 0.3, 5: 0.28, 6: 0.25 }
+// In full bloom each flower head reaches this far from its middle (in cell
+// widths): a little bigger than when it first opened, just touching its
+// neighbours, so the garden is full but every flower still reads on its own.
+const BLOOM = { 1: 0.29, 2: 0.22, 3: 0.205, 4: 0.2, 5: 0.19, 6: 0.175 }
 // A completed bed's flowers are open but modest: every head reaches this far,
 // whatever the plot's number, so the dice faces still read.
 const OPEN = 0.165
@@ -423,8 +423,10 @@ function bloom(add, type, spin, b, size, k, value = 1) {
   // a little green cup holds the flower
   into(PETAL, 0x62b552, [0, -0.004, 0], [0.026, 0.016, 0.026])
   head(into, type, 0.01, open, spin, value)
+  // a bigger flower opens flatter rather than puffing up, so it stays dainty
+  const slim = Math.pow(Math.min(1, OPEN / size), 0.6)
   for (const [geometry, color, [x, y, z], [sx, sy, sz], rotation, flat] of headParts) {
-    add(geometry, color, [x * h, top + y * h, z * h], [sx * h, sy * h, sz * h], rotation, flat)
+    add(geometry, color, [x * h, top + y * h * slim, z * h], [sx * h, sy * h * slim, sz * h], rotation, flat)
   }
 }
 
