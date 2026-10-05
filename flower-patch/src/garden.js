@@ -170,7 +170,6 @@ function bedMaterial(soil, carpet) {
   return m
 }
 
-const LAWN = 0x8fd06c
 
 function lawnTexture(size) {
   return canvasTexture(256, 256, (g, w, h) => {
