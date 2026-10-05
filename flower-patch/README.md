@@ -41,17 +41,24 @@ and a paddling duck. Bunnies hop about and stop to look around, a snail glides
 along, and ladybirds scurry in loops, each with a soft round shadow. Tap a
 critter and it jumps. Everything is chunky and round with sticker outlines.
 
-A seed shows as chubby round green buds laid out like a die's pips
-(`src/flowers.js`), one round dot per bud, so the number never needs a label. Plants grow through three stages and keep the
+A seed shows as chubby round green sprouts laid out like a die's pips
+(`src/flowers.js`), one round sprout per pip, so the number never needs a label.
+Each sprout is a soft mochi-round seedling with two tiny leaves tucked on top,
+big shiny eyes, rosy cheeks and a little smile, and it breathes gently. Plants grow through three stages and keep the
 pips the whole way:
 
-1. **Sprout:** a round bud with one tiny leaf, on a little mound, the same for every bed.
-2. **Bud:** once a bed holds 1 to N with no clashes, its plants grow taller and
-   show half-open heads in the bed's flower. The soil turns into a leafy carpet,
+1. **Sprout:** a round, smiling seedling on a little mound, the same for every bed.
+   It pops up with a squash and stretch when planted.
+2. **Bud:** once a bed holds 1 to N with no clashes, each sprout ducks into the
+   soil and a stem rises in its place, its leaves unrolling and a green nub
+   swelling into a half-open head in the bed's flower. The soil turns into a leafy carpet,
    sparkles rise, a chime plays, and a butterfly comes to visit.
-3. **Bloom:** when the garden is solved, the flowers open in a wave from the
-   middle, the camera rises to look down on the mosaic, the light turns golden,
+3. **Bloom:** when the garden is solved, the buds unfurl their petals in a wave
+   from the middle, the camera rises to look down on the mosaic, the light turns golden,
    petals drift down, and bees come out.
+
+Growing and opening play through eight in-between shapes per plant, so a change
+of stage is a smooth growth rather than a swap.
 
 Each bed grows one of nine flowers, each with its own shape as well as colour:
 tulip, marigold, buttercup, daisy, forget-me-not, cornflower, lavender, pansy and

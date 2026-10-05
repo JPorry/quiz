@@ -11,6 +11,7 @@ import { part, merge } from './look.js'
 
 const SPHERE = new THREE.SphereGeometry(1, 8, 6)
 const BALL = new THREE.SphereGeometry(1, 6, 4)
+const ROUND = new THREE.SphereGeometry(1, 16, 12)
 const STEM = new THREE.CylinderGeometry(1, 1, 1, 5).translate(0, 0.5, 0)
 const CONE = new THREE.ConeGeometry(1, 1, 5).rotateZ(-Math.PI / 2).translate(0.5, 0, 0)
 
@@ -40,22 +41,27 @@ export const COLORS = {
   sunflower: { petal: 0xffc414, inner: 0x6b3f1f, leaf: 0x5aa84a, carpet: '#ffd23d' },
 }
 
-const SPROUT = 0x6fcf52
-const SPROUT_LIGHT = 0xb6ef7c
+const SPROUT = 0x7ad85c
+const SPROUT_LIGHT = 0xbdf28a
+const SPROUT_LEAF = 0x5fc24a
+const FACE = 0x3a2e3e
+const CHEEK = 0xff9fb2
 const MOUND = 0x5e3a24
 const STRAW = new THREE.Color(0xc9a45c)
 
 // A part placed in plant space, then carried to its spot in the cell.
+// Faces go on their own, without the sticker outline that would ring every dot.
 function builder(matrix, wilt) {
   const parts = []
-  const add = (geometry, color, position, scale, rotation) => {
+  const flats = []
+  const add = (geometry, color, position, scale, rotation, flat = false) => {
     const c = new THREE.Color(color)
-    if (wilt) c.lerp(STRAW, 0.6)
+    if (wilt && color !== FACE) c.lerp(STRAW, 0.6)
     const g = part(geometry, c, position, scale, rotation)
     g.applyMatrix4(matrix)
-    parts.push(g)
+    ;(flat ? flats : parts).push(g)
   }
-  return { parts, add }
+  return { parts, flats, add }
 }
 
 // A petal pointing out at angle a, its base `r` from the middle, tilted up by `tilt`.
@@ -116,7 +122,7 @@ function head(add, type, y, open, spin) {
       const color = open < 0.5 ? c.inner : c.petal
       for (let f = 0; f < 3; f++) {
         const a = spin + (f / 3) * Math.PI * 2
-        const lean = lerp(0.12, 0.3, open)
+        const lean = lerp(0.1, 0.18, open)
         for (let k = 0; k < 6; k++) {
           const h = y - 0.03 + k * 0.02
           const out = 0.012 + k * 0.02 * Math.sin(lean) * 2
@@ -144,53 +150,101 @@ function head(add, type, y, open, spin) {
   }
 }
 
-// A sprout is one chubby round bud with a single little leaf on top, so from
-// above every seed reads as one round dot, like a pip on a die.
-function sprout(add, spin) {
-  add(SPHERE, MOUND, [0, 0, 0], [0.105, 0.03, 0.105])
-  add(SPHERE, SPROUT, [0, 0.068, 0], [0.082, 0.07, 0.082])
-  add(SPHERE, SPROUT_LIGHT, [-0.022, 0.1, -0.026], [0.03, 0.022, 0.026])
-  add(STEM, SPROUT, [0, 0.13, 0], [0.008, 0.026, 0.008])
-  add(SPHERE, SPROUT_LIGHT, [Math.cos(spin) * 0.024, 0.158, Math.sin(spin) * 0.024], [0.032, 0.009, 0.018], [0, -spin, 0.5])
+// A sprout is a chubby little seedling with a sleepy smile: a round green body,
+// two tiny leaves tucked up on top, dot eyes and rosy cheeks. The leaves stay
+// small and close, so from above every seed still reads as one round pip.
+function sprout(add, spin, wilt) {
+  add(SPHERE, MOUND, [0, 0, 0], [0.118, 0.028, 0.118])
+  // a soft, mochi-round body
+  add(ROUND, SPROUT, [0, 0.074, 0], [0.098, 0.08, 0.092])
+  // a paler belly facing the camera
+  add(ROUND, SPROUT_LIGHT, [0, 0.07, 0.042], [0.07, 0.056, 0.052])
+  add(STEM, SPROUT, [0, 0.14, 0], [0.008, 0.03, 0.008])
+  for (const s of [-1, 1]) {
+    const a = s > 0 ? 0.25 : Math.PI - 0.25
+    add(SPHERE, s > 0 ? SPROUT_LIGHT : SPROUT_LEAF, [Math.cos(a) * 0.032, 0.176, -Math.sin(a) * 0.01], [0.04, 0.014, 0.026], [0, -a, 0.55])
+  }
+  // the face: big shiny eyes, rosy cheeks and a little smile, high on the
+  // front so the tilted camera sees it
+  const face = (color, position, scale, rotation) => add(BALL, color, position, scale, rotation, true)
+  for (const s of [-1, 1]) {
+    if (wilt) face(FACE, [s * 0.032, 0.1, 0.082], [0.017, 0.005, 0.006], [-0.5, 0, 0])
+    else {
+      face(FACE, [s * 0.032, 0.103, 0.079], [0.016, 0.02, 0.009], [-0.5, 0, 0])
+      face(0xffffff, [s * 0.032 + 0.006, 0.112, 0.084], [0.0055, 0.0055, 0.003])
+    }
+    face(CHEEK, [s * 0.06, 0.085, 0.074], [0.02, 0.011, 0.007], [-0.4, s * 0.55, 0])
+  }
+  face(FACE, [0, 0.086, 0.09], [0.009, 0.0045, 0.004], [-0.5, 0, 0])
 }
 
-function grown(add, type, stage, spin) {
+const ease = (k) => 1 - (1 - k) ** 2
+
+// A grown plant. For a bud, t is how far it has grown from a seedling (0) to a
+// full bud (1). For a bloom, t is how far the bud has opened.
+function grown(add, type, stage, spin, t) {
   const c = COLORS[type]
   const bloom = stage === 'bloom'
-  const tall = (bloom ? 0.17 : 0.13) * (type === 'lavender' ? 1.2 : 1)
+  const lav = type === 'lavender' ? 1.2 : 1
+  const g = bloom ? 1 : ease(t)
+  const tall = (bloom ? lerp(0.13, 0.17, ease(t)) : lerp(0.03, 0.13, g)) * lav
+  add(SPHERE, MOUND, [0, 0, 0], [0.09 * (1 - g * 0.6), 0.025, 0.09 * (1 - g * 0.6)])
   add(STEM, 0x5aa84a, [0, 0, 0], [0.013, tall, 0.013])
-  // two leaves at the foot of the stem
+  // leaves at the foot of the stem, unrolling as it grows
+  const long = type === 'tulip' || type === 'lavender'
   for (const s of [0, Math.PI * 2 / 3, Math.PI * 4 / 3]) {
     const a = spin + 0.8 + s
-    const long = type === 'tulip' || type === 'lavender'
-    add(SPHERE, c.leaf, [Math.cos(a) * 0.045, 0.045, Math.sin(a) * 0.045], [long ? 0.07 : 0.055, 0.01, long ? 0.02 : 0.03], [0, -a, 0.55])
+    const l = lerp(0.4, 1, g)
+    add(SPHERE, c.leaf, [Math.cos(a) * 0.045 * l, 0.045 * l, Math.sin(a) * 0.045 * l], [(long ? 0.07 : 0.055) * l, 0.01, (long ? 0.02 : 0.03) * l], [0, -a, lerp(1.2, 0.55, g)])
   }
-  if (!bloom) add(SPHERE, 0x5aa84a, [0, tall, 0], [0.022, 0.014, 0.022])
-  head(add, type, tall + 0.01, bloom ? 1 : 0.3, spin)
+  const open = bloom ? lerp(0.3, 1, ease(t)) : 0.3
+  // the head swells as the bud grows, from a green nub to its colour
+  const h = bloom ? 1 : lerp(0.25, 1, g)
+  const headParts = []
+  const into = (geometry, color, position, scale, rotation) => headParts.push([geometry, color, position, scale, rotation])
+  if (!bloom) into(SPHERE, 0x5aa84a, [0, 0, 0], [0.022, 0.014, 0.022])
+  head(into, type, 0.01, open, spin)
+  const tint = new THREE.Color()
+  for (const [geometry, color, [x, y, z], [sx, sy, sz], rotation] of headParts) {
+    // a young bud is still mostly green
+    tint.set(color).lerp(new THREE.Color(0x7cc95a), bloom ? 0 : (1 - g) * 0.8)
+    add(geometry, tint.getHex(), [x * h, tall + y * h, z * h], [sx * h, sy * h, sz * h], rotation)
+  }
 }
+
+// How many in-between shapes a plant passes through as it grows or opens.
+export const STEPS = 8
 
 const cache = new Map()
 
-// The geometry for a cell holding `value` plants of `type` at `stage`.
-export function cellGeometry(type, stage, value, wilt = false) {
-  const key = `${stage === 'sprout' ? 'sprout' : type}|${stage}|${value}|${wilt}`
+// The shapes for a cell holding `value` plants of `type` at `stage`. `step`
+// (0 to STEPS) is how far a bud has grown or a bloom has opened.
+export function cellGeometry(type, stage, value, wilt = false, step = STEPS) {
+  if (stage === 'sprout') step = STEPS
+  const key = `${stage === 'sprout' ? 'sprout' : type}|${stage}|${value}|${wilt}|${step}`
   if (cache.has(key)) return cache.get(key)
+  const t = step / STEPS
   const all = []
-  const s = SCALE[value] * (stage === 'bloom' ? 1.1 : stage === 'bud' ? 1.08 : 1) * (type === 'sunflower' && stage !== 'sprout' ? 1.15 : 1)
+  const flat = []
+  const grow = stage === 'bloom' ? lerp(1.08, 1.1, t) : stage === 'bud' ? 1.08 : 1
+  const s = SCALE[value] * grow * (type === 'sunflower' && stage !== 'sprout' ? 1.15 : 1)
   PIPS[value].forEach(([x, z], k) => {
     const spin = k * 2.4 + value
     const m = new THREE.Matrix4().makeTranslation(x, 0, z)
     m.multiply(new THREE.Matrix4().makeScale(s, s, s))
-    // a wilting plant flops over to one side
-    if (wilt && stage === 'sprout') m.multiply(new THREE.Matrix4().makeScale(1.08, 0.6, 1.08))
+    // a wilting sprout slumps; a wilting plant flops over to one side
+    if (wilt && stage === 'sprout') m.multiply(new THREE.Matrix4().makeScale(1.1, 0.72, 1.1))
     else if (wilt) m.multiply(new THREE.Matrix4().makeRotationAxis(new THREE.Vector3(Math.cos(spin), 0, Math.sin(spin)), 0.75))
-    const { parts, add } = builder(m, wilt)
-    if (stage === 'sprout') sprout(add, spin)
-    else grown(add, type, stage, spin)
+    const { parts, flats, add } = builder(m, wilt)
+    if (stage === 'sprout') sprout(add, spin, wilt)
+    else grown(add, type, stage, spin, t)
     all.push(...parts)
+    flat.push(...flats)
   })
-  const geometry = merge(all)
-  geometry.computeBoundingSphere()
-  cache.set(key, geometry)
-  return geometry
+  // body is outlined; face is drawn without one
+  const shapes = { body: merge(all), face: flat.length ? merge(flat) : null }
+  shapes.body.computeBoundingSphere()
+  shapes.face?.computeBoundingSphere()
+  cache.set(key, shapes)
+  return shapes
 }
