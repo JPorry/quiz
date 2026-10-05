@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import { toon, part, baked, canvasTexture, seeded } from './look.js'
 import { COLORS } from './flowers.js'
 
@@ -108,31 +109,25 @@ function speckle(g, x, y, w, h, colors, n, rand, size = 2.2) {
   }
 }
 
-// Faint dashed lines between the cells of a bed.
-function furrows(g, board, color) {
-  g.strokeStyle = color
-  g.lineWidth = 3
-  g.setLineDash([7, 6])
-  for (let i = 0; i < board.cells; i++) {
-    const r = Math.floor(i / board.width), c = i % board.width
-    const right = c + 1 < board.width && board.bedOf[i + 1] === board.bedOf[i]
-    const down = r + 1 < board.height && board.bedOf[i + board.width] === board.bedOf[i]
-    g.beginPath()
-    if (right) { g.moveTo((c + 1) * PX, r * PX + 10); g.lineTo((c + 1) * PX, (r + 1) * PX - 10) }
-    if (down) { g.moveTo(c * PX + 10, (r + 1) * PX); g.lineTo((c + 1) * PX - 10, (r + 1) * PX) }
-    g.stroke()
-  }
-  g.setLineDash([])
-}
-
-// Soil for every bed.
+// Soil for every bed: warm, crumbly earth with soft mottling and a scatter of
+// tiny grains. The plots, furrows and clods are real shapes (see soilSurface),
+// so the texture only carries colour.
 function soilTexture(board, seed) {
   const rand = seeded(seed)
   return canvasTexture(board.width * PX, board.height * PX, (g, w, h) => {
-    g.fillStyle = '#8a5a3b'
+    g.fillStyle = '#93623f'
     g.fillRect(0, 0, w, h)
-    speckle(g, 0, 0, w, h, ['#7a4e33', '#996744', '#6f452c', '#a3714c'], board.cells * 40, rand)
-    furrows(g, board, 'rgba(70, 40, 24, .55)')
+    // big, soft patches of damper and drier earth
+    for (let k = 0; k < board.cells * 5; k++) {
+      const x = rand() * w, y = rand() * h, r = PX * (0.25 + rand() * 0.45)
+      const grad = g.createRadialGradient(x, y, 0, x, y, r)
+      const tone = rand() < 0.5 ? '120, 76, 48' : '166, 116, 78'
+      grad.addColorStop(0, `rgba(${tone}, .35)`)
+      grad.addColorStop(1, `rgba(${tone}, 0)`)
+      g.fillStyle = grad
+      g.fillRect(x - r, y - r, r * 2, r * 2)
+    }
+    speckle(g, 0, 0, w, h, ['#7e5233', '#a9774f', '#b88a62'], board.cells * 26, rand, 1.4)
   })
 }
 
@@ -150,14 +145,125 @@ function carpetTexture(board, flowers, seed) {
       speckle(g, c * PX, r * PX, PX, PX, [color], 5, rand, 2.6)
       g.globalAlpha = 1
     }
-    furrows(g, board, 'rgba(40, 80, 34, .5)')
   })
+}
+
+/* ---------- the soil surface ---------- */
+
+// Soft value noise, for lumps in the earth.
+function noise(seed) {
+  const hash = (x, z) => { const n = Math.sin(x * 127.1 + z * 311.7 + seed * 74.7) * 43758.5453; return n - Math.floor(n) }
+  const smoothK = (t) => t * t * (3 - 2 * t)
+  return (x, z) => {
+    const x0 = Math.floor(x), z0 = Math.floor(z), fx = smoothK(x - x0), fz = smoothK(z - z0)
+    const a = hash(x0, z0), b = hash(x0 + 1, z0), c = hash(x0, z0 + 1), d = hash(x0 + 1, z0 + 1)
+    return (a + (b - a) * fx) + ((c + (d - c) * fx) - (a + (b - a) * fx)) * fz
+  }
+}
+
+const SOIL_IN = 0.115 // how far the soil keeps in from a bed's edge: the inside of the wall
+const SOIL_RES = 14 // grid steps per plot
+
+// The height of the soil at (x, z), in plot units from the board's corner, as
+// an offset from SOIL_Y. Every plot is a soft mound, highest in its middle
+// where the plants grow, dipping into a furrow where it meets the next plot and
+// settling lower against the wall, with small lumps all over.
+function soilHeight(board, lumps) {
+  return (x, z) => {
+    const c = Math.min(board.width - 1, Math.max(0, Math.floor(x))), r = Math.min(board.height - 1, Math.max(0, Math.floor(z)))
+    const fx = x - c, fz = z - r
+    // a rounded crown: flat-ish on top, falling away towards the plot's sides
+    const crown = Math.pow(Math.max(0, Math.sin(Math.PI * fx)), 0.6) * Math.pow(Math.max(0, Math.sin(Math.PI * fz)), 0.6)
+    // how close to a wall: sides that face another bed or the edge of the board
+    const i = r * board.width + c, b = board.bedOf[i]
+    const open = (dc, dr) => { const cc = c + dc, rr = r + dr; return cc >= 0 && cc < board.width && rr >= 0 && rr < board.height && board.bedOf[rr * board.width + cc] === b }
+    let wall = 9
+    if (!open(-1, 0)) wall = Math.min(wall, fx - SOIL_IN)
+    if (!open(1, 0)) wall = Math.min(wall, 1 - SOIL_IN - fx)
+    if (!open(0, -1)) wall = Math.min(wall, fz - SOIL_IN)
+    if (!open(0, 1)) wall = Math.min(wall, 1 - SOIL_IN - fz)
+    const nearWall = 1 - Math.min(1, Math.max(0, wall) / 0.16)
+    const lump = (lumps(x * 5, z * 5) - 0.5) * 0.02 + (lumps(x * 13 + 7, z * 13 + 3) - 0.5) * 0.008
+    return { h: -0.055 * (1 - crown) - 0.02 * nearWall * nearWall + lump * (0.5 + 0.5 * (1 - crown)), crown, nearWall }
+  }
+}
+
+const CLOD = new THREE.IcosahedronGeometry(1, 1)
+
+// A bed's soil as a real surface: a grid over each of its plots, shaped by
+// soilHeight and shaded by it (furrows and the foot of the wall darker, crowns
+// lighter), with little clods of earth scattered over it.
+export function soilSurface(board, cells, seed) {
+  const lumps = noise(seed)
+  const height = soilHeight(board, lumps)
+  const pos = [], nor = [], col = [], uv = [], idx = []
+  const tone = (crown, nearWall) => 0.7 + 0.4 * Math.sqrt(crown) - 0.18 * nearWall
+  for (const i of cells) {
+    const c = i % board.width, r = Math.floor(i / board.width), b = board.bedOf[i]
+    const open = (dc, dr) => { const cc = c + dc, rr = r + dr; return cc >= 0 && cc < board.width && rr >= 0 && rr < board.height && board.bedOf[rr * board.width + cc] === b }
+    const x0 = c + (open(-1, 0) ? 0 : SOIL_IN), x1 = c + 1 - (open(1, 0) ? 0 : SOIL_IN)
+    const z0 = r + (open(0, -1) ? 0 : SOIL_IN), z1 = r + 1 - (open(0, 1) ? 0 : SOIL_IN)
+    const start = pos.length / 3
+    for (let k = 0; k <= SOIL_RES; k++) {
+      for (let j = 0; j <= SOIL_RES; j++) {
+        const x = x0 + (x1 - x0) * (j / SOIL_RES), z = z0 + (z1 - z0) * (k / SOIL_RES)
+        const { h, crown, nearWall } = height(x, z)
+        // the normal from the slope of the surface, so plots join without seams
+        const e = 0.01
+        const dx = (height(x + e, z).h - height(x - e, z).h) / (2 * e), dz = (height(x, z + e).h - height(x, z - e).h) / (2 * e)
+        const n = new THREE.Vector3(-dx, 1, -dz).normalize()
+        pos.push(x - board.width / 2, SOIL_Y + h, z - board.height / 2)
+        nor.push(n.x, n.y, n.z)
+        const t = tone(crown, nearWall)
+        col.push(t, t * 0.98, t * 0.96)
+        uv.push(x / board.width, 1 - z / board.height)
+      }
+    }
+    const row = SOIL_RES + 1
+    for (let k = 0; k < SOIL_RES; k++) {
+      for (let j = 0; j < SOIL_RES; j++) {
+        const a = start + k * row + j
+        idx.push(a, a + row, a + 1, a + 1, a + row, a + row + 1)
+      }
+    }
+  }
+  const g = new THREE.BufferGeometry()
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3))
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3))
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2))
+  g.setIndex(idx)
+  // clods: small rounded lumps of earth sitting on the surface
+  const rand = seeded(seed + 31)
+  const clods = []
+  for (const i of cells) {
+    const c = i % board.width, r = Math.floor(i / board.width)
+    for (let k = 0; k < 11; k++) {
+      const x = c + 0.12 + rand() * 0.76, z = r + 0.12 + rand() * 0.76
+      const { h, crown, nearWall } = height(x, z)
+      const size = 0.014 + rand() * 0.026
+      const m = new THREE.Matrix4().compose(
+        new THREE.Vector3(x - board.width / 2, SOIL_Y + h + size * 0.25, z - board.height / 2),
+        new THREE.Quaternion().setFromEuler(new THREE.Euler(rand() * 0.6, rand() * 6, rand() * 0.6)),
+        new THREE.Vector3(size * (1 + rand() * 0.5), size * 0.7, size),
+      )
+      const clod = CLOD.clone().applyMatrix4(m)
+      const t = tone(crown, nearWall) * (1 + rand() * 0.3)
+      const n = clod.attributes.position.count
+      clod.setAttribute('color', new THREE.Float32BufferAttribute(new Array(n).fill(0).flatMap(() => [t, t * 0.97, t * 0.94]), 3))
+      const cu = new Float32Array(n * 2)
+      for (let v = 0; v < n; v++) { cu[v * 2] = (clod.attributes.position.getX(v) + board.width / 2) / board.width; cu[v * 2 + 1] = 1 - (clod.attributes.position.getZ(v) + board.height / 2) / board.height }
+      clod.setAttribute('uv', new THREE.BufferAttribute(cu, 2))
+      clods.push(clod)
+    }
+  }
+  return mergeGeometries([g.toNonIndexed(), ...clods])
 }
 
 // Soil that turns into the carpet as `grow` goes from 0 to 1. The carpet
 // spreads out in a ring from `origin` (in cells) as `reach` grows.
 function bedMaterial(soil, carpet, width, height) {
-  const m = toon(0xffffff, { rim: 0.1 }).clone()
+  const m = toon(0xffffff, { rim: 0.1, vertexColors: true }).clone()
   m.map = soil
   Object.assign(m.userData, { grow: { value: 0 }, origin: { value: new THREE.Vector2() }, reach: { value: 99 } })
   m.onBeforeCompile = (shader) => {
@@ -270,15 +376,19 @@ export function buildGarden(board, flowers, seed) {
   const carpet = carpetTexture(board, flowers, seed)
   // the mortar between the bricks; the soil's own sides hide behind the wall
   const mortar = toon(0xf1e2cf, { rim: 0.1 })
+  const deep = toon(0x5e3b25, { rim: 0 })
   const rand = seeded(seed + 11)
   const bricks = []
   const beds = board.beds.map((cells) => {
     const material = bedMaterial(soil, carpet, board.width, board.height)
     const shape = bedShape(cells, board.width, board.height, 0.08, 0.2)
-    const geometry = bedGeometry(shape, board.width, board.height, { depth: SOIL_Y, bevel: 0 })
+    // a plain block of earth under the shaped surface, hidden by the wall
+    const base = new THREE.Mesh(bedGeometry(shape, board.width, board.height, { depth: SOIL_Y - 0.05, bevel: 0 }), [deep, mortar])
+    group.add(base)
     bricks.push(...wall(shape, rand))
-    const mesh = new THREE.Mesh(geometry, [material, mortar])
+    const mesh = new THREE.Mesh(soilSurface(board, cells, seed + cells[0]), material)
     mesh.receiveShadow = true
+    mesh.castShadow = true
     group.add(mesh)
     return { mesh, material }
   })
