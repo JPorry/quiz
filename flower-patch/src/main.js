@@ -183,6 +183,7 @@ function flyFlower(i, color) {
 // Every plant that grows up pops with a note, climbing as the wave runs through
 // its bed; the last one in a bed rings the bed's chime and sends a flower up.
 scene.onSprout = (i, value) => sounds.sprout(value)
+scene.onAwake = (i, value) => sounds.awake(value)
 
 scene.onPop = (i, stage, rank) => {
   if (stage === 'bloom') {

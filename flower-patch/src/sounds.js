@@ -84,6 +84,11 @@ export class Sounds {
     this.noise({ vol: 0.04, freq: 380, len: 0.08 })
     this.pop(260, 520 + seed * 40, { len: 0.12, vol: 0.16 })
   }
+  // a sprout blinks awake: a tiny, bright chirp
+  awake(seed) {
+    this.pluck(this.note(6 + (seed % 3)), { len: 0.22, vol: 0.12, ot: 2 })
+    this.pluck(this.note(8 + (seed % 3)), { at: 0.07, len: 0.3, vol: 0.1, ot: 2 })
+  }
   // a seed dug up: a rustle of soil
   dig() {
     this.noise({ vol: 0.09, freq: 420, len: 0.18 })
