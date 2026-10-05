@@ -96,6 +96,11 @@ export class Sounds {
     this.pluck(220, { len: 0.3, vol: 0.28, ot: 2.7 })
     this.pluck(185, { at: 0.09, len: 0.35, vol: 0.22, ot: 2.7 })
   }
+  // a critter jumps when tapped
+  boing() {
+    this.pop(300, 900, { len: 0.18, vol: 0.2 })
+    this.pluck(this.note(7), { at: 0.05, len: 0.25, vol: 0.12 })
+  }
   bonk() { this.pluck(170, { len: 0.25, vol: 0.4, ot: 2.7 }) }
   undo() {
     this.pluck(this.note(3), { len: 0.25, vol: 0.25 })

@@ -210,6 +210,7 @@ canvas.addEventListener('pointerup', (ev) => {
   const p = scene.toWorld(ev.clientX, ev.clientY)
   const i = p && scene.cellAt(p)
   if (i !== null && i !== undefined) plant(i)
+  else if (scene.poke(ev.clientX, ev.clientY)) sounds.boing()
 })
 canvas.addEventListener('pointercancel', () => { down = null })
 
