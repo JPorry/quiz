@@ -13,7 +13,8 @@ const SPHERE = new THREE.SphereGeometry(1, 8, 6)
 const BALL = new THREE.SphereGeometry(1, 6, 4)
 const ROUND = new THREE.SphereGeometry(1, 16, 12)
 const STEM = new THREE.CylinderGeometry(1, 1, 1, 5).translate(0, 0.5, 0)
-const CONE = new THREE.ConeGeometry(1, 1, 5).rotateZ(-Math.PI / 2).translate(0.5, 0, 0)
+// petals and centres are smooth and round
+const PETAL = new THREE.SphereGeometry(1, 10, 7)
 
 // Where the plants go in a cell (x, z), like a die's pips.
 const D = 0.25
@@ -29,16 +30,16 @@ export const PIPS = {
 const SCALE = { 1: 1.55, 2: 1.3, 3: 1.18, 4: 1.12, 5: 1.02, 6: 0.95 }
 
 export const COLORS = {
-  tulip: { petal: 0xff5476, inner: 0xffc2cf, leaf: 0x6fb87a, carpet: '#ff7f98' },
-  marigold: { petal: 0xff9124, inner: 0xffc443, leaf: 0x5aa84a, carpet: '#ffab52' },
-  buttercup: { petal: 0xffd426, inner: 0xd6e86a, leaf: 0x62b04c, carpet: '#ffe066' },
-  daisy: { petal: 0xffffff, inner: 0xffcf33, leaf: 0x5fb04f, carpet: '#ffffff' },
-  forgetmenot: { petal: 0x8cd2ff, inner: 0xfff07a, leaf: 0x67b45a, carpet: '#a6dcff' },
-  cornflower: { petal: 0x5a7dff, inner: 0x2f2a8a, leaf: 0x7aa889, carpet: '#7088ff' },
-  lavender: { petal: 0xa97ee6, inner: 0xd2bdf5, leaf: 0x8fae80, carpet: '#bb98ee' },
-  pansy: { petal: 0x7f48d1, inner: 0xffd84a, leaf: 0x5aa850, carpet: '#9a6be0' },
-  rose: { petal: 0xff6fb0, inner: 0xe84a8f, leaf: 0x4f9a4a, carpet: '#ff94c4' },
-  sunflower: { petal: 0xffc414, inner: 0x6b3f1f, leaf: 0x5aa84a, carpet: '#ffd23d' },
+  tulip: { petal: 0xff6f86, inner: 0xff9aab, leaf: 0x6fbf6a, carpet: '#ff8fa0' },
+  marigold: { petal: 0xff9a3c, inner: 0xffcf5a, leaf: 0x62b552, carpet: '#ffb066' },
+  buttercup: { petal: 0xffd447, inner: 0xffaa33, leaf: 0x6abb55, carpet: '#ffe27a' },
+  daisy: { petal: 0xfffbf2, inner: 0xffc23d, leaf: 0x66b856, carpet: '#fffbf2' },
+  forgetmenot: { petal: 0x93cdff, inner: 0xffe066, leaf: 0x6dba5c, carpet: '#aed8ff' },
+  cornflower: { petal: 0x6f8fff, inner: 0x3b3f9e, leaf: 0x7ab38a, carpet: '#8aa3ff' },
+  lavender: { petal: 0xa784e8, inner: 0xd8c6f7, leaf: 0x8ab87e, carpet: '#bfa2f0' },
+  pansy: { petal: 0x8f5ad9, inner: 0xffd34d, leaf: 0x62b552, carpet: '#a982e6' },
+  rose: { petal: 0xff86b8, inner: 0xf2639c, leaf: 0x58a852, carpet: '#ffa3c9' },
+  sunflower: { petal: 0xffc53d, inner: 0x7a4a26, leaf: 0x62b552, carpet: '#ffd45c' },
 }
 
 const SPROUT = 0x7ad85c
@@ -66,86 +67,95 @@ function builder(matrix, wilt) {
 
 // A petal pointing out at angle a, its base `r` from the middle, tilted up by `tilt`.
 function petal(add, color, a, r, y, [len, thick, wid], tilt, geometry = SPHERE) {
-  const reach = r + Math.cos(tilt) * len * (geometry === CONE ? 0 : 1)
-  const x = geometry === CONE ? Math.cos(a) * r : Math.cos(a) * reach
-  const z = geometry === CONE ? Math.sin(a) * r : Math.sin(a) * reach
-  const lift = geometry === CONE ? 0 : Math.sin(tilt) * len
-  add(geometry, color, [x, y + lift, z], [len, thick, wid], [0, -a, tilt])
+  const reach = r + Math.cos(tilt) * len
+  add(geometry, color, [Math.cos(a) * reach, y + Math.sin(tilt) * len, Math.sin(a) * reach], [len, thick, wid], [0, -a, tilt])
 }
 
 const lerp = (a, b, k) => a + (b - a) * k
 
 // A flower head sitting at height y, half open at `open` 0 and fully at 1.
+// Every flower is built from plump, rounded petals and big soft centres, so
+// the garden looks like a box of sweets: no spikes, no thin slivers.
 function head(add, type, y, open, spin) {
   const c = COLORS[type]
-  const ring = (n, color, r, size, closed, opened, at = y, geometry, offset = 0) => {
-    for (let k = 0; k < n; k++) petal(add, color, spin + offset + (k / n) * Math.PI * 2, r, at, size, lerp(closed, opened, open), geometry)
+  const ring = (n, color, r, size, closed, opened, at = y, offset = 0) => {
+    for (let k = 0; k < n; k++) petal(add, color, spin + offset + (k / n) * Math.PI * 2, r, at, size, lerp(closed, opened, open), PETAL)
   }
+  const dome = (color, at, r, flat = 0.6) => add(PETAL, color, [0, at, 0], [r, r * flat, r])
   switch (type) {
     case 'tulip':
-      ring(6, c.petal, 0.012, [0.07, 0.028, 0.045], 1.3, 0.62)
-      if (open > 0.5) add(SPHERE, 0x3d2b2b, [0, y + 0.01, 0], [0.018, 0.012, 0.018])
+      // a plump cup that never quite opens: three petals outside, three in
+      ring(3, c.petal, 0.006, [0.06, 0.05, 0.05], 1.42, 1.0)
+      ring(3, c.inner, 0.004, [0.055, 0.045, 0.045], 1.5, 1.15, y + 0.006, Math.PI / 3)
+      if (open > 0.5) dome(0xffd36e, y + 0.03, 0.018)
       break
     case 'marigold':
-      ring(11, c.petal, 0.02, [0.05, 0.022, 0.036], 1.25, 0.12)
-      ring(8, c.inner, 0.012, [0.036, 0.02, 0.03], 1.35, 0.55, y + 0.012, SPHERE, 0.3)
-      add(SPHERE, 0xe0701a, [0, y + 0.02, 0], [0.022, 0.018, 0.022])
+      // a puffy pompom of round petals
+      ring(9, c.petal, 0.02, [0.04, 0.032, 0.036], 1.2, 0.28)
+      ring(7, 0xffb347, 0.012, [0.034, 0.03, 0.032], 1.35, 0.7, y + 0.016, 0.35)
+      dome(c.inner, y + 0.03, 0.03, 0.8)
       break
     case 'buttercup':
-      ring(5, c.petal, 0.008, [0.058, 0.02, 0.054], 1.3, 0.38)
-      add(SPHERE, c.inner, [0, y + 0.01, 0], [0.022, 0.016, 0.022])
+      // five round, glossy cupped petals around a big soft eye
+      ring(5, c.petal, 0.006, [0.05, 0.028, 0.05], 1.3, 0.55)
+      dome(c.inner, y + 0.012, 0.026)
+      dome(0xfff6c8, y + 0.022, 0.012)
       break
     case 'daisy':
-      ring(14, open > 0.4 ? c.petal : 0xe8f2d8, 0.02, [0.085, 0.009, 0.02], 1.3, 0.06)
-      add(SPHERE, c.inner, [0, y + 0.006, 0], [0.034, 0.022, 0.034])
+      // eight chubby white petals and a big golden button
+      ring(8, open > 0.4 ? c.petal : 0xe9f5dc, 0.022, [0.055, 0.018, 0.034], 1.3, 0.12)
+      dome(c.inner, y + 0.012, 0.036, 0.7)
+      dome(0xffe27a, y + 0.024, 0.02)
       break
     case 'forgetmenot':
-      // a little cluster of florets, pink in bud
+      // a posy of three round florets, pink in bud
       for (let f = 0; f < 3; f++) {
         const a = spin + (f / 3) * Math.PI * 2
         const fx = Math.cos(a) * 0.05, fz = Math.sin(a) * 0.05, fy = y + (f === 0 ? 0.012 : 0)
-        if (open < 0.5) { add(BALL, 0xf5a3c7, [fx, fy + 0.01, fz], [0.03, 0.03, 0.03]); continue }
+        if (open < 0.5) { add(PETAL, 0xffb3d1, [fx, fy + 0.01, fz], [0.032, 0.03, 0.032]); continue }
         for (let k = 0; k < 5; k++) {
           const pa = a + (k / 5) * Math.PI * 2
-          add(SPHERE, c.petal, [fx + Math.cos(pa) * 0.026, fy, fz + Math.sin(pa) * 0.026], [0.023, 0.009, 0.023])
+          add(PETAL, c.petal, [fx + Math.cos(pa) * 0.026, fy, fz + Math.sin(pa) * 0.026], [0.024, 0.012, 0.024])
         }
-        add(SPHERE, c.inner, [fx, fy + 0.006, fz], [0.011, 0.009, 0.011])
+        add(PETAL, c.inner, [fx, fy + 0.008, fz], [0.012, 0.01, 0.012])
       }
       break
     case 'cornflower':
-      ring(11, c.petal, 0.02, [0.085, 0.03, 0.032], 1.2, 0.18, y, CONE)
-      ring(7, 0x8aa2ff, 0.01, [0.05, 0.024, 0.024], 1.35, 0.6, y + 0.01, CONE, 0.25)
-      add(SPHERE, c.inner, [0, y + 0.016, 0], [0.024, 0.02, 0.024])
+      // six round blue petals with a white halo and a deep blue middle
+      ring(6, c.petal, 0.012, [0.055, 0.026, 0.048], 1.3, 0.3)
+      ring(6, 0xdfe7ff, 0.006, [0.026, 0.02, 0.024], 1.4, 0.55, y + 0.01, Math.PI / 6)
+      dome(c.inner, y + 0.018, 0.022, 0.8)
       break
     case 'lavender': {
-      // three spikes of little florets leaning outwards, pale until they open
+      // a plump purple puff of little beads, pale until it opens
+      const size = lerp(0.8, 1.15, open)
       const color = open < 0.5 ? c.inner : c.petal
-      for (let f = 0; f < 3; f++) {
-        const a = spin + (f / 3) * Math.PI * 2
-        const lean = lerp(0.1, 0.18, open)
-        for (let k = 0; k < 6; k++) {
-          const h = y - 0.03 + k * 0.02
-          const out = 0.012 + k * 0.02 * Math.sin(lean) * 2
-          add(BALL, k % 2 ? color : 0x9469d6, [Math.cos(a) * out, h, Math.sin(a) * out], [0.024 * (1 - k / 10), 0.02, 0.024 * (1 - k / 10)])
-        }
+      for (let k = 0; k < 7; k++) {
+        const a = spin + (k / 7) * Math.PI * 2
+        add(PETAL, k % 2 ? color : 0xbb9af2, [Math.cos(a) * 0.034 * size, y + 0.012, Math.sin(a) * 0.034 * size], [0.024 * size, 0.022 * size, 0.024 * size])
       }
+      add(PETAL, 0x9670dc, [0, y + 0.03 * size, 0], [0.03 * size, 0.028 * size, 0.03 * size])
+      add(PETAL, 0xd8c6f7, [-0.008, y + 0.05 * size, -0.006], [0.01, 0.008, 0.01])
       break
     }
     case 'pansy':
-      ring(2, 0xa47ae8, 0.01, [0.062, 0.016, 0.06], 1.3, 0.3, y + 0.004, SPHERE, -Math.PI / 2 - 0.5)
-      ring(3, c.petal, 0.01, [0.058, 0.018, 0.056], 1.3, 0.25, y + 0.01, SPHERE, Math.PI / 2 - 2.1)
-      if (open > 0.5) add(SPHERE, 0x3a1f6a, [0, y + 0.02, 0.012], [0.03, 0.006, 0.03])
-      add(SPHERE, c.inner, [0, y + 0.024, 0.006], [0.012, 0.01, 0.012])
+      // five big round petals overlapping, with a golden eye
+      ring(2, 0xb48cf0, 0.008, [0.058, 0.02, 0.06], 1.3, 0.35, y + 0.004, -Math.PI / 2 - 0.5)
+      ring(3, c.petal, 0.008, [0.056, 0.022, 0.058], 1.3, 0.3, y + 0.01, Math.PI / 2 - 2.1)
+      if (open > 0.5) add(PETAL, 0x5a3596, [0, y + 0.02, 0.01], [0.026, 0.006, 0.026])
+      dome(c.inner, y + 0.024, 0.014)
       break
     case 'rose':
-      ring(5, c.petal, 0.02, [0.06, 0.03, 0.05], 1.25, 0.45)
-      ring(4, 0xff86bf, 0.01, [0.045, 0.03, 0.04], 1.45, 0.95, y + 0.012, SPHERE, 0.6)
-      add(SPHERE, c.inner, [0, y + 0.03, 0], [0.025, 0.028, 0.025])
+      // a round cabbage rose: rings of cupped petals around a tight swirl
+      ring(5, c.petal, 0.022, [0.05, 0.036, 0.048], 1.25, 0.6)
+      ring(4, 0xffa8cf, 0.012, [0.04, 0.034, 0.04], 1.45, 1.05, y + 0.014, 0.6)
+      dome(c.inner, y + 0.032, 0.026, 0.9)
       break
     case 'sunflower':
-      ring(16, c.petal, 0.045, [0.075, 0.01, 0.026], 1.3, 0.08)
-      add(SPHERE, c.inner, [0, y + 0.004, 0], [0.058, 0.02, 0.058])
-      add(SPHERE, 0x8a5a2b, [0, y + 0.012, 0], [0.036, 0.016, 0.036])
+      // ten round golden petals around a big brown button
+      ring(10, c.petal, 0.04, [0.06, 0.016, 0.034], 1.3, 0.1)
+      dome(c.inner, y + 0.008, 0.06, 0.45)
+      dome(0x8a5a2b, y + 0.018, 0.04, 0.45)
       break
   }
 }
@@ -187,22 +197,22 @@ function grown(add, type, stage, spin, t) {
   const bloom = stage === 'bloom'
   const lav = type === 'lavender' ? 1.2 : 1
   const g = bloom ? 1 : ease(t)
-  const tall = (bloom ? lerp(0.13, 0.17, ease(t)) : lerp(0.03, 0.13, g)) * lav
+  const tall = (bloom ? lerp(0.12, 0.15, ease(t)) : lerp(0.03, 0.12, g)) * lav
   add(SPHERE, MOUND, [0, 0, 0], [0.09 * (1 - g * 0.6), 0.025, 0.09 * (1 - g * 0.6)])
-  add(STEM, 0x5aa84a, [0, 0, 0], [0.013, tall, 0.013])
-  // leaves at the foot of the stem, unrolling as it grows
-  const long = type === 'tulip' || type === 'lavender'
-  for (const s of [0, Math.PI * 2 / 3, Math.PI * 4 / 3]) {
+  add(STEM, 0x62b552, [0, 0, 0], [0.016, tall, 0.016])
+  // two round, plump leaves at the foot of the stem, unrolling as it grows
+  for (const s of [0, Math.PI]) {
     const a = spin + 0.8 + s
     const l = lerp(0.4, 1, g)
-    add(SPHERE, c.leaf, [Math.cos(a) * 0.045 * l, 0.045 * l, Math.sin(a) * 0.045 * l], [(long ? 0.07 : 0.055) * l, 0.01, (long ? 0.02 : 0.03) * l], [0, -a, lerp(1.2, 0.55, g)])
+    add(PETAL, c.leaf, [Math.cos(a) * 0.05 * l, 0.04 * l, Math.sin(a) * 0.05 * l], [0.055 * l, 0.016, 0.036 * l], [0, -a, lerp(1.1, 0.5, g)])
   }
   const open = bloom ? lerp(0.3, 1, ease(t)) : 0.3
   // the head swells as the bud grows, from a green nub to its colour
   const h = bloom ? 1 : lerp(0.25, 1, g)
   const headParts = []
   const into = (geometry, color, position, scale, rotation) => headParts.push([geometry, color, position, scale, rotation])
-  if (!bloom) into(SPHERE, 0x5aa84a, [0, 0, 0], [0.022, 0.014, 0.022])
+  // a little green cup holds the flower
+  into(PETAL, 0x62b552, [0, -0.004, 0], [0.026, 0.016, 0.026])
   head(into, type, 0.01, open, spin)
   const tint = new THREE.Color()
   for (const [geometry, color, [x, y, z], [sx, sy, sz], rotation] of headParts) {

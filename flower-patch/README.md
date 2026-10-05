@@ -62,7 +62,10 @@ of stage is a smooth growth rather than a swap.
 
 Each bed grows one of nine flowers, each with its own shape as well as colour:
 tulip, marigold, buttercup, daisy, forget-me-not, cornflower, lavender, pansy and
-rose. Beds that touch, even at a corner, never share a flower, and colours are
+rose. They are built to look cosy, like a box of sweets: plump round petals,
+big soft centres, short chunky stems and round leaves, in warm colours, with no
+spikes or thin slivers (and no faces). A bud sits in a little green cup like a
+lollipop. Beds that touch, even at a corner, never share a flower, and colours are
 picked far apart on the colour wheel (`assignFlowers` in `src/logic.js`). A
 single-plot bed always grows a sunflower.
 
