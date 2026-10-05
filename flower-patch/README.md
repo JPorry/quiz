@@ -52,13 +52,18 @@ pips the whole way:
 1. **Sprout:** a round, smiling seedling on a little mound, the same for every bed.
    It pops up with a squash and stretch when planted.
 2. **Bud:** once a bed holds 1 to N with no clashes, it bursts into bud. A beat
-   after the tap, a wave runs through the bed from the plot just planted: each
-   sprout crouches, then pops into a plump, round bud in the bed's colour with
-   a twist, a spray of petals and sparkles, a ring in the soil and a note that
-   climbs with the wave. Green spreads across the bed from that plot with a
-   bright edge, the last pop rings the bed's chime, and a little flower flies up
-   to the count of budding beds, which ticks up with a bounce. A butterfly
-   comes to visit.
+   after the tap, a wave runs through the bed from the plot just planted, and
+   each sprout *becomes* its bud in one continuous change (sixteen in-between
+   shapes, `morph` in `src/flowers.js`): its body swells, rises and ripens
+   through fresh yellows and peaches into the flower's colour, its two little
+   leaves slide down and wrap round it as the outer petals, it closes its eyes,
+   and the mound sinks away as leaves unfurl from the soil and a green cup grows
+   under the bud. It breathes as it changes and lands with a little boing, a
+   spray of petals and sparkles, a ring in the soil and a note that climbs with
+   the wave. Green spreads across the bed from the plot behind a bright edge,
+   the last pop rings the bed's chime, and a little flower flies up to the count
+   of budding beds, which ticks up with a bounce. A butterfly comes to visit. If
+   the bed is broken again, the buds turn back into sprouts the same way.
 3. **Bloom:** when the garden is solved, the buds unfurl their petals in a wave
    from the middle, the camera rises to look down on the mosaic, the light turns golden,
    petals drift down, and bees come out.

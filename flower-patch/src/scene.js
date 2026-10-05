@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
 import { toon, outline, seeded } from './look.js'
-import { cellGeometry, COLORS, STEPS } from './flowers.js'
+import { cellGeometry, COLORS, GROW_STEPS, STEPS } from './flowers.js'
 import { buildGarden, labels, SOIL_Y } from './garden.js'
 import { World } from './world.js'
 
@@ -255,17 +255,17 @@ export class GardenScene {
       return
     }
     Object.assign(c, { stage: s.stage, wilt: s.wilt })
-    if ((s.stage === 'bud' && from === 'sprout') || (s.stage === 'bloom' && from !== 'bloom')) {
+    if (s.stage === 'bud' && from === 'sprout') {
+      // the sprout itself grows into the bud, one continuous change
+      c.tx = null
+      c.grow = { type, stage: 'bud', steps: GROW_STEPS, k: 0, dur: 1.1, step: -1, rank, morph: true }
+    } else if (s.stage === 'bloom' && from !== 'bloom') {
       c.grow = null
       c.tx = { k: 0, type, rank, stage: s.stage }
     } else if (s.stage === 'sprout' && from !== 'sprout') {
-      // a bed that is no longer complete shrinks back to sprouts
-      this.retire(c)
-      c.grow = null
+      // a bed that is no longer complete: its buds shrink back into sprouts
       c.tx = null
-      c.pop = 0
-      c.popFrom = 0
-      this.show(c.plant, cellGeometry(type, 'sprout', c.value, s.wilt))
+      c.grow = { type, stage: 'bud', steps: GROW_STEPS, k: 0, dur: 0.6, step: -1, rank, morph: true, back: true }
     } else {
       // a seed starts or stops wilting
       c.grow = null
@@ -299,13 +299,32 @@ export class GardenScene {
 
   stepGrowth(c, dt) {
     const g = c.grow
+    const steps = g.steps ?? STEPS
     g.k = Math.min(1, g.k + dt / g.dur)
-    const step = Math.round((1 - (1 - g.k) ** 2) * STEPS)
+    // a morph eases in and out, like something alive; an opening eases out
+    const e = g.morph ? g.k * g.k * (3 - 2 * g.k) : 1 - (1 - g.k) ** 2
+    const step = Math.round((g.back ? 1 - e : e) * steps)
     if (step !== g.step) {
       g.step = step
-      this.show(c.plant, cellGeometry(g.type, c.stage, c.value, c.wilt, step))
+      this.show(c.plant, cellGeometry(g.type, g.stage ?? c.stage, c.value, c.wilt, step))
     }
-    if (g.k >= 1) c.grow = null
+    if (g.morph) {
+      // it breathes as it changes, swelling and settling
+      const b = Math.sin(g.k * Math.PI * 3) * Math.sin(g.k * Math.PI) * 0.07
+      c.plant.group.scale.set(1 - b * 0.5, 1 + b, 1 - b * 0.5)
+    }
+    if (g.k < 1) return
+    c.grow = null
+    if (g.back) { this.show(c.plant, cellGeometry(g.type, 'sprout', c.value, c.wilt)); return }
+    if (g.morph) {
+      // done: a little boing, a burst of petals, and its note
+      c.pop = 0
+      c.popFrom = 0.86
+      c.twist = 0
+      this.burst(c.i)
+      this.shadowFrames = 3
+      this.onPop?.(c.i, 'bud', g.rank)
+    }
   }
 
   // grow: 0 bare soil, about half for a complete bed, 1 in bloom
@@ -532,8 +551,8 @@ export class GardenScene {
         busy = true
       }
       const sprout = c.stage === 'sprout'
-      if (c.tx) {
-        // crouching, handled above
+      if (c.tx || c.grow?.morph) {
+        // crouching or changing shape, handled above
       } else if (c.pop < 1) {
         // a springy pop, stretching up and squashing back
         c.pop = Math.min(1, c.pop + dt / 0.6)
