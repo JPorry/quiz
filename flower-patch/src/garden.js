@@ -152,19 +152,27 @@ function carpetTexture(board, flowers, seed) {
   })
 }
 
-// Soil that turns into the carpet as `grow` goes from 0 to 1.
-function bedMaterial(soil, carpet) {
+// Soil that turns into the carpet as `grow` goes from 0 to 1. The carpet
+// spreads out in a ring from `origin` (in cells) as `reach` grows.
+function bedMaterial(soil, carpet, width, height) {
   const m = toon(0xffffff, { rim: 0.1 }).clone()
   m.map = soil
-  m.userData.grow = { value: 0 }
+  Object.assign(m.userData, { grow: { value: 0 }, origin: { value: new THREE.Vector2() }, reach: { value: 99 } })
   m.onBeforeCompile = (shader) => {
     shader.uniforms.carpet = { value: carpet }
     shader.uniforms.grow = m.userData.grow
+    shader.uniforms.origin = m.userData.origin
+    shader.uniforms.reach = m.userData.reach
+    shader.uniforms.board = { value: new THREE.Vector2(width, height) }
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform sampler2D carpet;\nuniform float grow;')
+      .replace('#include <common>', '#include <common>\nuniform sampler2D carpet;\nuniform float grow;\nuniform vec2 origin;\nuniform float reach;\nuniform vec2 board;')
       .replace('#include <map_fragment>', `#include <map_fragment>
         vec4 carpetColor = texture2D(carpet, vMapUv);
-        diffuseColor.rgb = mix(diffuseColor.rgb, carpetColor.rgb, grow);`)
+        float away = distance(vec2(vMapUv.x, 1.0 - vMapUv.y) * board, origin);
+        float spread = 1.0 - smoothstep(reach - 0.35, reach, away);
+        // a bright edge rides the front of the spreading carpet
+        float edge = smoothstep(reach - 0.35, reach - 0.15, away) * spread * step(reach, 6.0);
+        diffuseColor.rgb = mix(diffuseColor.rgb, carpetColor.rgb, grow * spread) + vec3(0.18, 0.2, 0.08) * edge * grow;`)
   }
   m.customProgramCacheKey = () => 'flower-bed'
   return m
@@ -263,7 +271,7 @@ export function buildGarden(board, flowers, seed) {
   const rand = seeded(seed + 11)
   const bricks = []
   const beds = board.beds.map((cells) => {
-    const material = bedMaterial(soil, carpet)
+    const material = bedMaterial(soil, carpet, board.width, board.height)
     const shape = bedShape(cells, board.width, board.height, 0.08, 0.2)
     const geometry = bedGeometry(shape, board.width, board.height, { depth: SOIL_Y, bevel: 0 })
     bricks.push(...wall(shape, rand))

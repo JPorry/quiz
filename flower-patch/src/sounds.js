@@ -91,6 +91,18 @@ export class Sounds {
     ;[2, 4, 5, 7].map((n) => n + top).forEach((n, k) => this.pluck(this.note(n), { at: k * 0.07, len: 0.6, vol: 0.18 }))
     this.pop(900, 1800, { at: 0.02, len: 0.09, vol: 0.07 })
   }
+  // a plant pops into bud: a bubbly pop and a note that climbs along the wave
+  budPop(rank) {
+    this.pop(420 + rank * 60, 900 + rank * 90, { len: 0.08, vol: 0.16 })
+    this.pluck(this.note(3 + rank), { at: 0.02, len: 0.4, vol: 0.2, ot: 3 })
+  }
+  // a flower bursts open at the finale
+  bloom(k) { this.pluck(this.note(4 + (k % 7)), { len: 0.5, vol: 0.12, ot: 3 }) }
+  // the count of budding beds ticks up
+  tick(n) {
+    this.pluck(this.note(7 + Math.min(3, n % 4)), { len: 0.3, vol: 0.16 })
+    this.pop(1200, 2000, { at: 0.03, len: 0.05, vol: 0.06 })
+  }
   // two seeds clash: a soft low droop
   droop() {
     this.pluck(220, { len: 0.3, vol: 0.28, ot: 2.7 })

@@ -51,16 +51,20 @@ pips the whole way:
 
 1. **Sprout:** a round, smiling seedling on a little mound, the same for every bed.
    It pops up with a squash and stretch when planted.
-2. **Bud:** once a bed holds 1 to N with no clashes, each sprout ducks into the
-   soil and a stem rises in its place, its leaves unrolling and a green nub
-   swelling into a half-open head in the bed's flower. The soil turns into a leafy carpet,
-   sparkles rise, a chime plays, and a butterfly comes to visit.
+2. **Bud:** once a bed holds 1 to N with no clashes, it bursts into bud. A beat
+   after the tap, a wave runs through the bed from the plot just planted: each
+   sprout crouches, then pops into a plump, round bud in the bed's colour with
+   a twist, a spray of petals and sparkles, a ring in the soil and a note that
+   climbs with the wave. Green spreads across the bed from that plot with a
+   bright edge, the last pop rings the bed's chime, and a little flower flies up
+   to the count of budding beds, which ticks up with a bounce. A butterfly
+   comes to visit.
 3. **Bloom:** when the garden is solved, the buds unfurl their petals in a wave
    from the middle, the camera rises to look down on the mosaic, the light turns golden,
    petals drift down, and bees come out.
 
-Growing and opening play through eight in-between shapes per plant, so a change
-of stage is a smooth growth rather than a swap.
+At the finale each bud crouches and pops open the same way, unfurling its petals
+through eight in-between shapes.
 
 Each bed grows one of nine flowers, each with its own shape as well as colour:
 tulip, marigold, buttercup, daisy, forget-me-not, cornflower, lavender, pansy and

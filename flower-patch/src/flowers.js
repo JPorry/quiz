@@ -5,7 +5,7 @@ import { part, merge } from './look.js'
 // laid out like the pips on a die, so the number always reads at a glance, and
 // grows through three stages:
 //   sprout  a chubby green bud, the same for every bed
-//   bud     the bed is complete: taller, with a half-open head in its flower
+//   bud     the bed is complete: a plump round bud in its flower's colour
 //   bloom   the garden is solved: the flower opens fully
 // A wilting cell breaks a rule: its plants droop (sprouts slump) and turn straw coloured.
 
@@ -197,35 +197,63 @@ const ease = (k) => 1 - (1 - k) ** 2
 
 // A grown plant. For a bud, t is how far it has grown from a seedling (0) to a
 // full bud (1). For a bloom, t is how far the bud has opened.
-function grown(add, type, stage, spin, t) {
+// A bud: a plump, round ball of wrapped petals in the bed's colour, held in a
+// green cup on a rosette of round leaves, sitting low and chunky in the soil.
+function bud(put, type, spin) {
+  // buds are as chunky as the sprouts they grow from
+  const k = 1.35
+  const add = (geometry, color, [x, y, z], [sx, sy, sz], rotation) => put(geometry, color, [x * k, y * k, z * k], [sx * k, sy * k, sz * k], rotation)
   const c = COLORS[type]
-  const bloom = stage === 'bloom'
+  for (let k = 0; k < 3; k++) {
+    const a = spin + (k / 3) * Math.PI * 2
+    add(PETAL, c.leaf, [Math.cos(a) * 0.06, 0.018, Math.sin(a) * 0.06], [0.06, 0.016, 0.04], [0, -a, 0.25])
+  }
+  if (type === 'lavender' || type === 'forgetmenot') {
+    // a cluster of round little buds
+    const colors = type === 'lavender' ? [c.petal, 0xbb9af2] : [0xffb3d1, c.petal]
+    for (let k = 0; k < 5; k++) {
+      const a = spin + (k / 5) * Math.PI * 2
+      add(PETAL, colors[k % 2], [Math.cos(a) * 0.036, 0.075, Math.sin(a) * 0.036], [0.034, 0.032, 0.034])
+    }
+    add(PETAL, colors[0], [0, 0.11, 0], [0.038, 0.036, 0.038])
+    return
+  }
+  for (let k = 0; k < 5; k++) {
+    const a = spin + (k / 5) * Math.PI * 2
+    add(PETAL, 0x62b552, [Math.cos(a) * 0.04, 0.05, Math.sin(a) * 0.04], [0.036, 0.014, 0.03], [0, -a, 0.85])
+  }
+  add(PETAL, c.petal, [0, 0.092, 0], [0.072, 0.074, 0.072])
+  // three outer petals hug the ball, a shade paler
+  const wrap = new THREE.Color(c.petal).lerp(new THREE.Color(0xffffff), 0.25).getHex()
+  for (let k = 0; k < 3; k++) {
+    const a = spin + 0.5 + (k / 3) * Math.PI * 2
+    add(PETAL, wrap, [Math.cos(a) * 0.05, 0.08, Math.sin(a) * 0.05], [0.04, 0.06, 0.045], [0, -a, 0.18])
+  }
+  // a little curl on top, or a peek of the flower's middle
+  const tip = { daisy: 0xffd34d, sunflower: 0x9a6a3a, buttercup: 0xffaa33 }[type] ?? wrap
+  add(PETAL, tip, [0, 0.164, 0], [0.02, 0.014, 0.02])
+}
+
+// A grown plant in full bloom; t is how far the flower has opened.
+function grown(add, type, spin, t) {
+  const c = COLORS[type]
   const lav = type === 'lavender' ? 1.2 : 1
-  const g = bloom ? 1 : ease(t)
-  const tall = (bloom ? lerp(0.12, 0.15, ease(t)) : lerp(0.03, 0.12, g)) * lav
-  add(SPHERE, MOUND, [0, 0, 0], [0.09 * (1 - g * 0.6), 0.025, 0.09 * (1 - g * 0.6)])
+  const tall = lerp(0.1, 0.15, ease(t)) * lav
   add(STEM, 0x62b552, [0, 0, 0], [0.016, tall, 0.016])
-  // two round, plump leaves at the foot of the stem, unrolling as it grows
+  // two round, plump leaves at the foot of the stem
   for (const s of [0, Math.PI]) {
     const a = spin + 0.8 + s
-    const l = lerp(0.4, 1, g)
-    add(PETAL, c.leaf, [Math.cos(a) * 0.05 * l, 0.04 * l, Math.sin(a) * 0.05 * l], [0.055 * l, 0.016, 0.036 * l], [0, -a, lerp(1.1, 0.5, g)])
+    add(PETAL, c.leaf, [Math.cos(a) * 0.05, 0.04, Math.sin(a) * 0.05], [0.055, 0.016, 0.036], [0, -a, 0.5])
   }
-  const open = bloom ? lerp(0.3, 1, ease(t)) : 0.3
-  // Every kind of flower opens to the same size, big and chunky. A bud is a
-  // little smaller, and swells as it grows from a green nub to its colour.
-  const full = HEAD / (GROWN * spread(type))
-  const h = full * (bloom ? lerp(BUD, 1, ease(t)) : BUD * lerp(0.3, 1, g))
+  // every kind of flower opens to the same size, big and chunky
+  const h = HEAD / (GROWN * spread(type)) * lerp(BUD, 1, ease(t))
   const headParts = []
   const into = (geometry, color, position, scale, rotation) => headParts.push([geometry, color, position, scale, rotation])
   // a little green cup holds the flower
   into(PETAL, 0x62b552, [0, -0.004, 0], [0.026, 0.016, 0.026])
-  head(into, type, 0.01, open, spin)
-  const tint = new THREE.Color()
+  head(into, type, 0.01, lerp(0.3, 1, ease(t)), spin)
   for (const [geometry, color, [x, y, z], [sx, sy, sz], rotation] of headParts) {
-    // a young bud is still mostly green
-    tint.set(color).lerp(new THREE.Color(0x7cc95a), bloom ? 0 : (1 - g) * 0.8)
-    add(geometry, tint.getHex(), [x * h, tall + y * h, z * h], [sx * h, sy * h, sz * h], rotation)
+    add(geometry, color, [x * h, tall + y * h, z * h], [sx * h, sy * h, sz * h], rotation)
   }
 }
 
@@ -248,7 +276,7 @@ const cache = new Map()
 // The shapes for a cell holding `value` plants of `type` at `stage`. `step`
 // (0 to STEPS) is how far a bud has grown or a bloom has opened.
 export function cellGeometry(type, stage, value, wilt = false, step = STEPS) {
-  if (stage === 'sprout') step = STEPS
+  if (stage !== 'bloom') step = STEPS
   const key = `${stage === 'sprout' ? 'sprout' : type}|${stage}|${value}|${wilt}|${step}`
   if (cache.has(key)) return cache.get(key)
   const t = step / STEPS
@@ -264,7 +292,8 @@ export function cellGeometry(type, stage, value, wilt = false, step = STEPS) {
     else if (wilt) m.multiply(new THREE.Matrix4().makeRotationAxis(new THREE.Vector3(Math.cos(spin), 0, Math.sin(spin)), 0.75))
     const { parts, flats, add } = builder(m, wilt)
     if (stage === 'sprout') sprout(add, spin, wilt)
-    else grown(add, type, stage, spin, t)
+    else if (stage === 'bud') bud(add, type, spin)
+    else grown(add, type, spin, t)
     all.push(...parts)
     flat.push(...flats)
   })
