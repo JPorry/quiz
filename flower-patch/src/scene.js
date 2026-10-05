@@ -170,6 +170,13 @@ export class GardenScene {
       const order = [...cells].sort((a, b) => (from ? this.center(a).distanceTo(from) - this.center(b).distanceTo(from) : a - b))
       order.forEach((i, k) => rank.set(i, k))
     })
+    // A bed that has just been completed bursts into flower all at once. If
+    // its last seed was only just planted, the whole bed waits for that
+    // seedling to wake and open its leaves, then every plant grows together.
+    this.bedWait = this.board.beds.map((cells) => {
+      const fresh = cells.some((i) => states[i].value && states[i].stage !== 'sprout' && (!this.cells[i].value || states[i].value !== this.cells[i].value))
+      return fresh ? BLINK + OPEN_LEAVES + 0.35 : 0.32
+    })
     states.forEach((s, i) => {
       const c = this.cells[i]
       const type = this.flowers[this.board.bedOf[i]]
@@ -201,18 +208,25 @@ export class GardenScene {
         Object.assign(c, { value: s.value, stage: 'sprout', wilt: s.wilt, grow: null, pop: 1 })
         this.show(c.plant, cellGeometry(type, 'sprout', s.value, s.wilt, undefined, 1))
         this.wake(c)
-        if (s.stage !== 'sprout') c.pending = { at: this.time + BLINK + OPEN_LEAVES + 0.35 + rank.get(i) * 0.11, change: () => this.advance(c, type, s, rank.get(i)) }
+        if (s.stage !== 'sprout') c.pending = { at: this.time + this.bedWait[this.board.bedOf[i]], change: () => this.advance(c, type, s, rank.get(i)) }
+        return
+      }
+      if (s.stage === 'bloom' && c.stage === 'sprout') {
+        // the last bed to finish flowers together, in step with its last seed
+        c.pending = { at: this.time + this.bedWait[this.board.bedOf[i]], change: () => this.advance(c, type, s, rank.get(i)) }
         return
       }
       if (s.stage === 'bloom' && c.stage !== 'bloom') {
-        // the finale opens the flowers in a wave from the middle of the garden
+        // the finale opens the flowers in a wave from the middle of the garden,
+        // once the last bed has caught up and opened its own flowers
         const p = this.center(i)
-        c.pending = { at: this.time + 0.25 + Math.hypot(p.x, p.z) * 0.22, change: () => this.advance(c, type, s) }
+        const settle = this.bedWait.some((w, b) => w > 0.32 && states[this.board.beds[b][0]].stage === 'bloom') ? BLINK + OPEN_LEAVES + 0.35 + 2 : 0.25
+        c.pending = { at: this.time + settle + Math.hypot(p.x, p.z) * 0.22, change: () => this.advance(c, type, s) }
         return
       }
       if (s.stage === 'bud' && c.stage === 'sprout') {
-        // a beat after the tap, the bed bursts into bud plant by plant
-        c.pending = { at: this.time + 0.32 + rank.get(i) * 0.11, change: () => this.advance(c, type, s, rank.get(i)) }
+        // the whole bed bursts into bud together, once its last seed is up
+        c.pending = { at: this.time + this.bedWait[this.board.bedOf[i]], change: () => this.advance(c, type, s, rank.get(i)) }
         return
       }
       this.advance(c, type, s)
@@ -287,10 +301,10 @@ export class GardenScene {
       const bed = this.beds[b]
       const u = bed.material.userData
       if (target > 0 && !bed.target && !quiet) {
-        // the carpet spreads across the bed from the cell just planted, with the wave of buds
+        // the carpet spreads across the bed from the cell just planted as its buds swell
         const p = origin ?? this.board.beds[b][0]
         u.origin.value.set((p % this.board.width) + 0.5, Math.floor(p / this.board.width) + 0.5)
-        bed.spread = { at: this.time + 0.3, reach: 0 }
+        bed.spread = { at: this.time + (this.bedWait?.[b] ?? 0.32) - 0.02, reach: 0 }
         u.reach.value = 0
         bed.grow = target
         u.grow.value = target
