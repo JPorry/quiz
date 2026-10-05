@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
-import { toon, outline } from './look.js'
+import { toon, outline, clay } from './look.js'
 import { cellGeometry, GROW_STEPS, NUM, PIPS, plantTop, STEPS } from './flowers.js'
 import { Insects } from './insects.js'
 import { buildGarden, SOIL_Y, WIND } from './garden.js'
@@ -76,8 +76,8 @@ export class GardenScene {
     this.glowTarget = 0
     this.elevation = ELEVATION
     this.elevationTarget = ELEVATION
-    this.plantMaterial = toon(0xffffff, { vertexColors: true, rim: 0.2 })
-    this.plantLine = outline(LINE, 0.006)
+    this.plantMaterial = clay()
+    this.plantLine = outline(LINE, 0.004)
     this.faceMaterial = new THREE.MeshBasicMaterial({ vertexColors: true })
     this.humpMaterial = toon(0xa3714b, { rim: 0.25 })
     this.markMaterial = new THREE.MeshBasicMaterial({ color: 0xff5a4a, transparent: true, opacity: 0.38, depthWrite: false })
@@ -130,7 +130,9 @@ export class GardenScene {
     const group = new THREE.Group()
     const mesh = new THREE.Mesh(undefined, this.plantMaterial)
     mesh.castShadow = true
+    // plants are soft clay, like the toys they're modelled on: no outline
     const line = new THREE.Mesh(undefined, this.plantLine)
+    line.visible = false
     const face = new THREE.Mesh(undefined, this.faceMaterial)
     group.add(mesh, line, face)
     group.visible = false

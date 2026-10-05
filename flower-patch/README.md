@@ -128,11 +128,13 @@ number's colour, inner petals in a lighter or deeper shade of it, and a golden
 eye picked to stand out against it. So a finished bed is one kind of flower in
 1 to N different colours, and the numbers still read in full bloom. A bed's
 green carpet is strewn with petals in its numbers' colours. They are built to
-look soft, round and bulky, like plush toys: every petal is a plump pillow
-nearly as thick as it is wide, petals crowd and overlap so each head reads as
-one rounded bloom with a scalloped edge, and centres are big soft domes with a
-little glossy shine. Short chunky stems and round leaves, no spikes or thin
-slivers (and no faces). Each flower sits in a little green cup.
+look like soft clay toys: every petal is an inflated balloon, narrow where it
+joins the flower and swelling to a round, puffy tip, nearly as thick as it is
+wide; centres are big soft domes, the daisy's and sunflower's ringed with
+little beads. Plants use a smooth clay material with a gentle sheen and no
+outline (`clay` in `src/look.js`), unlike the sticker-outlined world around
+them. Short chunky stems and round leaves, no spikes or thin slivers (and no
+faces). Each flower sits in a little green cup.
 
 Beds that touch, even at a corner, never share a kind of flower
 (`assignFlowers` in `src/logic.js`). A single-plot bed always grows a sunflower.

@@ -30,6 +30,27 @@ export function toon(color = 0xffffff, { vertexColors = false, rim = 0.22, emiss
   return m
 }
 
+// Soft clay, like a little toy modelled in plasticine: smooth shading with a
+// gentle sheen and a warm rim, no hard bands.
+const clays = new Map()
+export function clay({ rim = 0.18, roughness = 0.5 } = {}) {
+  const key = `${rim}-${roughness}`
+  if (clays.has(key)) return clays.get(key)
+  const m = new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness, metalness: 0 })
+  m.onBeforeCompile = (shader) => {
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <opaque_fragment>',
+      `vec3 rimV = isOrthographic ? vec3(0.0, 0.0, 1.0) : normalize(vViewPosition);
+      float rimA = pow(1.0 - clamp(dot(normalize(normal), rimV), 0.0, 1.0), 2.2);
+      outgoingLight += vec3(1.0, 0.97, 0.94) * rimA * ${rim.toFixed(2)};
+      #include <opaque_fragment>`,
+    )
+  }
+  m.customProgramCacheKey = () => `clay-${key}`
+  clays.set(key, m)
+  return m
+}
+
 const outlines = new Map()
 // Inverted hull: the same shape pushed out along its normals, drawn from behind.
 export function outline(color, width) {
