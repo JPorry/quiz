@@ -58,7 +58,6 @@ export class Ambient {
       const mesh = new THREE.Group()
       const geo = sailboat(SAILS[this.boats.length % SAILS.length])
       const m = new THREE.Mesh(geo, toon(0xffffff, { vertexColors: true }))
-      m.castShadow = true
       mesh.add(m, new THREE.Mesh(geo, outline(LINE, 0.004)))
       mesh.scale.setScalar(1.8)
       this.group.add(mesh)
@@ -68,12 +67,10 @@ export class Ambient {
     for (let k = 0; k < 2; k++) {
       const body = new THREE.Group()
       const b = new THREE.Mesh(GULL_BODY, toon(0xffffff, { vertexColors: true }))
-      b.castShadow = true
       body.add(b)
       const wings = [1, -1].map((s) => {
         const w = new THREE.Mesh(WING, toon(0xffffff, { vertexColors: true }))
         w.scale.z = s
-        w.castShadow = true
         body.add(w)
         return w
       })

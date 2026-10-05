@@ -281,7 +281,10 @@ addEventListener('keydown', (ev) => { if ((ev.ctrlKey || ev.metaKey) && ev.key =
 
 /* ---------- loop ---------- */
 let last = performance.now()
+// test captures run slowly in software rendering, so they keep their resolution
+const capture = new URLSearchParams(location.search).has('capture')
 function frame(now) {
+  if (!capture) scene.tune(now - last)
   const dt = Math.min(0.05, (now - last) / 1000)
   last = now
   if (!document.hidden) {

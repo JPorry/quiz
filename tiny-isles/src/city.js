@@ -25,24 +25,24 @@ export const BIOME_NAMES = Object.keys(BIOMES)
 
 /* ---------- shapes ---------- */
 
-const RBOX = new RoundedBoxGeometry(1, 1, 1, 4, 0.3)
-const SOFT = new RoundedBoxGeometry(1, 1, 1, 3, 0.16)
-const SPHERE = new THREE.SphereGeometry(1, 18, 14)
-const DOME = new THREE.SphereGeometry(1, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2)
-const CYL = new THREE.CylinderGeometry(1, 1, 1, 20)
-const DISC = new THREE.CylinderGeometry(1, 1, 1, 20).rotateX(Math.PI / 2) // faces +z
-const CONE = new THREE.ConeGeometry(1, 1, 20)
-const CAPSULE = new THREE.CapsuleGeometry(1, 1, 6, 16)
-const LOAF = new THREE.CylinderGeometry(0.5, 0.5, 1, 20, 1, false, 0, Math.PI).rotateZ(Math.PI / 2).rotateY(Math.PI / 2) // a rounded roof along x
-const TORUS = new THREE.TorusGeometry(1, 0.22, 8, 24)
-const ARCH = new THREE.CylinderGeometry(1, 1, 1, 16, 1, false, 0, Math.PI).rotateX(Math.PI / 2).rotateZ(Math.PI / 2)
+const RBOX = new RoundedBoxGeometry(1, 1, 1, 2, 0.3)
+const SOFT = new RoundedBoxGeometry(1, 1, 1, 1, 0.16)
+const SPHERE = new THREE.SphereGeometry(1, 12, 8)
+const DOME = new THREE.SphereGeometry(1, 12, 5, 0, Math.PI * 2, 0, Math.PI / 2)
+const CYL = new THREE.CylinderGeometry(1, 1, 1, 12)
+const DISC = new THREE.CylinderGeometry(1, 1, 1, 12).rotateX(Math.PI / 2) // faces +z
+const CONE = new THREE.ConeGeometry(1, 1, 12)
+const CAPSULE = new THREE.CapsuleGeometry(1, 1, 3, 10)
+const LOAF = new THREE.CylinderGeometry(0.5, 0.5, 1, 10, 1, false, 0, Math.PI).rotateZ(Math.PI / 2).rotateY(Math.PI / 2) // a rounded roof along x
+const TORUS = new THREE.TorusGeometry(1, 0.22, 6, 16)
+const ARCH = new THREE.CylinderGeometry(1, 1, 1, 8, 1, false, 0, Math.PI).rotateX(Math.PI / 2).rotateZ(Math.PI / 2)
 const SAIL = (() => {
   const s = new THREE.Shape()
   s.moveTo(0, 0)
   s.quadraticCurveTo(0.6, 0.45, 0.08, 1)
   s.lineTo(0, 1)
   s.closePath()
-  return new THREE.ExtrudeGeometry(s, { depth: 0.24, bevelEnabled: true, bevelSize: 0.04, bevelThickness: 0.04, bevelSegments: 3, curveSegments: 18 }).translate(0, 0, -0.12)
+  return new THREE.ExtrudeGeometry(s, { depth: 0.24, bevelEnabled: true, bevelSize: 0.04, bevelThickness: 0.04, bevelSegments: 1, curveSegments: 8 }).translate(0, 0, -0.12)
 })()
 
 const pick = (r, list) => list[Math.floor(r() * list.length)]
@@ -292,8 +292,8 @@ const GROW = { apartment: [1, 1.15, 1.3], glass: [0.85, 1, 1.1], skyscraper: [0.
 
 const easeBack = (k) => 1 + 2.2 * (k - 1) ** 3 + 1.2 * (k - 1) ** 2
 
-function bake(parts) {
-  const geometry = merge(parts)
+const bake = (parts) => drawn(merge(parts))
+function drawn(geometry) {
   const group = new THREE.Group()
   const mesh = new THREE.Mesh(geometry, toon(0xffffff, { vertexColors: true }))
   mesh.castShadow = true
@@ -321,7 +321,6 @@ export class City {
     if (lm.spin) {
       const blades = new THREE.Mesh(lm.spin.geometry, toon(0xffffff, { vertexColors: true }))
       blades.position.set(...lm.spin.at)
-      blades.castShadow = true
       g.add(blades)
       this.spinners.push(blades)
     }
@@ -338,6 +337,7 @@ export class City {
   setTier(tier) {
     tier = Math.max(0, Math.min(PLAN.length - 1, tier))
     if (tier === this.tier) return false
+    this.unmerge()
     const growing = tier > this.tier
     this.tier = tier
     const plan = PLAN[tier]
@@ -369,6 +369,8 @@ export class City {
   }
 
   update(dt) {
+    // a city that has stopped growing is drawn as one mesh
+    if (!this.merged && !this.busy) this.mergeAll()
     for (const s of this.slots) {
       if (!s) continue
       if (s.delay > 0) { s.delay -= dt; continue }
@@ -410,6 +412,30 @@ export class City {
     }
     for (const spin of this.spinners) spin.rotation.z += dt * 1.6
     if (this.beacon) this.beacon.material.opacity = 0.45 + Math.sin(performance.now() / 300) * 0.3
+  }
+
+  mergeAll() {
+    const groups = [...this.slots.filter(Boolean).map((s) => s.group), this.landmark]
+    const geometry = merge(groups.map((g) => {
+      g.updateMatrix()
+      g.children[0].visible = g.children[1].visible = false
+      return g.children[0].geometry.clone().applyMatrix4(g.matrix)
+    }))
+    this.merged = drawn(geometry)
+    this.group.add(this.merged)
+  }
+
+  unmerge() {
+    if (!this.merged) return
+    this.merged.removeFromParent()
+    this.merged.children[0].geometry.dispose()
+    this.merged = null
+    for (const g of [...this.slots.filter(Boolean).map((s) => s.group), ...this.retiring.map((s) => s.group), this.landmark]) g.children[0].visible = g.children[1].visible = true
+  }
+
+  // still growing or shrinking, so its shadow is changing
+  get busy() {
+    return this.retiring.length > 0 || this.slots.some((s) => s && s.t < 1)
   }
 
   settle() {
