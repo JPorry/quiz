@@ -27,8 +27,10 @@ hooks for checks: `start(index)`, `solve(leave)` and `advance(seconds)`.
 ## How it looks
 
 The garden is a tilted diorama seen through a fixed orthographic camera. Each
-bed is a raised wooden bed of soil, with a strip of striped lawn between beds, so
-the regions read at a glance. Faint dashed furrows split a bed into its plots, and
+bed is a raised bed of soil walled in terracotta brick: three courses laid like a
+real wall, each shifted half a brick, with cream mortar between, running from the
+lawn up to just above the soil, with a strip of striped lawn between beds, so the
+regions read at a glance. Faint dashed furrows split a bed into its plots, and
 a white picket fence, bushes, mushrooms, and a watering can sit around the edge.
 Rows stretch a little to make up for the tilt, so plots look square and the
 garden fills a tall phone.
@@ -62,11 +64,17 @@ of stage is a smooth growth rather than a swap.
 
 Each bed grows one of nine flowers, each with its own shape as well as colour:
 tulip, marigold, buttercup, daisy, forget-me-not, cornflower, lavender, pansy and
-rose. Beds that touch, even at a corner, never share a flower, and colours are
+rose. They are built to look cosy, like a box of sweets: plump round petals,
+big soft centres, short chunky stems and round leaves, in warm colours, with no
+spikes or thin slivers (and no faces). A bud sits in a little green cup like a
+lollipop. Every kind opens to the same big, chunky size, whatever its shape or
+its plot's number, so the finished garden is an even carpet of flowers. Beds that touch, even at a corner, never share a flower, and colours are
 picked far apart on the colour wheel (`assignFlowers` in `src/logic.js`). A
 single-plot bed always grows a sunflower.
 
-Plots planted at the start are ringed with white pebbles. When two seeds clash,
+Plots planted at the start carry a little plant label: a cream board with a
+coral border, a painted smiling sprout and a pink bow, standing at the front
+middle of the plot, the one spot no die face uses. When two seeds clash,
 their sprouts slump (grown plants droop), turn straw coloured, and the plot glows red.
 
 ## Controls
