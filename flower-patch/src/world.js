@@ -416,6 +416,8 @@ export class World {
       put('cottage', x, z)
       for (let k = 0; k < 3; k++) {
         const puff = new THREE.Mesh(SPHERE, toon(0xffffff, { rim: 0.3 }))
+        // hidden until its first update places and sizes it
+        puff.visible = false
         this.group.add(puff)
         this.smoke.push({ puff, x: x + 0.24 * BIG, z: z - 0.1 * BIG, k: k / 3 })
       }

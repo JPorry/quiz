@@ -418,3 +418,16 @@ export function cellGeometry(type, stage, value, wilt = false, step = stage === 
   cache.set(key, shapes)
   return shapes
 }
+
+// How high the tops of a cell's plants reach, so insects land on them rather
+// than in them.
+const tops = new Map()
+export function plantTop(type, stage, value) {
+  const key = `${type}|${stage}|${value}`
+  if (!tops.has(key)) {
+    const g = cellGeometry(type, stage, value).body
+    g.computeBoundingBox()
+    tops.set(key, g.boundingBox.max.y)
+  }
+  return tops.get(key)
+}
