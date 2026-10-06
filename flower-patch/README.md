@@ -153,8 +153,8 @@ The music and sound effects are composed and rendered by `scripts/compose-audio.
 (`npm run compose:audio`; needs fluidsynth with the fluid-soundfont-gm soundfont, ffmpeg, numpy
 and scipy), the same way as Tidal Garden's. The music is gentle and happy, on real sampled
 instruments: a warm pad, a softly picked nylon guitar and harp, a kalimba or music box singing
-little tunes, a flute now and then and wind chimes, over a garden of songbirds, a breeze in the
-leaves, a trickling brook and the odd bumblebee. Two tracks take turns while you play, and a
+little tunes, a flute now and then and wind chimes, over a garden of songbirds, the odd bumblebee
+and only a whisper of breeze, kept well under the music. Two tracks take turns while you play, and a
 brighter one plays for a garden in full bloom. Everything is in G major and every tune keeps to the
 pentatonic scale, so the effects (picking a bag, planting, a seedling waking, a bed flowering,
 digging, the finale, a gust of wind, and so on) always sit inside the music. The files live in

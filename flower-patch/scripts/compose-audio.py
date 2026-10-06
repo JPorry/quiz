@@ -4,9 +4,9 @@
 The music is written here as notes and rendered through real sampled instruments (the FluidR3
 General MIDI soundfont, through FluidSynth): a warm pad, a softly picked harp and nylon guitar, a
 kalimba or music box singing little tunes, a flute now and then, and wind chimes. Under it lies a
-garden made with numpy: songbirds, a breeze in the leaves, a trickling brook and the odd bumblebee
-going by. Everything is in G major, and every melody keeps to the G major pentatonic scale, so the
-sound effects (pitched in the same key) always sit inside the music.
+garden made with numpy: songbirds, the odd bumblebee going by and a whisper of breeze.
+Everything is in G major, and every melody keeps to the G major pentatonic scale, so the sound
+effects (pitched in the same key) always sit inside the music.
 
 Writes public/audio/*.mp3, public/audio/sfx/*.mp3, and src/audioManifest.js.
 
@@ -51,9 +51,9 @@ PROGRESSIONS = [
 # How each mood plays, and how much of the garden comes through.
 MOODS = {
     'garden': dict(harp=0.35, guitar=0.45, density=0.6, lead=KALIMBA, lead_vel=(44, 58), flute=0.3, chimes=0.25,
-                   birds=0.85, breeze=0.6, brook=0.55, bees=0.35),
+                   birds=0.85, breeze=0.6, bees=0.35),
     'bloom': dict(harp=0.7, guitar=0.3, density=0.8, lead=MUSIC_BOX, lead_vel=(48, 62), flute=0.4, chimes=0.5,
-                  birds=1.0, breeze=0.4, brook=0.4, bees=0.6),
+                  birds=1.0, breeze=0.4, bees=0.6),
 }
 
 # ---------------------------------------------------------------------------------------------
@@ -169,24 +169,6 @@ def breeze(seconds, rng):
     return leaves + air
 
 
-def brook(seconds, rng):
-    """A little brook trickling past: a soft wash of water with tiny bubbling notes in it."""
-    n = int(seconds * RATE)
-    wash = band(rng.standard_normal((n, 2)), low=500, high=3000)
-    wash = wash / np.abs(wash).max() * (0.6 + 0.4 * slow(n, rng, 0.3))
-    drops = np.zeros((n, 2))
-    t = 0.0
-    while t < seconds - 0.2:
-        f = rng.uniform(700, 1700)
-        length = rng.uniform(0.025, 0.06)
-        tt = np.arange(int(length * RATE)) / RATE
-        blip = np.sin(2 * np.pi * np.cumsum(f * (1 + 0.8 * tt / length)) / RATE) * np.sin(np.pi * tt / length) ** 2
-        s = int(t * RATE)
-        drops[s:s + len(blip)] += stereo(blip, rng.uniform(-0.5, 0.5))[:max(0, min(len(blip), n - s))] * rng.uniform(0.2, 0.6)
-        t += rng.exponential(0.07)
-    return wash * 0.5 + drops * 0.35
-
-
 def chirp(f0, f1, length, level=1.0, vibrato=0.0, rate=40.0):
     t = np.arange(int(length * RATE)) / RATE
     freq = f0 * (f1 / f0) ** (t / length)
@@ -255,8 +237,8 @@ def scatter(seconds, rng, chance, gap, make, level, wet=0.3):
 
 
 def garden(seconds, mood, rng):
-    bed = breeze(seconds, rng) * 0.05 * mood['breeze']
-    bed += brook(seconds, rng) * 0.05 * mood['brook']
+    # only a whisper of breeze: louder wind (and the brook it once had) washed over the music
+    bed = breeze(seconds, rng) * 0.012 * mood['breeze']
     bed += scatter(seconds, rng, mood['birds'], (2.5, 7), bird, (0.05, 0.1))
     bed += scatter(seconds, rng, mood['bees'], (14, 30), bee, (0.01, 0.018), wet=0.15)
     return bed
@@ -371,8 +353,8 @@ def piece(mood_name, chords, seed):
     seconds = len(music) / RATE
     bed = garden(seconds, mood, np.random.default_rng(seed))
     music = music / (np.sqrt(np.mean(music ** 2)) + 1e-9) * 0.08
-    # The garden sits under the music, present enough that you hear the birds and the brook.
-    bed = bed / (np.sqrt(np.mean(bed ** 2)) + 1e-9) * 0.035
+    # The garden sits well under the music: birds and the odd bee, never a wash of noise.
+    bed = bed / (np.sqrt(np.mean(bed ** 2)) + 1e-9) * 0.022
     return master(music + bed)
 
 
@@ -478,7 +460,8 @@ def effects():
     sfx['open'] = (mix(bubble(560, 0.08, 0.5), bubble(820, 0.09, 0.45), at=[0, 0.08]), 0.4)
     sfx['close'] = (mix(bubble(820, 0.08, 0.45), bubble(560, 0.09, 0.4), at=[0, 0.07]), 0.38)
     sfx['tap'] = (mix(notes_sfx([(0, 0.25, 0, 86, 70)], {0: MARIMBA}), bubble(640, 0.07, 0.3)), 0.5)
-    sfx['gust'] = (hush(2.6, 500, 3800, 1.0, rng=rng, shape=lambda t: np.sin(np.pi * np.clip(t / 2.6, 0, 1)) ** 2), 0.22)
+    # a gentle breeze passing: a soft, low, airy sigh that rises and falls slowly, well below the music
+    sfx['gust'] = (hush(3.6, 250, 1400, 1.0, rng=rng, shape=lambda t: np.sin(np.pi * np.clip(t / 3.6, 0, 1)) ** 3), 0.07)
     # The garden blooms: a harp run up the scale, celesta sparkles, a warm pad and a happy bird.
     arp = [(i * 0.12, 1.8, 0, p, 70 + i * 3) for i, p in enumerate([67, 71, 74, 79, 83, 86, 91])]
     sparkle = [(0.9 + i * 0.09, 1.6, 1, p, 56) for i, p in enumerate([95, 98, 93, 98])]
