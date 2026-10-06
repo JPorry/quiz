@@ -42,7 +42,8 @@ measured from the bed's rounded outline (`edgeDistance`), and points that fall
 out on the path are pulled onto the outline so the edge is a smooth curve. It
 is shaded by its own shape (furrows and the shoulder darker, crowns lighter),
 mottled with damper and drier patches, and scattered with little clods. When a bed flowers,
-the same mounds turn into soft green cushions of moss. A white picket fence, bushes, mushrooms, and a watering can sit around the edge.
+the same mounds turn into soft green cushions of moss, all but a rim of soil down
+the rounded edge, so every bed keeps its outline against the grass paths. A white picket fence, bushes, mushrooms, and a watering can sit around the edge.
 Rows stretch a little to make up for the tilt, so plots look square and the
 garden fills a tall phone.
 

@@ -214,7 +214,7 @@ export function soilSurface(board, cells, seed) {
   const lumps = noise(seed)
   const edge = edgeDistance(cells, board.width, board.height, SOIL_IN, 0.3)
   const height = soilHeight(board, lumps, edge)
-  const pos = [], nor = [], col = [], uv = [], idx = []
+  const pos = [], nor = [], col = [], uv = [], rim = [], idx = []
   const tone = (crown, nearWall) => 0.7 + 0.4 * Math.sqrt(crown) - 0.45 * nearWall * nearWall
   for (const i of cells) {
     const c = i % board.width, r = Math.floor(i / board.width)
@@ -239,6 +239,7 @@ export function soilSurface(board, cells, seed) {
         const t = tone(crown, nearWall)
         col.push(t, t * 0.98, t * 0.96)
         uv.push(x / board.width, 1 - z / board.height)
+        rim.push(nearWall)
       }
     }
     const row = SOIL_RES + 1
@@ -256,6 +257,7 @@ export function soilSurface(board, cells, seed) {
   g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3))
   g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3))
   g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2))
+  g.setAttribute('rim', new THREE.Float32BufferAttribute(rim, 1))
   g.setIndex(idx)
   // clods: small rounded lumps of earth sitting on the surface
   const rand = seeded(seed + 31)
@@ -279,6 +281,7 @@ export function soilSurface(board, cells, seed) {
       const cu = new Float32Array(n * 2)
       for (let v = 0; v < n; v++) { cu[v * 2] = (clod.attributes.position.getX(v) + board.width / 2) / board.width; cu[v * 2 + 1] = 1 - (clod.attributes.position.getZ(v) + board.height / 2) / board.height }
       clod.setAttribute('uv', new THREE.BufferAttribute(cu, 2))
+      clod.setAttribute('rim', new THREE.BufferAttribute(new Float32Array(n), 1))
       clods.push(clod)
     }
   }
@@ -305,15 +308,21 @@ function bedMaterial(soil, carpet, width, height) {
     shader.uniforms.windDir = WIND.dir
     shader.uniforms.windFront = WIND.front
     shader.uniforms.windOn = WIND.on
+    // how far down the bed's rounded edge a point is: the edge stays soil when
+    // the bed flowers, so every bed keeps its outline against the grass paths
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nattribute float rim;\nvarying float vRim;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvRim = rim;')
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform sampler2D carpet;\nuniform float grow;\nuniform vec2 origin;\nuniform float reach;\nuniform vec2 board;\nuniform vec2 windDir;\nuniform float windFront;\nuniform float windOn;')
+      .replace('#include <common>', '#include <common>\nvarying float vRim;\nuniform sampler2D carpet;\nuniform float grow;\nuniform vec2 origin;\nuniform float reach;\nuniform vec2 board;\nuniform vec2 windDir;\nuniform float windFront;\nuniform float windOn;')
       .replace('#include <map_fragment>', `#include <map_fragment>
         vec4 carpetColor = texture2D(carpet, vMapUv);
         float away = distance(vec2(vMapUv.x, 1.0 - vMapUv.y) * board, origin);
         float spread = 1.0 - smoothstep(reach - 0.35, reach, away);
         // a bright edge rides the front of the spreading carpet
         float edge = smoothstep(reach - 0.35, reach - 0.15, away) * spread * step(reach, 6.0);
-        diffuseColor.rgb = mix(diffuseColor.rgb, carpetColor.rgb, grow * spread) + vec3(0.18, 0.2, 0.08) * edge * grow;
+        float inner = 1.0 - smoothstep(0.1, 0.3, vRim);
+        diffuseColor.rgb = mix(diffuseColor.rgb, carpetColor.rgb, grow * spread * inner) + vec3(0.18, 0.2, 0.08) * edge * grow * inner;
         // the wind's ripple: a soft light band, brighter on the green
         vec2 here = vec2(vMapUv.x, 1.0 - vMapUv.y) * board - board * 0.5;
         float behind = windFront - dot(here, windDir);
