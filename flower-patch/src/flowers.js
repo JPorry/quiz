@@ -77,7 +77,7 @@ export const COLORS = {
   marigold: { petal: 0xff9a3c, inner: 0xffcf5a, leaf: 0x62b552, carpet: '#ffb066' },
   buttercup: { petal: 0xffd447, inner: 0xffaa33, leaf: 0x6abb55, carpet: '#ffe27a' },
   daisy: { petal: 0xfffbf2, inner: 0xffc23d, leaf: 0x66b856, carpet: '#fffbf2' },
-  forgetmenot: { petal: 0x93cdff, inner: 0xffe066, leaf: 0x6dba5c, carpet: '#aed8ff' },
+  poppy: { petal: 0xff7a6b, inner: 0x4b3b52, leaf: 0x6dba5c, carpet: '#ff9a8e' },
   cornflower: { petal: 0x6f8fff, inner: 0x3b3f9e, leaf: 0x7ab38a, carpet: '#8aa3ff' },
   lavender: { petal: 0xa784e8, inner: 0xd8c6f7, leaf: 0x8ab87e, carpet: '#bfa2f0' },
   pansy: { petal: 0x8f5ad9, inner: 0xffd34d, leaf: 0x62b552, carpet: '#a982e6' },
@@ -192,18 +192,14 @@ function head(add, type, y, open, spin, value = 1) {
       dome(c.eye, y + 0.014, 0.03, 0.6)
       beads(c.eyeDeep, y + 0.012, 0.032, 0.009, 12)
       break
-    case 'forgetmenot':
-      // a posy of three round florets of fat little beads
-      for (let f = 0; f < 3; f++) {
-        const a = spin + (f / 3) * Math.PI * 2
-        const fx = Math.cos(a) * 0.042, fz = Math.sin(a) * 0.042, fy = y + (f === 0 ? 0.014 : 0)
-        if (open < 0.5) { add(ROUND, c.light, [fx, fy + 0.012, fz], [0.034, 0.032, 0.034]); continue }
-        for (let k = 0; k < 5; k++) {
-          const pa = a + (k / 5) * Math.PI * 2
-          add(ROUND, c.petal, [fx + Math.cos(pa) * 0.026, fy + 0.004, fz + Math.sin(pa) * 0.026], [0.03, 0.022, 0.03])
-        }
-        add(ROUND, c.eye, [fx, fy + 0.016, fz], [0.016, 0.013, 0.016])
-      }
+    case 'poppy':
+      // one big, open poppy: four wide balloon petals, a second four tucked
+      // between them, and a dark round seed head in a ring of dark stamens
+      ring(4, c.petal, 0.006, [0.06, 0.074], 1.35, 0.32, y, 0, 0.5)
+      ring(4, c.light, 0.004, [0.042, 0.05], 1.45, 0.55, y + 0.008, Math.PI / 4, 0.5)
+      beads(0x3e3046, y + 0.03, 0.032, 0.01, 10)
+      dome(0x4b3b52, y + 0.032, 0.026, 0.9)
+      dome(0xc4d48f, y + 0.052, 0.015, 0.35)
       break
     case 'cornflower':
       // eight short, round, puffy petals around a fat button, like a sweet
@@ -258,7 +254,7 @@ const mix = (a, b, k) => {
   const lift = Math.sin(k * Math.PI) * 0.08
   return new THREE.Color().setHSL(h, lerp(p.s, q.s, k), Math.min(0.92, lerp(p.l, q.l, k) + lift))
 }
-const CLUSTER = new Set(['lavender', 'forgetmenot'])
+const CLUSTER = new Set(['lavender'])
 // buds are drawn this much bigger than the sprout's own units, as chunky as it
 const K = 1.8
 
@@ -271,8 +267,8 @@ const K = 1.8
 //
 // On the way the curled middle leaf swells, rises and ripens into the
 // flower's colour, petals grow out of it and wrap round it, and the seedling's
-// leaves slide down to become the bud's rosette. Lavender and forget-me-nots
-// grow a cluster of little beads instead.
+// leaves slide down to become the bud's rosette. Lavender grows a cluster of
+// little beads instead.
 function morph(add, type, spin, g, wilt, fold = 0, value = 1) {
   const tint = NUM[value]
   const c = palette(type, value)

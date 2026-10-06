@@ -122,7 +122,7 @@ Each stage's last shape is the next one's first (a test checks this), so nothing
 ever jumps.
 
 Kind and colour are separate. Each bed grows one of nine kinds of flower, each
-with its own shape: tulip, marigold, buttercup, daisy, forget-me-not,
+with its own shape: tulip, marigold, buttercup, daisy, poppy,
 cornflower, lavender, pansy and rose. Each plant blooms in its seed number's
 colour, whatever its kind (`palette` in `src/flowers.js`): the petals in the
 number's colour, inner petals in a lighter or deeper shade of it, and a golden
