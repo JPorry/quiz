@@ -136,14 +136,11 @@ document.querySelector('#app').innerHTML = `
     <main class="home" id="home">
       <header class="homehead">
         <button class="round" id="home-back" aria-label="${t('back.title')}">${icon('back')}</button>
-        <div class="brand">
-          <h1 class="hometitle">${t('home.title')}</h1>
-          <p class="date"><span id="date"></span></p>
-        </div>
+        <div class="brand"><h1 class="hometitle">${t('home.title')}</h1></div>
         <button class="round" id="settings-home" aria-label="${t('header.settings')}">${icon('settings')}</button>
       </header>
       <div class="chips">
-        <span class="tag-chip streak" id="streak"></span>
+        <p class="date"><span id="date"></span></p>
         <span class="tag-chip blooms" id="blooms"></span>
       </div>
       <div class="todays" id="todays"></div>
@@ -155,8 +152,9 @@ document.querySelector('#app').innerHTML = `
     <section class="dayspage" id="dayspage">
       <header class="dayshead">
         <button class="round" id="days-back" aria-label="${t('back.home')}">${icon('back')}</button>
-        <div class="titles"><h1 class="hometitle">${t('days.title')}</h1><p class="date"><span id="dayssummary"></span></p></div>
+        <div class="titles"><h1 class="hometitle">${t('days.title')}</h1></div>
       </header>
+      <p class="date dayssum"><span id="dayssummary"></span></p>
       <div class="months" id="months"></div>
       <div class="picker" id="daysheet" hidden>
         <div class="sheet">
@@ -703,9 +701,10 @@ function drawHome() {
   $('todays').innerHTML = TIERS.map((tier) => card(puzzle(now, tier), true)).join('')
   const solved = states.filter((x) => x === 'done').length
   const n = streak(now)
-  $('streak').innerHTML = `${icon('flame')} ${t(n === 1 ? 'streak.one' : 'streak', { n })}`
-  $('streak').hidden = n < 1
-  $('blooms').innerHTML = TIERS.map((tier, i) => pot(tier, states[i])).join('') + `<span>${t('today.count', { n: solved })}</span>`
+  // the streak rides along with today's pots: a flame and how many days in a row
+  const flame = n ? `<span class="flame" title="${t(n === 1 ? 'streak.one' : 'streak', { n })}">${icon('flame')}<b>${n}</b></span>` : ''
+  $('blooms').innerHTML = flame + TIERS.map((tier, i) => pot(tier, states[i])).join('') + `<span class="count">${solved}/3</span>`
+  $('blooms').setAttribute('aria-label', [n ? t(n === 1 ? 'streak.one' : 'streak', { n }) : '', t('today.count', { n: solved })].filter(Boolean).join(', '))
   $('hello').textContent = `${greeting()} ${t(`hello.${solved}`)}`
   let missed = 0
   for (let day = 1; day < now; day++) missed += TIERS.filter((tier) => !saved.done[`${day}-${tier}`]).length
