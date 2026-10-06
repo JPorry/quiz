@@ -147,6 +147,24 @@ over and already tended, so they stand out from the lighter soil around them.
 When two seeds clash,
 their sprouts slump (grown plants droop), turn straw coloured, and the plot glows red.
 
+## Music, sound and settings
+
+The music and sound effects are composed and rendered by `scripts/compose-audio.py`
+(`npm run compose:audio`; needs fluidsynth with the fluid-soundfont-gm soundfont, ffmpeg, numpy
+and scipy), the same way as Tidal Garden's. The music is gentle and happy, on real sampled
+instruments: a warm pad, a softly picked nylon guitar and harp, a kalimba or music box singing
+little tunes, a flute now and then and wind chimes, over a garden of songbirds, a breeze in the
+leaves, a trickling brook and the odd bumblebee. Two tracks take turns while you play, and a
+brighter one plays for a garden in full bloom. Everything is in G major and every tune keeps to the
+pentatonic scale, so the effects (picking a bag, planting, a seedling waking, a bed flowering,
+digging, the finale, a gust of wind, and so on) always sit inside the music. The files live in
+`public/audio/` and `src/audioManifest.js` lists them; `src/audio.js` plays them.
+
+The gear in the header opens Settings: a Music and an Effects slider (sliding to nothing turns
+that sound off) and the language. Only English for now: the words live in `src/locales/en.js`
+and `src/i18n.js` picks the language, so more can be added by adding a locale. Settings are
+remembered.
+
 ## Controls
 
 Pick a bag of seeds, then tap a plot to plant it. Each bag is a plump little sack in its number's colour, tied with twine, with the die face on its label; picking one makes it squash, hop and wiggle, a seedling pops up and waves out of its top, and a few seeds tumble out. Tap a

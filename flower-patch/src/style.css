@@ -148,6 +148,31 @@ footer { padding: 4px 12px max(14px, env(safe-area-inset-bottom)); display: grid
 .tile i { position: absolute; display: grid; width: 18px; height: 18px; bottom: 4px; right: 4px; color: var(--leaf); }
 .tile i svg { width: 100%; height: 100%; }
 @keyframes rise { from { transform: translateY(40px); opacity: 0; } }
+/* settings: the same rising sheet, with soft leafy sliders */
+.settings { display: grid; gap: 12px; }
+.settings .sheethead { margin-bottom: 2px; }
+.setting { display: grid; grid-template-columns: 1fr minmax(0, 1.25fr) 44px; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 18px; background: #f1f6ec; }
+.setting:has(select) { grid-template-columns: 1fr auto; }
+.setting label { display: flex; align-items: center; gap: 8px; font: 600 16px var(--display); color: var(--ink); }
+.setting label svg { width: 22px; height: 22px; color: var(--leaf); flex: none; }
+.setting output { font: 700 13px var(--body); color: var(--ink-soft); text-align: right; }
+.setting input[type="range"] {
+  --fill: 50%; -webkit-appearance: none; appearance: none; width: 100%; height: 10px; border-radius: 99px; margin: 0;
+  background: linear-gradient(90deg, #8fd06c 0 var(--fill), #dfe8d6 var(--fill)); outline: none;
+}
+.setting input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 26px; height: 26px; border-radius: 50%; background: #fff;
+  border: 3px solid var(--leaf); box-shadow: 0 2px 6px rgba(50, 80, 40, .25); cursor: pointer;
+}
+.setting input[type="range"]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 50%; background: #fff; border: 3px solid var(--leaf); }
+.setting select {
+  font: 600 15px var(--display); color: var(--ink); padding: 8px 32px 8px 14px; border-radius: 14px; border: 0; background: #fff;
+  box-shadow: 0 2px 0 #dbe6d2; -webkit-appearance: none; appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235fb04f' stroke-width='3' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 10px center; background-size: 14px;
+}
+.settings .note { margin: -4px 4px 0; font: 600 13px var(--body); color: var(--ink-soft); }
+.settings .chip.go { justify-self: center; margin-top: 4px; }
 @keyframes pop { from { opacity: 0; transform: translate(-50%, 30px) scale(.9); } }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 /* a flower flying up from a budding bed to the count */
