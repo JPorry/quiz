@@ -196,6 +196,6 @@ export class GardenAudio {
   bonk() { this.play('bonk') }
   boing() { this.play('boing') }
   undo() { this.play('undo') }
-  gust(strength) { this.play('gust', { volume: clamp(strength / 0.19, 0.4, 1) }) }
+  gust(strength) { this.play('gust', { volume: clamp(strength / 0.19, 0.5, 1) * 0.8 }) }
   win() { this.play('win'); this.setMood('bloom') }
 }
