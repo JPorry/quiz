@@ -381,12 +381,29 @@ export const KINDS = { butterfly: Butterfly, bee: Bee, ladybird: Ladybird }
 
 /* ---------- the swarm ---------- */
 
+// how close two visitors may come before they nudge apart
+const SPACE = 0.2
+
+
+
 export class Insects {
   // garden: { ground, flowerSpot(bed), wanderSpot(bed), exitSpot(pos), entrySpot() }
   constructor(parent, garden) {
     this.parent = parent
     this.garden = garden
     this.all = []
+    // A flower to land on is one no one else is on or heading for, so two
+    // visitors never land in the same place.
+    const flowerSpot = garden.flowerSpot.bind(garden)
+    garden.flowerSpot = (home) => {
+      let spot = null
+      for (let k = 0; k < 10; k++) {
+        spot = flowerSpot(home)
+        if (!spot) return null
+        if (this.all.every((f) => f.pos.distanceTo(spot) > SPACE && !(f.target && f.target.distanceTo(spot) < SPACE))) return spot
+      }
+      return spot
+    }
   }
 
   clear() {
@@ -424,8 +441,33 @@ export class Insects {
 
   has(home) { return this.all.some((f) => f.home === home && !f.visitor && f.state !== 'gone') }
 
+  // Visitors in the air give each other room: any two that come too close are
+  // gently nudged apart. One sitting on a flower stays put; the one flying
+  // past moves round it.
+  spread() {
+    const live = this.all.filter((f) => f.state !== 'gone' && f.fade > 0.2)
+    const d = new THREE.Vector3()
+    for (let i = 0; i < live.length; i++) {
+      for (let j = i + 1; j < live.length; j++) {
+        const a = live[i], b = live[j]
+        const space = SPACE * (a.size + b.size) / 2
+        d.subVectors(a.pos, b.pos)
+        const dist = d.length()
+        if (dist >= space) continue
+        if (dist < 1e-4) d.set(Math.random() - 0.5, 0, Math.random() - 0.5)
+        d.normalize().multiplyScalar((space - dist) * 0.5)
+        const am = a.state !== 'rest', bm = b.state !== 'rest'
+        if (!am && !bm) continue
+        if (am && bm) { a.pos.add(d); b.pos.sub(d) }
+        else if (am) a.pos.addScaledVector(d, 2)
+        else b.pos.addScaledVector(d, -2)
+      }
+    }
+  }
+
   update(dt, time) {
     for (const f of this.all) f.update(dt, time, this.garden)
+    this.spread()
     for (const f of this.all.filter((x) => x.state === 'gone')) f.dispose()
     this.all = this.all.filter((x) => x.state !== 'gone')
   }

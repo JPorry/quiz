@@ -219,9 +219,11 @@ class Bunny extends Critter {
     ], { shadow: 0.13 })
     this.area = area
     this.rand = rand
-    this.at = new THREE.Vector2(...area.spot())
+    this.radius = 0.2
+    this.at = new THREE.Vector2(...area.spot(this.radius))
     this.from = this.at.clone()
     this.to = this.at.clone()
+    area.movers.push(this)
     this.hop = 1
     this.wait = rand() * 2
     this.place(this.at.x, this.at.y)
@@ -232,11 +234,11 @@ class Bunny extends Critter {
       this.wait -= dt
       if (this.wait <= 0) {
         // pick a nearby spot, a few hops away
-        const [x, z] = this.area.near(this.at.x, this.at.y, 0.9)
+        const [x, z] = this.area.near(this.at.x, this.at.y, 0.9, this.radius, this)
         this.from.copy(this.at)
         this.to.set(x, z)
         this.hops = Math.max(1, Math.round(this.from.distanceTo(this.to) / 0.22))
-        this.hop = 0
+        this.hop = this.from.equals(this.to) ? 1 : 0
         this.group.rotation.y = Math.atan2(x - this.at.x, z - this.at.y)
       }
     } else {
@@ -244,6 +246,8 @@ class Bunny extends Critter {
       this.at.lerpVectors(this.from, this.to, this.hop)
       if (this.hop >= 1) this.wait = 1 + this.rand() * 3
     }
+    // if it couldn't find anywhere to go, it just sits a while longer
+    if (this.hop >= 1 && this.from.equals(this.to)) this.wait = Math.max(this.wait, 0.5)
     const phase = (this.hop * this.hops) % 1
     const lift = this.hop < 1 ? Math.sin(phase * Math.PI) * 0.09 : 0
     this.place(this.at.x, this.at.y, lift + this.bounce(dt))
@@ -251,6 +255,8 @@ class Bunny extends Critter {
     this.inner.scale.set(1 / Math.sqrt(squash), squash, 1 / Math.sqrt(squash))
   }
 }
+
+Bunny.prototype.spots = function () { return [[this.at.x, this.at.y], [this.to.x, this.to.y]] }
 
 // A snail glides very slowly back and forth.
 class Snail extends Critter {
@@ -267,9 +273,11 @@ class Snail extends Critter {
       part(BALL, BLUSH, [0, 0.03, 0.095], [0.01, 0.006, 0.004]),
     ], { shadow: 0.08 })
     this.area = area
-    const [x, z] = area.spot()
+    this.radius = 0.12
+    const [x, z] = area.spot(this.radius)
     this.x = x
     this.z = z
+    area.movers.push(this)
     this.dir = rand() < 0.5 ? 1 : -1
     this.place(x, z)
     this.group.rotation.y = this.dir * Math.PI / 2
@@ -279,7 +287,7 @@ class Snail extends Critter {
   update(dt) {
     this.t += dt
     const nx = this.x + this.dir * dt * 0.03
-    if (!this.area.free(nx, this.z, 0.08)) {
+    if (!this.area.free(nx + this.dir * 0.04, this.z, this.radius, this)) {
       this.dir *= -1
       this.group.rotation.y = this.dir * Math.PI / 2
     } else this.x = nx
@@ -287,6 +295,8 @@ class Snail extends Critter {
     this.inner.scale.z = 1 + Math.sin(this.t * 3) * 0.06
   }
 }
+
+Snail.prototype.spots = function () { return [[this.x, this.z]] }
 
 // A duck paddles round the pond in slow circles, bobbing.
 class Duck extends Critter {
@@ -324,7 +334,10 @@ class Ladybird extends Critter {
       part(BALL, 0xffffff, [0.008, 0.02, 0.06], [0.004, 0.004, 0.004]),
     ], { shadow: 0.05 })
     this.area = area
-    ;[this.cx, this.cz] = area.spot()
+    // it scurries round a loop about 0.17 across, so it needs a clear circle
+    this.radius = 0.24
+    ;[this.cx, this.cz] = area.spot(this.radius)
+    area.movers.push(this)
     this.t = rand() * 10
     this.speed = 0.8 + rand() * 0.5
   }
@@ -338,6 +351,8 @@ class Ladybird extends Critter {
   }
 }
 
+Ladybird.prototype.spots = function () { return [[this.cx, this.cz]] }
+
 /* ---------- laying it all out ---------- */
 
 // The lawn the screen shows, minus the garden and whatever has been placed.
@@ -347,14 +362,28 @@ class Area {
     this.garden = garden // [minX, maxX, minZ, maxZ], the fence
     this.rand = rand
     this.taken = []
+    // critters that move about: each keeps clear of the others, where they are
+    // and where they are heading
+    this.movers = []
   }
 
-  free(x, z, r) {
+  free(x, z, r, self = null) {
     const [x0, x1, z0, z1] = this.bounds
     const [g0, g1, h0, h1] = this.garden
     if (x - r < x0 || x + r > x1 || z - r < z0 || z + r > z1) return false
     if (x + r > g0 && x - r < g1 && z + r > h0 && z - r < h1) return false
-    return this.taken.every(([tx, tz, tr]) => Math.hypot(x - tx, z - tz) > r + tr)
+    if (!this.taken.every(([tx, tz, tr]) => Math.hypot(x - tx, z - tz) > r + tr)) return false
+    return this.movers.every((m) => m === self || m.spots().every(([mx, mz]) => Math.hypot(x - mx, z - mz) > r + m.radius))
+  }
+
+  // the whole way from one spot to another is clear
+  clear(x0, z0, x1, z1, r, self) {
+    const steps = Math.max(2, Math.ceil(Math.hypot(x1 - x0, z1 - z0) / 0.08))
+    for (let k = 1; k <= steps; k++) {
+      const t = k / steps
+      if (!this.free(x0 + (x1 - x0) * t, z0 + (z1 - z0) * t, r, self)) return false
+    }
+    return true
   }
 
   spot(r = 0.1, filter = () => true) {
@@ -366,11 +395,13 @@ class Area {
     return [x0 + 0.2, z1 - 0.2]
   }
 
-  near(x, z, reach) {
+  // a spot a short way off that a critter of radius r can get to without
+  // bumping into anything or anyone
+  near(x, z, reach, r = 0.12, self = null) {
     for (let k = 0; k < 30; k++) {
       const a = this.rand() * Math.PI * 2, d = 0.3 + this.rand() * reach
       const nx = x + Math.cos(a) * d, nz = z + Math.sin(a) * d
-      if (this.free(nx, nz, 0.12)) return [nx, nz]
+      if (this.free(nx, nz, r, self) && this.clear(x, z, nx, nz, r * 0.8, self)) return [nx, nz]
     }
     return [x, z]
   }
@@ -438,11 +469,12 @@ export class World {
     if (lawn > 6) put('gnome', ...area.spot(ROOM.gnome * BIG, before), (rand() - 0.5) * 0.8)
     for (let k = 0; k < count(6); k++) put('tufts', ...area.spot(ROOM.tufts * BIG), rand() * 6)
     if (parts.length) this.group.add(baked(parts, { line: LINE, width: 0.008 }))
-    // critters, more on a bigger lawn
-    const room = Math.max(1, Math.min(3, Math.round(lawn / 8)))
-    for (let k = 0; k < room; k++) this.critters.push(new Bunny(this.group, area, rand, k % 2 ? 0xf3e2cf : 0xfffaf3))
+    // a few critters, never crowding: one bunny, one snail, and a ladybird or
+    // two on a bigger lawn
+    this.critters.push(new Bunny(this.group, area, rand, rand() < 0.5 ? 0xf3e2cf : 0xfffaf3))
     this.critters.push(new Snail(this.group, area, rand))
-    for (let k = 0; k < room; k++) this.critters.push(new Ladybird(this.group, area, rand))
+    const ladybirds = Math.max(1, Math.min(2, Math.round(lawn / 10)))
+    for (let k = 0; k < ladybirds; k++) this.critters.push(new Ladybird(this.group, area, rand))
   }
 
   update(dt, time) {
