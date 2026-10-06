@@ -61,7 +61,7 @@ export const EN = {
   'coach.begin': 'Let’s begin',
   'coach.gotIt': 'Got it',
   'coach.welcome': 'Welcome to your garden',
-  'coach.welcomeText': 'The garden is split into beds by little brick walls. Fill every plot with a seed, and when each bed is right, it bursts into flower. Let’s plant a few together.',
+  'coach.welcomeText': 'The garden is split into beds of soil, with grass paths between them. Fill every plot with a seed, and when each bed is right, it bursts into flower. Let’s plant a few together.',
   'coach.bed': 'One of each',
   'coach.bedText': 'A bed of three plots grows a 1, a 2 and a 3; a bed of five grows 1 to 5. This bed is only missing its {n}, and it has one plot left for it.',
   'coach.bedHiddenText': 'A bed of {size} plots grows one of each seed from 1 to {size}. This bed still needs a {n}, and the ringed {n}s next door keep it out of every other open plot, so it must go here.',
