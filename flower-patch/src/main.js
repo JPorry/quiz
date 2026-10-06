@@ -1,4 +1,4 @@
-import { POOLS } from './levels.js'
+import { TIERS, puzzle, today, dayOf, dateOf } from './puzzles.js'
 import { assignFlowers, bedComplete, buildBoard, conflicts, isSolved, MAX_SEED } from './logic.js'
 import { GardenScene } from './scene.js'
 import { GardenAudio } from './audio.js'
@@ -6,15 +6,19 @@ import { t, LANGUAGES, language, setLanguage } from './i18n.js'
 import { PIPS, NUM } from './flowers.js'
 import './style.css'
 
-const STORAGE_KEY = 'flower-patch.v1'
-const POOLS_ORDER = ['easy', 'medium', 'hard']
-const poolName = (pool) => t(`pool.${pool}`)
-// every level in play order, easy to hard, each knowing which pool it is in
-const LEVELS = Object.entries(POOLS).flatMap(([pool, levels]) => levels.map((level, k) => ({ ...level, pool, number: k + 1 })))
+// Flower Patch is a daily puzzle: every day brings an easy, a medium and a hard
+// garden to plant. The home screen shows today's three and a calendar keeps every
+// earlier day, so missed ones can be played any time. Progress is kept per garden.
+const STORAGE_KEY = 'flower-patch.v2'
+const tierName = (tier) => t(`pool.${tier}`)
+const longDate = (day) => dateOf(day).toLocaleDateString(language(), { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' })
 
 const ICON = {
-  prev: '<path d="M15 18l-6-6 6-6"/>',
-  next: '<path d="M9 6l6 6-6 6"/>',
+  back: '<path d="M15 18l-6-6 6-6"/>',
+  play: '<path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/>',
+  calendar: '<rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
+  flame: '<path d="M12 3c1 3.5 5 5.5 5 10a5 5 0 0 1-10 0c0-2.2 1-3.8 2.3-5 .2 1.7 1 2.8 2.2 3.2C11 9 10.8 6 12 3z"/>',
+  flower: '<circle cx="12" cy="7" r="3.2"/><circle cx="17" cy="11" r="3.2"/><circle cx="15" cy="16.5" r="3.2"/><circle cx="9" cy="16.5" r="3.2"/><circle cx="7" cy="11" r="3.2"/><circle cx="12" cy="12" r="2.2" fill="currentColor"/>',
   undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
   restart: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>',
   close: '<path d="M6 6l12 12M18 6 6 18"/>',
@@ -74,35 +78,62 @@ const bag = (n) => {
 const seeds = (n) => `<span class="seeds" aria-hidden="true">${[0, 1, 2, 3].map((k) => `<i style="--k:${k};background:${hex(blend(NUM[n], 0x8a5a3b, 0.25))}"></i>`).join('')}</span>`
 
 document.querySelector('#app').innerHTML = `
-  <div class="app">
-    <header>
-      <button class="badge" id="num" aria-label="${t('header.choose')}">1</button>
-      <div class="titles"><h1 id="name"></h1><p id="prog"></p></div>
-      <button class="round" id="settings" aria-label="${t('header.settings')}">${icon('settings')}</button>
-      <button class="round" id="prev" aria-label="${t('header.prev')}">${icon('prev')}</button>
-      <button class="round" id="next" aria-label="${t('header.next')}">${icon('next')}</button>
-    </header>
-    <div class="stage" id="stage"></div>
-    <footer>
-      <div class="tray" id="tray" role="group" aria-label="${t('tray')}"></div>
-      <div class="row">
-        <button class="chip" id="undo">${icon('undo')}<span>${t('undo')}</span></button>
-        <button class="chip dig" id="dig" data-seed="0" aria-label="${t('dig.label')}" aria-pressed="false">${icon('trowel')}<span>${t('dig')}</span></button>
-        <button class="chip" id="restart">${icon('restart')}<span>${t('restart')}</span></button>
+  <div class="app" id="shell" data-screen="home">
+    <main class="home" id="home">
+      <header class="homehead">
+        <div class="brand">
+          <h1 class="title" aria-label="${t('title')}">${[...t('title')].map((c, i) => (c === ' ' ? '<span class="gap"></span>' : `<span style="--i:${i}">${c}</span>`)).join('')}</h1>
+          <p class="date" id="date"></p>
+        </div>
+        <button class="round" id="settings-home" aria-label="${t('header.settings')}">${icon('settings')}</button>
+      </header>
+      <div class="chips">
+        <span class="tag-chip streak" id="streak"></span>
+        <span class="tag-chip blooms" id="blooms"></span>
       </div>
-    </footer>
-    <section class="picker" id="picker" hidden>
-      <div class="sheet">
-        <div class="sheethead"><h2>${t('picker.title')}</h2><button class="round" id="closepicker" aria-label="${t('close')}">${icon('close')}</button></div>
-        <div class="tabs" id="tabs" role="tablist"></div>
-        <div class="grid" id="grid"></div>
+      <div class="todays" id="todays"></div>
+      <footer class="homefoot">
+        <p class="hello" id="hello"></p>
+        <button class="chip daysbutton" id="open-days">${icon('calendar')}<span>${t('home.earlier')}</span><b class="count" id="catchup" hidden></b></button>
+      </footer>
+    </main>
+    <section class="dayspage" id="dayspage">
+      <header class="dayshead">
+        <button class="round" id="days-back" aria-label="${t('back.home')}">${icon('back')}</button>
+        <div class="titles"><h1>${t('days.title')}</h1><p id="dayssummary"></p></div>
+      </header>
+      <div class="months" id="months"></div>
+      <div class="picker" id="daysheet" hidden>
+        <div class="sheet">
+          <div class="sheethead"><h2 id="sheetdate"></h2><button class="round" id="sheetclose" aria-label="${t('close')}">${icon('close')}</button></div>
+          <div class="cards" id="cards"></div>
+        </div>
       </div>
     </section>
-    <section class="win" id="win" hidden>
-      <h2>${t('win.title')}</h2>
-      <p id="winmeta"></p>
-      <button class="chip go" id="winnext">${t('win.next')}</button>
-    </section>
+    <div class="game" id="game">
+      <header>
+        <button class="round" id="back" aria-label="${t('back')}">${icon('back')}</button>
+        <div class="titles"><h1 id="name"></h1><p id="prog"></p></div>
+        <button class="round" id="settings" aria-label="${t('header.settings')}">${icon('settings')}</button>
+      </header>
+      <div class="stage" id="stage"></div>
+      <footer>
+        <div class="tray" id="tray" role="group" aria-label="${t('tray')}"></div>
+        <div class="row">
+          <button class="chip" id="undo">${icon('undo')}<span>${t('undo')}</span></button>
+          <button class="chip dig" id="dig" data-seed="0" aria-label="${t('dig.label')}" aria-pressed="false">${icon('trowel')}<span>${t('dig')}</span></button>
+          <button class="chip" id="restart">${icon('restart')}<span>${t('restart')}</span></button>
+        </div>
+      </footer>
+      <section class="win" id="win" hidden>
+        <h2>${t('win.title')}</h2>
+        <p id="winmeta"></p>
+        <div class="row">
+          <button class="chip" id="winhome">${t('win.home')}</button>
+          <button class="chip go" id="winnext">${t('win.next')}</button>
+        </div>
+      </section>
+    </div>
     <section class="picker" id="settingsheet" hidden>
       <div class="sheet settings" role="dialog" aria-labelledby="settingstitle">
         <div class="sheethead"><h2 id="settingstitle">${t('settings.title')}</h2><button class="round" id="closesettings" aria-label="${t('close')}">${icon('close')}</button></div>
@@ -116,8 +147,10 @@ document.querySelector('#app').innerHTML = `
   </div>`
 const $ = (id) => document.getElementById(id)
 
+// done: every garden solved, by id ("<day>-<tier>"); plots: what is planted so
+// far in gardens still being worked on, one character a cell.
 function loadSaved() {
-  const empty = { level: 0, done: [], plots: {} }
+  const empty = { done: {}, plots: {} }
   try { return { ...empty, ...JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}') } } catch { return empty }
 }
 const saved = loadSaved()
@@ -126,36 +159,35 @@ const save = () => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(save
 const sounds = new GardenAudio()
 document.documentElement.lang = language()
 const scene = new GardenScene($('stage'))
-let levelIndex = Math.min(saved.level ?? 0, LEVELS.length - 1)
+let current = null // the garden being played
 let board, flowers, values, history, won, seed, complete, shown = 0
 
 const buzz = (pattern) => { try { navigator.vibrate?.(pattern) } catch { /* not allowed here */ } }
 const biggest = () => Math.max(...board.size)
 
-function start(index, { fresh = false } = {}) {
-  levelIndex = (index + LEVELS.length) % LEVELS.length
-  saved.level = levelIndex
-  save()
-  const level = LEVELS[levelIndex]
-  board = buildBoard(level)
-  flowers = assignFlowers(board, levelIndex * 13 + 5)
+// each garden's flowers are the same every time it is opened
+const flowersFor = (p, b) => assignFlowers(b, p.day * 3 + TIERS.indexOf(p.tier) + 5)
+
+function start(day, tier, { fresh = false } = {}) {
+  current = puzzle(day, tier)
+  board = buildBoard(current)
+  flowers = flowersFor(current, board)
   values = Int8Array.from(board.givens)
   // pick up where the player left off
-  const plot = saved.plots[level.id]
+  const plot = saved.plots[current.id]
   if (plot?.length === board.cells && !fresh) {
     ;[...plot].forEach((ch, i) => { if (!board.givens[i] && ch !== '.') values[i] = Math.min(MAX_SEED, Number(ch)) })
   }
   history = []
   // a garden already solved opens in bloom, unless it is being played again
-  won = !fresh && !plot && saved.done.includes(level.id)
+  won = !fresh && !plot && Boolean(saved.done[current.id])
   if (won) values = Int8Array.from(board.solution)
   complete = new Set()
   seed = Math.min(seed ?? 1, biggest())
   $('win').hidden = true
-  $('num').textContent = level.number
-  $('num').dataset.pool = level.pool
-  $('name').textContent = level.name
-  scene.load(board, flowers, [...board.givens.keys()].filter((i) => board.givens[i]), { seed: 3 + levelIndex * 7 })
+  $('game').dataset.tier = tier
+  $('name').textContent = current.name
+  scene.load(board, flowers, [...board.givens.keys()].filter((i) => board.givens[i]), { seed: day * 3 + TIERS.indexOf(tier) })
   drawTray()
   refresh(true)
   if (won) scene.celebrate()
@@ -196,15 +228,15 @@ function refresh(quiet = false, origin = null) {
   if (quiet || complete.size < shown) shown = complete.size
   showProgress()
   $('undo').disabled = !history.length || won
-  if (!won) {
-    saved.plots[LEVELS[levelIndex].id] = [...values].map((v) => v || '.').join('')
+  if (!won && current) {
+    saved.plots[current.id] = [...values].map((v) => v || '.').join('')
     save()
   }
   return { bad, fresh }
 }
 
 function showProgress() {
-  const pool = poolName(LEVELS[levelIndex].pool)
+  const pool = `${tierName(current.tier)} · ${dayName(current.day)}`
   $('prog').textContent = t(won ? 'progress.won' : 'progress', { pool, shown, beds: board.beds.length })
 }
 
@@ -294,15 +326,18 @@ function plant(i) {
 function win() {
   won = true
   bloomCount = 0
-  if (!saved.done.includes(LEVELS[levelIndex].id)) saved.done.push(LEVELS[levelIndex].id)
-  delete saved.plots[LEVELS[levelIndex].id]
+  saved.done[current.id] = true
+  delete saved.plots[current.id]
   save()
   refresh()
   scene.celebrate()
   sounds.win()
   setTimeout(() => {
     const kinds = new Set(flowers).size
-    $('winmeta').textContent = t('win.meta', { beds: board.beds.length, kinds, name: LEVELS[levelIndex].name })
+    if (!current) return
+    $('winmeta').textContent = t('win.meta', { beds: board.beds.length, kinds, name: current.name })
+    const next = nextGarden()
+    $('winnext').hidden = !next
     $('win').hidden = false
   }, 3200)
 }
@@ -338,9 +373,9 @@ $('tray').onclick = $('dig').onclick = (ev) => {
 }
 
 /* ---------- buttons ---------- */
-$('prev').onclick = () => { sounds.unlock(); start(levelIndex - 1) }
-$('next').onclick = () => { sounds.unlock(); start(levelIndex + 1) }
-$('winnext').onclick = () => start(levelIndex + 1)
+$('winnext').onclick = () => { const next = nextGarden(); if (next) location.hash = `#/${next.day}/${next.tier}` }
+$('winhome').onclick = () => { location.hash = '' }
+$('back').onclick = () => { location.hash = backTo }
 $('undo').onclick = () => {
   if (!history.length || won) return
   const [i, before] = history.pop()
@@ -360,9 +395,9 @@ $('restart').onclick = () => {
   }
   armed = false
   label.textContent = t('restart')
-  delete saved.plots[LEVELS[levelIndex].id]
+  delete saved.plots[current.id]
   save()
-  start(levelIndex, { fresh: true })
+  start(current.day, current.tier, { fresh: true })
 }
 /* ---------- settings ---------- */
 // How loud the music and the sound effects are, and the language. Sliding a sound to nothing
@@ -386,6 +421,7 @@ function closeSettings() {
   $('settingsheet').hidden = true
 }
 $('settings').onclick = openSettings
+$('settings-home').onclick = openSettings
 $('closesettings').onclick = closeSettings
 $('settingsdone').onclick = closeSettings
 $('settingsheet').onclick = (ev) => { if (ev.target === $('settingsheet')) closeSettings() }
@@ -396,41 +432,177 @@ $('fxvol').onchange = () => sounds.play('tap')
 // a new language reloads the game in it
 $('language').onchange = (ev) => { setLanguage(ev.target.value); location.reload() }
 addEventListener('keydown', (ev) => {
+  if (!current) return
   if ((ev.ctrlKey || ev.metaKey) && ev.key === 'z') return void $('undo').click()
   const n = Number(ev.key)
   if (ev.key >= '1' && ev.key <= '6' && n <= biggest()) choose(n)
   else if (ev.key === '0' || ev.key === 'Backspace') choose(0)
 })
 
-/* ---------- choosing a level ---------- */
-let pickerPool = 'easy'
-function drawPicker() {
-  $('tabs').innerHTML = POOLS_ORDER.map((pool) => [pool, poolName(pool)]).map(([pool, label]) => {
-    const levels = LEVELS.filter((l) => l.pool === pool)
-    const done = levels.filter((l) => saved.done.includes(l.id)).length
-    return `<button role="tab" class="tab" data-pool="${pool}" aria-selected="${pool === pickerPool}">${label}<small>${done}/${levels.length}</small></button>`
+/* ---------- the home screen ---------- */
+
+const state = (id) => (saved.done[id] ? 'done' : saved.plots[id]?.match(/[1-9]/) ? 'started' : 'new')
+const dayName = (day) => (day === today() ? t('day.today') : day === today() - 1 ? t('day.yesterday') : dateOf(day).toLocaleDateString(language(), { day: 'numeric', month: 'short', timeZone: 'UTC' }))
+
+// A little picture of a garden: its beds as soft patches of soil, green once in
+// flower, and a dot of colour for every seed planted.
+function miniMap(p) {
+  const b = buildBoard(p)
+  const done = saved.done[p.id]
+  const plot = saved.plots[p.id]
+  const vals = done ? b.solution : Int8Array.from(b.givens, (v, i) => v || (plot && plot[i] !== '.' ? Number(plot[i]) : 0))
+  const bad = conflicts(b, vals)
+  const s = 10
+  const cells = [...Array(b.cells).keys()].map((i) => {
+    const r = Math.floor(i / b.width), c = i % b.width
+    const bed = b.bedOf[i]
+    const edge = (rr, cc) => rr < 0 || rr >= b.height || cc < 0 || cc >= b.width || b.bedOf[rr * b.width + cc] !== bed
+    const inset = (x) => (x ? 1.2 : 0)
+    const x = c * s + inset(edge(r, c - 1)), y = r * s + inset(edge(r - 1, c))
+    const w = s - inset(edge(r, c - 1)) - inset(edge(r, c + 1)), h = s - inset(edge(r - 1, c)) - inset(edge(r + 1, c))
+    const full = done || bedComplete(b, vals, bed, bad)
+    const dot = vals[i] ? `<circle cx="${c * s + s / 2}" cy="${r * s + s / 2}" r="${full ? 2.8 : 2}" fill="${hex(NUM[vals[i]])}"/>` : ''
+    return `<rect x="${x}" y="${y}" width="${w}" height="${h}" class="${full ? 'grown' : 'soil'}"/>${dot}`
   }).join('')
-  $('grid').innerHTML = LEVELS.map((l, i) => [l, i]).filter(([l]) => l.pool === pickerPool).map(([l, i]) => {
-    const done = saved.done.includes(l.id)
-    const started = !done && saved.plots[l.id]
-    return `<button class="tile${done ? ' done' : ''}${i === levelIndex ? ' here' : ''}" data-index="${i}" aria-label="${t('picker.tile', { name: l.name, width: l.width, height: l.height })}${done ? t('picker.done') : started ? t('picker.started') : ''}">
-      <span>${l.number}</span><small>${l.height}×${l.width}</small>${done ? `<i class="tick">${icon('check')}</i>` : ''}</button>`
+  return `<svg class="map" viewBox="-1 -1 ${b.width * s + 2} ${b.height * s + 2}" aria-hidden="true">${cells}</svg>`
+}
+
+// days in a row, back from today (or yesterday, if today is still to come),
+// with at least one garden solved
+function streak(now) {
+  const solved = (day) => TIERS.some((tier) => saved.done[`${day}-${tier}`])
+  let day = solved(now) ? now : now - 1
+  let n = 0
+  while (day >= 1 && solved(day)) { n++; day-- }
+  return n
+}
+
+function greeting() {
+  const h = new Date().getHours()
+  return t(h < 5 ? 'hello.night' : h < 12 ? 'hello.morning' : h < 18 ? 'hello.afternoon' : 'hello.evening')
+}
+
+function card(p, big = false) {
+  const st = state(p.id)
+  const action = { done: `${icon('check')} ${t('card.done')}`, started: `${icon('play')} ${t('card.resume')}`, new: `${icon('play')} ${t('card.play')}` }[st]
+  return `<button class="card ${st}${big ? ' big' : ''}" data-tier="${p.tier}" data-day="${p.day}" style="--i:${TIERS.indexOf(p.tier)}"
+    aria-label="${t('card.label', { tier: tierName(p.tier), name: p.name, beds: buildBoard(p).beds.length })}, ${t(`card.${st}.state`)}">
+    <span class="tier">${tierName(p.tier)}</span>
+    ${miniMap(p)}
+    <span class="pname">${p.name}</span>
+    <span class="meta">${t('card.meta', { width: p.width, height: p.height, beds: buildBoard(p).beds.length })}</span>
+    <span class="status">${action}</span>
+  </button>`
+}
+
+function drawHome() {
+  const now = today()
+  $('date').textContent = longDate(now)
+  const states = TIERS.map((tier) => state(`${now}-${tier}`))
+  $('todays').innerHTML = TIERS.map((tier) => card(puzzle(now, tier), true)).join('')
+  const solved = states.filter((x) => x === 'done').length
+  const n = streak(now)
+  $('streak').innerHTML = `${icon('flame')} ${t(n === 1 ? 'streak.one' : 'streak', { n })}`
+  $('streak').hidden = n < 1
+  $('blooms').innerHTML = TIERS.map((tier, i) => `<i class="${tier} ${states[i]}">${icon('flower')}</i>`).join('') + `<span>${t('today.count', { n: solved })}</span>`
+  $('hello').textContent = `${greeting()} ${t(`hello.${solved}`)}`
+  let missed = 0
+  for (let day = 1; day < now; day++) missed += TIERS.filter((tier) => !saved.done[`${day}-${tier}`]).length
+  $('catchup').hidden = !missed
+  $('catchup').textContent = missed > 99 ? '99+' : missed
+}
+
+/* ---------- earlier days: a calendar, month by month ---------- */
+
+function drawDays() {
+  const now = today()
+  const months = []
+  for (let day = now; day >= 1; day--) {
+    const date = dateOf(day)
+    const key = `${date.getUTCFullYear()}-${date.getUTCMonth()}`
+    if (!months.length || months.at(-1).key !== key) months.push({ key, date })
+  }
+  let solved = 0
+  for (let day = 1; day <= now; day++) solved += TIERS.filter((tier) => saved.done[`${day}-${tier}`]).length
+  $('dayssummary').textContent = t('days.summary', { solved, total: now * 3 })
+  const weekdays = [...Array(7)].map((_, k) => new Date(Date.UTC(2024, 0, 1 + k)).toLocaleDateString(language(), { weekday: 'narrow', timeZone: 'UTC' }))
+  $('months').innerHTML = months.map(({ date }) => {
+    const y = date.getUTCFullYear(), m = date.getUTCMonth()
+    const first = new Date(Date.UTC(y, m, 1))
+    const length = new Date(Date.UTC(y, m + 1, 0)).getUTCDate()
+    const blanks = (first.getUTCDay() + 6) % 7 // weeks start on Monday
+    const cells = [...Array(blanks)].map(() => '<span class="cell blank"></span>')
+    for (let d = 1; d <= length; d++) {
+      const day = dayOf(new Date(y, m, d))
+      if (day < 1 || day > now) { cells.push(`<span class="cell off">${d}</span>`); continue }
+      const sts = TIERS.map((tier) => state(`${day}-${tier}`))
+      const all = sts.every((x) => x === 'done')
+      cells.push(`<button class="cell${all ? ' complete' : ''}${day === now ? ' today' : ''}" data-day="${day}" aria-label="${dayName(day)}: ${t('days.cell', { n: sts.filter((x) => x === 'done').length })}"><b>${d}</b><span class="dots">${TIERS.map((tier, i) => `<i class="${tier} ${sts[i]}"></i>`).join('')}</span></button>`)
+    }
+    return `<section class="month"><h2>${first.toLocaleDateString(language(), { month: 'long', year: 'numeric', timeZone: 'UTC' })}</h2>
+      <div class="week">${weekdays.map((w) => `<span>${w}</span>`).join('')}</div>
+      <div class="cal">${cells.join('')}</div></section>`
   }).join('')
 }
-function openPicker() {
-  pickerPool = LEVELS[levelIndex].pool
-  drawPicker()
-  $('picker').hidden = false
+
+function openDay(day) {
+  $('sheetdate').textContent = day === today() ? t('day.today') : longDate(day)
+  $('cards').innerHTML = TIERS.map((tier) => card(puzzle(day, tier))).join('')
+  $('daysheet').hidden = false
 }
-$('num').onclick = () => { sounds.unlock(); openPicker() }
-$('closepicker').onclick = () => { $('picker').hidden = true }
-$('picker').onclick = (ev) => {
-  if (ev.target === $('picker')) { $('picker').hidden = true; return }
-  const tab = ev.target.closest('.tab')
-  if (tab) { pickerPool = tab.dataset.pool; drawPicker(); return }
-  const tile = ev.target.closest('.tile')
-  if (tile) { $('picker').hidden = true; start(Number(tile.dataset.index)) }
+
+// the next garden still to play: the rest of this day first, then today's, then
+// the most recent earlier day with one open
+function nextGarden() {
+  const open = (day) => TIERS.map((tier) => ({ day, tier })).filter(({ day: d, tier }) => !saved.done[`${d}-${tier}`])
+  if (current) {
+    const left = open(current.day).filter(({ tier }) => TIERS.indexOf(tier) > TIERS.indexOf(current.tier))
+    if (left.length) return left[0]
+  }
+  for (let day = today(); day >= 1; day--) { const o = open(day); if (o.length) return o[0] }
+  return null
 }
+
+const play = (day, tier) => { sounds.unlock(); sounds.play('tap'); location.hash = `#/${day}/${tier}` }
+for (const id of ['todays', 'cards']) {
+  $(id).addEventListener('click', (ev) => {
+    const b = ev.target.closest('[data-tier]')
+    if (b) play(b.dataset.day, b.dataset.tier)
+  })
+}
+$('months').addEventListener('click', (ev) => {
+  const c = ev.target.closest('.cell[data-day]')
+  if (c) { sounds.unlock(); sounds.play('open'); openDay(Number(c.dataset.day)) }
+})
+$('open-days').onclick = () => { sounds.unlock(); sounds.play('tap'); location.hash = '#/days' }
+$('days-back').onclick = () => { location.hash = '' }
+$('sheetclose').onclick = () => { sounds.play('close'); $('daysheet').hidden = true }
+$('daysheet').onclick = (ev) => { if (ev.target === $('daysheet')) $('daysheet').hidden = true }
+
+/* ---------- moving between screens ---------- */
+
+// #/<day>/<tier> plays a garden, #/days is the calendar, anything else is home.
+// The phone's back gesture steps back through them.
+let backTo = ''
+function route() {
+  const m = location.hash.match(/^#\/(\d+)\/(easy|medium|hard)$/)
+  const day = m && Number(m[1])
+  const screen = m && day >= 1 && day <= today() ? 'game' : location.hash === '#/days' ? 'days' : 'home'
+  const was = $('shell').dataset.screen
+  $('shell').dataset.screen = screen
+  if (screen === 'game') {
+    if (was !== 'game') backTo = was === 'days' ? '#/days' : ''
+    start(day, m[2])
+    return
+  }
+  current = null
+  $('win').hidden = true
+  sounds.setMood('garden')
+  if (screen === 'days') { $('daysheet').hidden = true; drawDays() } else drawHome()
+}
+addEventListener('hashchange', route)
+// a new day may have begun while the home screen sat open
+addEventListener('visibilitychange', () => { if (!document.hidden && !current) route() })
 
 /* ---------- loop ---------- */
 let last = performance.now()
@@ -440,19 +612,22 @@ function frame(now) {
   if (!capture) scene.tune(now - last)
   const dt = Math.min(0.05, (now - last) / 1000)
   last = now
-  if (!document.hidden) {
+  if (!document.hidden && current) {
     scene.update(dt)
     scene.render()
   }
   requestAnimationFrame(frame)
 }
 seed = 1
-start(levelIndex)
+route()
 requestAnimationFrame(frame)
 
 // Hooks for screenshots and checks.
 window.__garden = {
-  scene, sounds, start, plant, choose,
+  scene, sounds, plant, choose,
+  start(day, tier) { location.hash = `#/${day}/${tier}`; route() },
+  home() { location.hash = ''; route() },
+  today,
   get board() { return board },
   get values() { return values },
   // plant the whole solution, or all but the last `leave` cells

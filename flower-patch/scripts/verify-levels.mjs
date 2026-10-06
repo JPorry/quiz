@@ -1,14 +1,18 @@
-// Checks every shipped level: shapes, rules, one solution, and that its pool fits.
-import { POOLS } from '../src/levels.js'
+// Checks every shipped daily garden: shapes, rules, one solution, and that its
+// difficulty fits. `--days=N` checks only the first N days.
+import { DAYS } from '../src/days.js'
+import { TIERS, puzzle } from '../src/puzzles.js'
 import { checkLevel } from './check.mjs'
 
+const limit = Number(process.argv.find((a) => a.startsWith('--days='))?.slice(7)) || DAYS.length
 let bad = 0, total = 0
-for (const [pool, levels] of Object.entries(POOLS)) {
-  for (const level of levels) {
+for (let day = 1; day <= limit; day++) {
+  for (const tier of TIERS) {
     total++
-    const problems = checkLevel(level, pool)
+    const level = puzzle(day, tier)
+    const problems = checkLevel(level, tier)
     if (problems.length) { bad++; console.error(`${level.id}: ${problems.join('; ')}`) }
   }
 }
-if (bad) { console.error(`${bad} of ${total} levels have problems`); process.exit(1) }
-console.log(`All ${total} levels check out.`)
+if (bad) { console.error(`${bad} of ${total} gardens have problems`); process.exit(1) }
+console.log(`All ${total} gardens check out.`)
