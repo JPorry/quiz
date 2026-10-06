@@ -1,7 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { assignFlowers, bedComplete, bedNeighbors, buildBoard, conflicts, countSolutions, isSolved, playerSolve } from '../src/logic.js'
-import { POOLS } from '../src/levels.js'
+import { DAYS, FIRST_DAY } from '../src/days.js'
+import { TIERS, dateOf, dayOf, puzzle, today } from '../src/puzzles.js'
 import { checkLevel } from '../scripts/check.mjs'
 
 // A small garden:  A A B
@@ -40,15 +41,15 @@ test('a bed is complete once it holds 1 to N with no conflicts', () => {
   assert.equal(bedComplete(board, values, 0), false)
 })
 
-test('the first easy level has one solution, and the player finds it', () => {
-  const board = buildBoard(POOLS.easy[0])
+test("the first day's easy garden has one solution, and the player finds it", () => {
+  const board = buildBoard(puzzle(1, 'easy'))
   assert.equal(isSolved(board, board.solution), true)
   assert.equal(countSolutions(board), 1)
   const result = playerSolve(board)
   assert.equal(result.solved, true)
   assert.deepEqual([...result.values], [...board.solution])
-  // with no seeds to start from, there are many
-  assert.equal(countSolutions(board, new Int8Array(board.cells)), 2)
+  // with no seeds to start from, there are more
+  assert.ok(countSolutions(board, new Int8Array(board.cells)) > 1)
 })
 
 test('the counter counts every way to fill two square beds side by side', () => {
@@ -58,8 +59,9 @@ test('the counter counts every way to fill two square beds side by side', () => 
 })
 
 test('neighbouring beds never grow the same flower, and lone cells grow sunflowers', () => {
-  for (const levels of Object.values(POOLS)) {
-    for (const level of levels) {
+  for (let day = 1; day <= 60; day++) {
+    for (const tier of TIERS) {
+      const level = puzzle(day, tier)
       const board = buildBoard(level)
       const flowers = assignFlowers(board, 3)
       const near = bedNeighbors(board)
@@ -71,18 +73,38 @@ test('neighbouring beds never grow the same flower, and lone cells grow sunflowe
   }
 })
 
-test('there are twenty levels in each pool, with unique ids', () => {
+test('every day has an easy, a medium and a hard garden, with unique ids', () => {
+  assert.ok(DAYS.length >= 365)
   const ids = new Set()
-  for (const levels of Object.values(POOLS)) {
-    assert.equal(levels.length, 20)
-    for (const level of levels) ids.add(level.id)
+  for (let day = 1; day <= DAYS.length; day++) {
+    assert.equal(DAYS[day - 1].length, 3)
+    for (const tier of TIERS) ids.add(puzzle(day, tier).id)
   }
-  assert.equal(ids.size, 60)
+  assert.equal(ids.size, DAYS.length * 3)
 })
 
-for (const [pool, levels] of Object.entries(POOLS)) {
-  test(`every ${pool} level is sound, unique, and fits its pool`, () => {
-    for (const level of levels) assert.deepEqual(checkLevel(level, pool), [], level.id)
+test('gardens grow with the difficulty', () => {
+  for (let day = 1; day <= 30; day++) {
+    const [easy, medium, hard] = TIERS.map((tier) => puzzle(day, tier).width * puzzle(day, tier).height)
+    assert.ok(easy <= medium && medium <= hard, `day ${day}`)
+  }
+})
+
+test('days count from the first day on the local calendar', () => {
+  const [y, m, d] = FIRST_DAY.split('-').map(Number)
+  assert.equal(dayOf(new Date(y, m - 1, d, 0, 5)), 1)
+  assert.equal(dayOf(new Date(y, m - 1, d, 23, 55)), 1)
+  assert.equal(dayOf(new Date(y, m - 1, d + 1)), 2)
+  assert.equal(dayOf(new Date(y, m - 1, d + 40)), 41)
+  assert.equal(today(new Date(y - 1, 0, 1)), 1)
+  assert.equal(today(new Date(y + 5, 0, 1)), DAYS.length)
+  assert.equal(dateOf(41).toISOString().slice(0, 10), new Date(Date.UTC(y, m - 1, d + 40)).toISOString().slice(0, 10))
+})
+
+// the whole calendar is checked by `npm run verify:levels`; the tests check the first weeks
+for (const tier of TIERS) {
+  test(`the first weeks' ${tier} gardens are sound, unique, and fit their difficulty`, () => {
+    for (let day = 1; day <= 30; day++) assert.deepEqual(checkLevel(puzzle(day, tier), tier), [], `${day}-${tier}`)
   })
 }
 

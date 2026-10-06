@@ -1,60 +1,50 @@
-// Builds Flower Patch's three pools of levels (easy, medium, hard) into src/levels.js.
+// Builds Flower Patch's daily gardens into src/days.js: every day has an easy, a
+// medium and a hard garden, and every earlier day stays open to play.
 //
-// Each level splits a grid into beds of one to six cells, fills it with seeds that
-// follow the rules, then takes seeds away one at a time, in random order, keeping
-// each removal only while the garden still has exactly one solution and a player
-// can solve it with the techniques its pool allows. A level is kept only if it
-// needs what its pool asks for. Within a pool the levels climb steadily.
-import { writeFileSync } from 'node:fs'
+// Each garden splits a grid into beds of one to six cells, fills it with seeds
+// that follow the rules, then takes seeds away one at a time, in random order,
+// keeping each removal only while the garden still has exactly one solution and a
+// player can solve it with the techniques its difficulty allows. A garden is kept
+// only if it needs what its difficulty asks for. Every garden is seeded by its day
+// and difficulty, so adding more days never changes the ones already played.
+//
+//   node scripts/generate-levels.mjs --days=400 --output=src/days.js
+//   (or --tier=easy --json=out.json to build one difficulty, and --merge=a,b,c
+//   --output=src/days.js to put the three together; see npm run generate:levels)
+import { readFileSync, writeFileSync } from 'node:fs'
 import { buildBoard, countSolutions, playerSolve, MAX_SEED } from '../src/logic.js'
 
 const args = Object.fromEntries(process.argv.slice(2).map((a) => a.replace(/^--/, '').split('=')))
-let seed = Number(args.seed ?? 20261005)
+const DAYS = Number(args.days ?? 400)
+let seed = 1
 const rand = () => ((seed = (seed * 48271) % 2147483647) / 2147483647)
 const shuffle = (list) => { for (let i = list.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [list[i], list[j]] = [list[j], list[i]] } return list }
-const POOL = Number(args.pool ?? 20)
-const TRIES = Number(args.tries ?? 6)
+const pick = (list) => list[Math.floor(rand() * list.length)]
 
-const NAMES = {
-  easy: [
-    'Seedling Row', 'Buttercup Bed', 'Snail Shell Plot', 'Morning Dew', 'Robin’s Corner', 'Pebble Path', 'Watering Can', 'Bumblebee Bend',
-    'Clover Patch', 'Sunny Sill', 'Ladybird Lane', 'Puddle Nook', 'Trowel Turn', 'Wormery Way', 'Sprout Square', 'Picket Fence',
-    'Garden Gate', 'Teacup Terrace', 'Mossy Step', 'Daisy Chain',
-  ],
-  medium: [
-    'Cottage Border', 'Hollyhock Walk', 'Potting Shed', 'Birdbath Bower', 'Primrose Path', 'Wicker Arch', 'Herb Spiral', 'Rain Barrel',
-    'Orchard Edge', 'Kitchen Garden', 'Sundial Lawn', 'Greenhouse Row', 'Beehive Bank', 'Trellis Corner', 'Lily Pond', 'Willow Gate',
-    'Allotment', 'Hedge Maze', 'Lantern Walk', 'Midsummer Meadow',
-  ],
-  hard: [
-    'Botanical Court', 'Walled Garden', 'Glasshouse Dome', 'Knot Garden', 'Topiary Terrace', 'Rose Pavilion', 'Moonlight Border', 'Grand Parterre',
-    'Fountain Square', 'Secret Garden', 'Wisteria Cloister', 'Orangery', 'Labyrinth Lawn', 'Peacock Promenade', 'Starlit Arbor', 'Royal Conservatory',
-    'Tapestry Beds', 'Mosaic Gardens', 'Kaleidoscope Court', 'Eden',
-  ],
-}
-
-// Board sizes climb through each pool. `allow` is what the player may need, and
-// `needs` what the level must make them use; `sizes` weights bed sizes 1 to 6.
+// What each difficulty looks like every day: the size of the garden, what the
+// player may need (`allow`), what the garden must make them use (`needs`), and
+// how bed sizes 1 to 6 are weighted.
 const TIERS = {
   easy: {
-    shape: (k) => (k < 7 ? [5, 5] : k < 14 ? [5, 6] : [6, 6]),
+    shape: () => pick([[5, 5], [5, 6], [6, 6]]),
     allow: ['single', 'hidden'],
-    needs: (used, k) => used.hidden >= (k < 7 ? 1 : 3),
+    needs: (used) => used.hidden >= 2,
     sizes: [0.5, 1, 2.2, 3, 3, 1.6],
   },
   medium: {
-    shape: (k) => (k < 7 ? [6, 6] : k < 14 ? [6, 7] : [7, 7]),
+    shape: () => pick([[6, 6], [6, 7], [7, 7]]),
     allow: ['single', 'hidden', 'reach', 'subset'],
-    needs: (used, k) => used.reach + used.subset >= (k < 10 ? 2 : 4),
+    needs: (used) => used.reach + used.subset >= 3,
     sizes: [0.3, 0.7, 1.6, 2.6, 3.2, 2.6],
   },
   hard: {
-    shape: (k) => (k < 7 ? [7, 7] : k < 14 ? [7, 8] : [8, 8]),
+    shape: () => pick([[7, 7], [7, 8], [8, 8]]),
     allow: ['single', 'hidden', 'reach', 'subset', 'trial'],
-    needs: (used, k) => used.trial >= (k < 10 ? 1 : 2),
+    needs: (used) => used.trial >= 1,
     sizes: [0.25, 0.6, 1.4, 2.4, 3.2, 3],
   },
 }
+const ORDER = Object.keys(TIERS)
 
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
 
@@ -148,15 +138,10 @@ const toRows = (vals, width) => {
   return rows
 }
 
-// How hard a level plays: harder techniques count for more, and fewer starting
-// seeds make for longer solves.
-export const WEIGHT = { single: 1, hidden: 1.6, reach: 4, subset: 5, trial: 14 }
-const difficulty = (used, cells, givens) => Object.entries(used).reduce((a, [t, n]) => a + WEIGHT[t] * n, 0) / cells + (1 - givens / cells) * 2
-
-function attempt(pool, k) {
-  const tier = TIERS[pool]
-  const [height, width] = tier.shape(k)
-  const beds = partition(width, height, tier.sizes)
+function attempt(tier) {
+  const t = TIERS[tier]
+  const [height, width] = t.shape()
+  const beds = partition(width, height, t.sizes)
   if (!beds) return null
   const board = buildBoard({ width, height, beds })
   const solution = fill(board)
@@ -165,54 +150,50 @@ function attempt(pool, k) {
   for (const i of shuffle([...Array(board.cells).keys()])) {
     const v = givens[i]
     givens[i] = 0
-    if (countSolutions(board, givens) !== 1 || !playerSolve(board, givens, tier.allow).solved) givens[i] = v
+    if (countSolutions(board, givens) !== 1 || !playerSolve(board, givens, t.allow).solved) givens[i] = v
   }
-  const { used } = playerSolve(board, givens, tier.allow)
-  // the level must not be solvable with the easier pool's techniques
-  if (!tier.needs(used, k)) return null
-  const count = givens.filter((v) => v).length
-  return { width, height, beds, givens: toRows(givens, width), solution: toRows(solution, width), used, score: difficulty(used, board.cells, count) }
+  const { used } = playerSolve(board, givens, t.allow)
+  if (!t.needs(used)) return null
+  return { width, height, beds, givens: toRows(givens, width), solution: toRows(solution, width) }
 }
 
-function make(pool) {
-  const levels = []
-  for (let k = 0; k < POOL; k++) {
-    const found = []
-    for (let tries = 0; found.length < TRIES && tries < 4000; tries++) {
-      const level = attempt(pool, k)
-      if (level) found.push(level)
-    }
-    if (!found.length) throw new Error(`could not make ${pool} ${k + 1}`)
-    // later levels in a pool take the harder of the candidates
-    found.sort((a, b) => a.score - b.score)
-    levels.push(found[Math.min(found.length - 1, Math.floor((k / POOL) * found.length + found.length / 3))])
-    process.stderr.write(`${pool} ${k + 1}: ${levels.at(-1).height}x${levels.at(-1).width} ${JSON.stringify(levels.at(-1).used)}\n`)
+// One garden for a day and difficulty, always the same for the same pair.
+function garden(day, tier) {
+  seed = ((day * 7919 + ORDER.indexOf(tier) * 104729 + 12345) % 2147483646) + 1
+  for (let tries = 0; tries < 20000; tries++) {
+    const level = attempt(tier)
+    if (level) return level
   }
-  // climb steadily within each board size
-  return levels
-    .map((level, k) => ({ level, k }))
-    .sort((a, b) => a.level.width * a.level.height - b.level.width * b.level.height || a.level.score - b.level.score || a.k - b.k)
-    .map(({ level }, k) => ({ id: `${pool}-${String(k + 1).padStart(2, '0')}`, name: NAMES[pool][k], ...level }))
+  throw new Error(`could not make day ${day} ${tier}`)
 }
 
-const pools = Object.fromEntries(Object.keys(TIERS).map((pool) => [pool, make(pool)]))
+// Packed as "<width><height>:<beds>:<givens>:<solution>", each a run of the rows.
+const pack = (l) => `${l.width}${l.height}:${l.beds.join('')}:${l.givens.join('')}:${l.solution.join('')}`
 
-const out = [
-  '// Generated by scripts/generate-levels.mjs. Regenerate with `npm run generate:levels`.',
-  '// beds names each cell\'s bed with a letter; givens and solution hold seeds, with',
-  '// \'.\' for a cell the player plants.',
-  'export const POOLS = {',
-]
-for (const [pool, levels] of Object.entries(pools)) {
-  out.push(`  ${pool}: [`)
-  for (const l of levels) {
-    out.push(`    { id: '${l.id}', name: ${JSON.stringify(l.name)}, width: ${l.width}, height: ${l.height},`)
-    out.push(`      beds: ${JSON.stringify(l.beds)},`)
-    out.push(`      givens: ${JSON.stringify(l.givens)},`)
-    out.push(`      solution: ${JSON.stringify(l.solution)} },`)
+function build(tier) {
+  const out = []
+  for (let day = 1; day <= DAYS; day++) {
+    out.push(pack(garden(day, tier)))
+    if (day % 25 === 0) process.stderr.write(`${tier} ${day}/${DAYS}\n`)
   }
-  out.push('  ],')
+  return out
 }
-out.push('}', '')
-if (args.output) writeFileSync(args.output, out.join('\n'))
-else process.stdout.write(out.join('\n'))
+
+function write(columns) {
+  const lines = [
+    '// Generated by scripts/generate-levels.mjs. Regenerate with `npm run generate:levels`.',
+    '// Day 1 is FIRST_DAY. Each day has an easy, a medium and a hard garden, packed as',
+    '// "<width><height>:<beds>:<givens>:<solution>", row after row: beds names each',
+    '// cell\'s bed with a letter; givens and solution hold seeds, with \'.\' for a cell',
+    '// the player plants.',
+    "export const FIRST_DAY = '2026-09-16'",
+    'export const DAYS = [',
+  ]
+  for (let d = 0; d < columns[0].length; d++) lines.push(`  ${JSON.stringify(columns.map((c) => c[d]))},`)
+  lines.push(']', '')
+  writeFileSync(args.output, lines.join('\n'))
+}
+
+if (args.merge) write(args.merge.split(',').map((f) => JSON.parse(readFileSync(f, 'utf8'))))
+else if (args.tier) writeFileSync(args.json, JSON.stringify(build(args.tier)))
+else write(ORDER.map(build))
