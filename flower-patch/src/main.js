@@ -12,7 +12,9 @@ import './style.css'
 // earlier day, so missed ones can be played any time. Progress is kept per garden.
 const STORAGE_KEY = 'flower-patch.v2'
 const tierName = (tier) => t(`pool.${tier}`)
-const longDate = (day) => dateOf(day).toLocaleDateString(language(), { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' })
+// dates and months start with a capital, as headings (Spanish writes them in lower case)
+const capital = (text) => text.charAt(0).toLocaleUpperCase(language()) + text.slice(1)
+const longDate = (day) => capital(dateOf(day).toLocaleDateString(language(), { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' }))
 
 const ICON = {
   back: '<path d="M15 18l-6-6 6-6"/>',
@@ -214,7 +216,7 @@ const flowersFor = (p, b) => assignFlowers(b, p.day * 3 + TIERS.indexOf(p.tier) 
 const isTutorial = () => current?.id === TUTORIAL.id
 
 function start(day, tier, { fresh = false } = {}) {
-  current = day === 0 ? TUTORIAL : puzzle(day, tier)
+  current = day === 0 ? { ...TUTORIAL, name: t('tutorial.name') } : puzzle(day, tier)
   if (day === 0) fresh = true
   board = buildBoard(current)
   flowers = flowersFor(current, board)
@@ -594,8 +596,12 @@ $('musicvol').oninput = (ev) => { sounds.unlock(); sounds.setMusicVolume(ev.targ
 $('fxvol').oninput = (ev) => { sounds.setEffectsVolume(ev.target.value / 100); showSettings() }
 // letting go of the effects slider plays a little tap at the new loudness
 $('fxvol').onchange = () => sounds.play('tap')
-// a new language reloads the game in it
-$('language').onchange = (ev) => { setLanguage(ev.target.value); location.reload() }
+// a new language reloads the game in it, on the same screen with Settings open
+$('language').onchange = (ev) => {
+  setLanguage(ev.target.value)
+  try { sessionStorage.setItem('flower-patch.reopen-settings', '1') } catch { /* Fine without. */ }
+  location.reload()
+}
 addEventListener('keydown', (ev) => {
   if (!current) return
   if ((ev.ctrlKey || ev.metaKey) && ev.key === 'z') return void $('undo').click()
@@ -705,7 +711,7 @@ function drawDays() {
       const all = sts.every((x) => x === 'done')
       cells.push(`<button class="cell${all ? ' complete' : ''}${day === now ? ' today' : ''}" data-day="${day}" aria-label="${dayName(day)}: ${t('days.cell', { n: sts.filter((x) => x === 'done').length })}"><b>${d}</b><span class="dots">${TIERS.map((tier, i) => `<i class="${tier} ${sts[i]}"></i>`).join('')}</span></button>`)
     }
-    return `<section class="month"><h2>${first.toLocaleDateString(language(), { month: 'long', year: 'numeric', timeZone: 'UTC' })}</h2>
+    return `<section class="month"><h2>${capital(first.toLocaleDateString(language(), { month: 'long', year: 'numeric', timeZone: 'UTC' }))}</h2>
       <div class="week">${weekdays.map((w) => `<span>${w}</span>`).join('')}</div>
       <div class="cal">${cells.join('')}</div></section>`
   }).join('')
@@ -806,6 +812,13 @@ function frame(now) {
 }
 seed = 1
 route()
+try {
+  if (sessionStorage.getItem('flower-patch.reopen-settings')) {
+    sessionStorage.removeItem('flower-patch.reopen-settings')
+    showSettings()
+    $('settingsheet').hidden = false
+  }
+} catch { /* Fine without. */ }
 requestAnimationFrame(frame)
 
 // Hooks for screenshots and checks.

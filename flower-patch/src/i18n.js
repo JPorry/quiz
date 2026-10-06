@@ -3,9 +3,11 @@
 // fallback for anything a language hasn't translated yet. The chosen language is remembered; the
 // first visit follows the device's own language when the game speaks it.
 import { EN } from './locales/en.js'
+import { ES } from './locales/es.js'
 
 export const LANGUAGES = {
   en: { name: 'English', strings: EN },
+  es: { name: 'Español', strings: ES },
 }
 const STORAGE_KEY = 'flower-patch.language'
 

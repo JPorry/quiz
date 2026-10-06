@@ -53,6 +53,7 @@ export const EN = {
   'win.play': 'Let’s play',
   'win.tutorial': 'You’ve learnt everything you need. Three new gardens grow every day.',
   'tutorial.label': 'Tutorial',
+  'tutorial.name': 'First Seeds',
   'settings.title': 'Settings',
   'settings.music': 'Music',
   'settings.effects': 'Effects',
