@@ -403,3 +403,128 @@ footer { position: relative; z-index: 2; padding: 4px 12px max(14px, env(safe-ar
 .homehead .brand { flex: 1; min-width: 0; }
 .hometitle { margin: 4px 0 0; font: 600 clamp(22px, 6.6vw, 28px) var(--display); color: var(--ink); line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .homehead .date { margin-top: 4px; }
+
+/* ---------- the menus, made cosy ---------- */
+/* Today's gardens and the calendar sit over the painted garden, softened with a
+   creamy wash, with petals drifting down. Titles wear the logo's style. */
+.menubg { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.app:not([data-screen="home"]):not([data-screen="days"]) .menubg { display: none; }
+.menubg img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 60%; filter: saturate(1.05) blur(1.5px); transform: scale(1.04); }
+.menubg .wash { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(232, 247, 255, .55) 0%, rgba(255, 252, 240, .45) 30%, rgba(255, 250, 238, .58) 100%); }
+.petal { position: absolute; top: -6%; left: var(--x); width: 12px; height: 10px; border-radius: 80% 0 80% 0; background: var(--c); box-shadow: 0 1px 2px rgba(120, 80, 60, .2); opacity: .9; animation: petal-fall var(--t) linear var(--d) infinite; }
+@keyframes petal-fall {
+  0% { transform: translate(0, -20px) rotate(0deg); opacity: 0; }
+  10% { opacity: .9; }
+  50% { transform: translate(28px, 52vh) rotate(200deg); }
+  100% { transform: translate(-16px, 108vh) rotate(420deg); opacity: .9; }
+}
+.home, .dayspage { z-index: 1; }
+
+/* titles in the logo's style: cream letters, a deep green outline, a soft drop */
+.hometitle {
+  margin: 0; font: 700 clamp(21px, 6.2vw, 27px) var(--display); line-height: 1.05; white-space: nowrap; overflow: visible;
+  color: #fff3b6; -webkit-text-stroke: 7px #3d5f2c; paint-order: stroke fill; text-shadow: 0 4px 0 #2c4a20, 0 8px 14px rgba(40, 70, 30, .25);
+  animation: title-in .7s cubic-bezier(.3, 1.6, .5, 1) both;
+}
+@keyframes title-in { from { opacity: 0; transform: translateY(-14px) scale(.9); } }
+.homehead { align-items: center; }
+.homehead .brand, .dayshead .titles { display: grid; justify-items: start; gap: 6px; }
+.date { margin: 0 !important; }
+.date span { display: inline-block; padding: 3px 12px; border-radius: 99px; background: rgba(255, 252, 242, .9); font: 700 13px var(--body); color: #4f7a3d; box-shadow: 0 2px 0 rgba(60, 110, 40, .2); }
+.home .round, .dayspage .round { background: #fffaf0; box-shadow: 0 4px 0 #cfdcbf, 0 8px 16px rgba(50, 80, 40, .18); }
+
+/* the chips: a flickering flame, and three little pots for today */
+.tag-chip { height: 40px; background: rgba(255, 252, 242, .94); box-shadow: 0 3px 0 rgba(60, 110, 40, .22), 0 6px 14px rgba(50, 80, 40, .12); animation: chip-in .5s cubic-bezier(.3, 1.6, .5, 1) .15s both; }
+.blooms { animation-delay: .25s; gap: 2px; padding-left: 8px; }
+@keyframes chip-in { from { opacity: 0; transform: scale(.6); } }
+.streak svg { width: 20px; height: 20px; color: #ff7a3d; fill: #ffc06b; transform-origin: 50% 90%; animation: flicker 1.6s ease-in-out infinite; }
+@keyframes flicker { 0%, 100% { transform: scale(1) rotate(-3deg); } 50% { transform: scale(1.12, .94) rotate(3deg); } }
+.blooms .pot { width: 26px; height: 30px; overflow: visible; }
+.blooms .pot .potflower, .blooms .pot .potsprout { transform-box: fill-box; transform-origin: 50% 100%; animation: pot-grow .7s cubic-bezier(.3, 1.8, .5, 1) .5s both, pot-sway 3s ease-in-out 1.2s infinite; }
+@keyframes pot-grow { from { transform: scale(0); } }
+@keyframes pot-sway { 0%, 100% { rotate: -5deg; } 50% { rotate: 5deg; } }
+.blooms span { margin-left: 6px; }
+
+/* the garden cards: a pastel card in the garden's colour, its map in a little
+   wooden planter, difficulty as one to three flowers, and a chunky button */
+.card {
+  --tint: #e8f8dc; --edge: #b5dca1; --deep: #3f8a36; --wash: linear-gradient(135deg, #f4fdee, #fffdf6 60%);
+  background: var(--wash); border: 3px solid #fff; border-radius: 28px;
+  box-shadow: 0 5px 0 var(--edge), 0 14px 26px rgba(50, 80, 40, .16);
+  transition: transform .18s cubic-bezier(.3, 1.6, .5, 1);
+}
+.card[data-tier="medium"] { --tint: #fff1c4; --edge: #ecd08a; --deep: #b5741a; --wash: linear-gradient(135deg, #fffaea, #fffdf6 60%); }
+.card[data-tier="hard"] { --tint: #ffe1ec; --edge: #f0b3c8; --deep: #c43f74; --wash: linear-gradient(135deg, #fff1f6, #fffdf8 60%); }
+.card:active { transform: scale(.97); }
+.card .planter { grid-column: 1; grid-row: 1 / 4; display: grid; place-items: center; padding: 6px; border-radius: 20px; background: linear-gradient(#d9a574, #b97f52); box-shadow: inset 0 2px 0 rgba(255, 255, 255, .35), 0 3px 0 #8a5a3b; }
+.card .planter .map { width: 70px; height: 70px; padding: 3px; border-radius: 14px; background: #7a4f33; }
+.card.big .planter .map { width: 74px; height: 74px; }
+.card.big { grid-template-columns: 88px minmax(0, 1fr) auto; }
+.card .tier { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 11px; background: var(--tint); box-shadow: inset 0 -2px 0 rgba(0, 0, 0, .05); }
+.card .pips { display: inline-flex; gap: 2px; }
+.card .pips b { width: 8px; height: 8px; border-radius: 50%; background: rgba(0, 0, 0, .12); }
+.card .pips b.on { background: var(--deep); box-shadow: 0 0 0 2px rgba(255, 255, 255, .7); }
+.card .pname { color: #3a3346; }
+.card .status { height: 48px; padding: 0 18px; font-size: 17px; background: linear-gradient(#6fc25c, #4fa443); box-shadow: 0 4px 0 #357a2e, 0 8px 14px rgba(53, 122, 46, .3), inset 0 2px 0 rgba(255, 255, 255, .35); }
+.card.new .status svg { animation: nudge-play 2.4s ease-in-out calc(1s + var(--i) * .3s) infinite; }
+@keyframes nudge-play { 0%, 80%, 100% { transform: none; } 86% { transform: translateX(3px) scale(1.15); } 92% { transform: translateX(-1px); } }
+.card.started .status { background: linear-gradient(#ffc45c, #f2a93b); box-shadow: 0 4px 0 #c98420, 0 8px 14px rgba(201, 132, 32, .3), inset 0 2px 0 rgba(255, 255, 255, .4); }
+/* a garden in bloom wears a round stamp */
+.card.done { --wash: linear-gradient(135deg, #e9f9df, #fbfff5 70%); }
+.card.done .status {
+  width: 74px; height: 74px; padding: 0; border-radius: 50%; display: grid; place-items: center; align-content: center; gap: 0;
+  background: radial-gradient(circle, #fffef6 58%, #e3f5d6 60%); color: #3f8a36; font-size: 12px; line-height: 1;
+  border: 2px dashed #8fcf72; box-shadow: 0 3px 0 #b5dca1; rotate: -10deg; animation: stamp .5s cubic-bezier(.3, 1.8, .5, 1) calc(.4s + var(--i) * .1s) both;
+}
+.card.done .status svg { width: 26px; height: 26px; color: #ff8fb3; fill: #ffd2e0; }
+@keyframes stamp { from { opacity: 0; scale: 1.8; rotate: 20deg; } }
+
+/* the bunny keeps you company */
+.homefoot { gap: 14px; }
+.buddy { display: flex; align-items: center; gap: 10px; max-width: 420px; animation: chip-in .6s cubic-bezier(.3, 1.6, .5, 1) .6s both; }
+.buddy img { width: 62px; height: 62px; flex: none; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 4px 0 #cfdcbf, 0 8px 16px rgba(50, 80, 40, .2); animation: bunny-bob 3s ease-in-out infinite; }
+@keyframes bunny-bob { 0%, 100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-3px) rotate(3deg); } }
+.buddy .hello { position: relative; margin: 0; padding: 10px 14px; border-radius: 18px; background: #fffdf6; text-align: left; font: 600 14px/1.35 var(--display); color: #3f5a33; box-shadow: 0 3px 0 rgba(60, 110, 40, .2), 0 8px 16px rgba(50, 80, 40, .12); }
+.buddy .hello::before { content: ''; position: absolute; left: -8px; top: 50%; margin-top: -8px; border: 8px solid transparent; border-left: 0; border-right-color: #fffdf6; }
+.daysbutton { height: 52px; padding: 0 22px; font-size: 17px; background: linear-gradient(#fffdf6, #f6eedb); box-shadow: 0 5px 0 #c9b58e, 0 10px 18px rgba(60, 40, 20, .18), inset 0 2px 0 #fff; }
+.daysbutton svg { color: #e58a5c; }
+
+/* the calendar: soil plots that grow green, with a flower for a full day */
+.dayshead { background: none; padding-top: max(18px, env(safe-area-inset-top)); }
+.dayshead .titles h1.hometitle { font-size: clamp(21px, 6.2vw, 27px); }
+.month { background: rgba(255, 252, 244, .94); border: 3px solid #fff; border-radius: 28px; box-shadow: 0 5px 0 rgba(60, 110, 40, .2), 0 14px 26px rgba(50, 80, 40, .12); }
+.month h2 { display: flex; align-items: center; gap: 8px; color: #3f5a33; }
+.month h2::before { content: ''; width: 22px; height: 22px; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 29 V15' stroke='%234f9a3c' stroke-width='3' stroke-linecap='round'/%3E%3Cpath d='M16 16 C10 7 3 9 4 14 C5 19 12 18 16 16Z' fill='%238fd06a' stroke='%233f6b34' stroke-width='1.6'/%3E%3Cpath d='M16 14 C21 4 29 6 28 12 C27 17 20 17 16 14Z' fill='%23a6e07a' stroke='%233f6b34' stroke-width='1.6'/%3E%3C/svg%3E") center / contain no-repeat; }
+.cal button.cell { position: relative; background: linear-gradient(#ecd9bd, #e1c7a2); box-shadow: 0 3px 0 #c4a47c, inset 0 2px 0 rgba(255, 255, 255, .4); color: #5a3e2b; transition: transform .15s; }
+.cal button.cell:active { transform: scale(.9); }
+.cal .cell.complete { background: linear-gradient(#b9e89f, #9bd97f); box-shadow: 0 3px 0 #74b85c, inset 0 2px 0 rgba(255, 255, 255, .45); color: #2f5a27; }
+.cal .cell.complete::after {
+  content: ''; position: absolute; top: -5px; right: -4px; width: 16px; height: 16px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cg fill='%23ff9dbb' stroke='%23b0476e' stroke-width='1'%3E%3Ccircle cx='10' cy='4.6' r='3.6'/%3E%3Ccircle cx='15.2' cy='8.4' r='3.6'/%3E%3Ccircle cx='13.2' cy='14.4' r='3.6'/%3E%3Ccircle cx='6.8' cy='14.4' r='3.6'/%3E%3Ccircle cx='4.8' cy='8.4' r='3.6'/%3E%3C/g%3E%3Ccircle cx='10' cy='10' r='2.8' fill='%23ffe27a' stroke='%23b0476e' stroke-width='1'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+.cal .cell.today { outline: 3px solid var(--rose); outline-offset: 2px; animation: today-pulse 2s ease-in-out infinite; }
+@keyframes today-pulse { 0%, 100% { outline-color: rgba(255, 111, 168, 1); } 50% { outline-color: rgba(255, 111, 168, .35); } }
+.cal .dots i { background: rgba(90, 62, 43, .25); }
+
+/* sheets: a leafy sprig along the top */
+.sheet { position: relative; background: #fffbf2; border: 3px solid #fff; border-bottom: 0; }
+.sheet::before {
+  content: ''; position: absolute; left: 50%; top: -18px; width: 120px; height: 34px; margin-left: -60px; pointer-events: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 34'%3E%3Cg stroke='%233f6b34' stroke-width='1.6' stroke-linejoin='round'%3E%3Cpath d='M58 26 C44 12 26 12 18 20 C28 30 46 32 58 26Z' fill='%238fd06a'/%3E%3Cpath d='M62 26 C76 12 94 12 102 20 C92 30 74 32 62 26Z' fill='%23a6e07a'/%3E%3Cpath d='M60 24 C54 12 56 4 60 2 C64 4 66 12 60 24Z' fill='%237cc35a'/%3E%3C/g%3E%3Cg stroke='%23b0476e' stroke-width='1'%3E%3Ccircle cx='60' cy='22' r='5' fill='%23ffb3c6'/%3E%3C/g%3E%3Ccircle cx='60' cy='22' r='2.2' fill='%23ffe27a'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+.setting { background: #f2f8ea; border: 2px solid #fff; box-shadow: 0 2px 0 rgba(60, 110, 40, .12); }
+/* keep the two chips on one line, and the buttons from squeezing the names */
+.home .chips { flex-wrap: nowrap; gap: 8px; }
+.home .tag-chip { height: 38px; padding: 0 12px 0 9px; font-size: clamp(12px, 3.6vw, 14px); white-space: nowrap; }
+.blooms .pot { width: 22px; height: 27px; }
+.card .status { padding: 0 clamp(12px, 3.6vw, 18px); font-size: clamp(14px, 4.2vw, 17px); }
+.card .meta { white-space: nowrap; }
+.sheet::before { top: 2px; }
+.sheet { padding-top: 26px; }
+/* the win card matches: a leafy sprig on top and a title in the logo's style */
+.win { border: 3px solid #fff; background: linear-gradient(#fffdf6, #fff6e8); padding-top: 26px; }
+.win::before {
+  content: ''; position: absolute; left: 50%; top: -20px; width: 120px; height: 34px; margin-left: -60px; pointer-events: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 34'%3E%3Cg stroke='%233f6b34' stroke-width='1.6' stroke-linejoin='round'%3E%3Cpath d='M58 26 C44 12 26 12 18 20 C28 30 46 32 58 26Z' fill='%238fd06a'/%3E%3Cpath d='M62 26 C76 12 94 12 102 20 C92 30 74 32 62 26Z' fill='%23a6e07a'/%3E%3Cpath d='M60 24 C54 12 56 4 60 2 C64 4 66 12 60 24Z' fill='%237cc35a'/%3E%3C/g%3E%3Cg stroke='%23b0476e' stroke-width='1'%3E%3Ccircle cx='60' cy='22' r='5' fill='%23ffb3c6'/%3E%3C/g%3E%3Ccircle cx='60' cy='22' r='2.2' fill='%23ffe27a'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+.win h2 { font: 700 32px var(--display); color: #ffa3bd; -webkit-text-stroke: 7px #8a3a5c; paint-order: stroke fill; text-shadow: 0 4px 0 #6e2c48; }
