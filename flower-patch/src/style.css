@@ -49,27 +49,22 @@ button:focus-visible { outline: 3px solid #ffd166; outline-offset: 2px; }
 .stage::before { top: 0; background: linear-gradient(var(--meadow), transparent); }
 .stage::after { bottom: 0; background: linear-gradient(transparent, var(--lawn)); }
 footer { padding: 4px 12px max(14px, env(safe-area-inset-bottom)); display: grid; gap: 10px; justify-items: center; }
-.say {
-  margin: 0; min-height: 2.6em; max-width: 36ch; text-align: center;
-  font: 600 15px/1.3 var(--body); color: #2f4a26;
-  text-wrap: balance; display: flex; align-items: center;
-}
 /* seed bags: a plump little sack of seeds in each number's colour, tied with
    twine, a seedling peeking out and the die face on its label */
-.tray { display: flex; gap: 4px; justify-content: center; align-items: flex-end; flex-wrap: nowrap; max-width: 100%; }
+.tray { display: flex; gap: 2px; justify-content: center; align-items: flex-end; flex-wrap: nowrap; width: 100%; max-width: 360px; }
 .packet {
-  position: relative; width: 50px; height: 70px; flex: 0 1 50px; min-width: 40px; border: 0; padding: 0;
+  position: relative; height: 84px; flex: 1 1 0; max-width: 58px; min-width: 0; border: 0; padding: 0;
   display: grid; grid-template-rows: 1fr auto; justify-items: center; align-items: end;
   background: none; box-shadow: none; -webkit-tap-highlight-color: transparent;
 }
 .packet:active { transform: none; box-shadow: none; }
-.packet .bag { width: 48px; height: 60px; overflow: visible; transform-origin: 50% 95%; transition: transform .25s cubic-bezier(.3, 1.6, .5, 1); }
+.packet .bag { width: 100%; max-width: 58px; height: auto; aspect-ratio: 48 / 60; overflow: visible; transform-origin: 50% 95%; transition: transform .25s cubic-bezier(.3, 1.6, .5, 1); }
 .packet .bag .sprout { transform-origin: 24px 16px; transform: scale(.7) translateY(3px); transition: transform .3s cubic-bezier(.3, 1.8, .5, 1); }
 .packet .bag .frill { transform-origin: 24px 21px; transition: transform .25s; }
-.packet span:last-child { font: 600 13px var(--display); color: var(--ink-soft); line-height: 1; margin-top: 1px; }
+.packet span:last-child { font: 600 16px var(--display); color: var(--ink-soft); line-height: 1; margin-top: 1px; }
 /* a soft spot of light under the bag that's in hand */
 .packet::before {
-  content: ''; position: absolute; left: 50%; bottom: 12px; width: 40px; height: 10px; margin-left: -20px; border-radius: 50%;
+  content: ''; position: absolute; left: 50%; bottom: 16px; width: 48px; height: 12px; margin-left: -24px; border-radius: 50%;
   background: radial-gradient(rgba(255, 111, 168, .55), transparent 70%); opacity: 0; transform: scale(.4); transition: opacity .2s, transform .3s;
 }
 .packet[aria-pressed="true"]::before { opacity: 1; transform: scale(1); }
@@ -97,8 +92,8 @@ footer { padding: 4px 12px max(14px, env(safe-area-inset-bottom)); display: grid
   100% { transform: none; }
 }
 /* a few seeds pop out of the top and tumble down */
-.packet .seeds { position: absolute; left: 50%; top: 10px; width: 0; height: 0; pointer-events: none; }
-.packet .seeds i { position: absolute; width: 5px; height: 6px; margin: -3px; border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%; opacity: 0; }
+.packet .seeds { position: absolute; left: 50%; top: 14px; width: 0; height: 0; pointer-events: none; }
+.packet .seeds i { position: absolute; width: 6px; height: 7px; margin: -3px; border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%; opacity: 0; }
 .packet.hop .seeds i { animation: seed-pop .75s cubic-bezier(.2, .7, .4, 1) calc(.12s + var(--k) * .04s) both; }
 @keyframes seed-pop {
   0% { opacity: 0; transform: translate(0, 0) rotate(0); }
@@ -106,16 +101,14 @@ footer { padding: 4px 12px max(14px, env(safe-area-inset-bottom)); display: grid
   45% { transform: translate(calc((var(--k) - 1.5) * 11px), -22px) rotate(160deg); }
   100% { opacity: 0; transform: translate(calc((var(--k) - 1.5) * 17px), 10px) rotate(340deg); }
 }
-/* the trowel sits in a little round pot-coloured tile */
-.packet.trowel { align-self: center; width: 40px; height: 44px; flex: 0 0 40px; min-width: 40px; margin-left: 4px; border-radius: 14px; background: var(--cream); box-shadow: 0 3px 0 #d6e3c8, 0 6px 14px rgba(50, 80, 40, .16); color: var(--soil); place-items: center; display: grid; transition: transform .25s cubic-bezier(.3, 1.6, .5, 1); }
-.packet.trowel::before { display: none; }
-.packet.trowel svg { width: 22px; height: 22px; grid-row: span 2; }
-.packet.trowel[aria-pressed="true"] { box-shadow: 0 3px 0 #e8a7c2, 0 0 0 3px var(--rose), 0 8px 16px rgba(50, 80, 40, .2); transform: translateY(-4px); }
-.packet.trowel.hop svg { animation: dig .5s ease-in-out both; }
+/* the trowel: a chip beside Undo and Restart, picked like a bag of seeds */
+.chip.dig { color: var(--soil); transition: transform .25s cubic-bezier(.3, 1.6, .5, 1), box-shadow .2s; }
+.chip.dig[aria-pressed="true"] { background: #ffe3ee; color: var(--ink); box-shadow: 0 3px 0 #e8a7c2, 0 0 0 3px var(--rose), 0 8px 16px rgba(50, 80, 40, .2); transform: translateY(-2px); }
+.chip.dig.hop svg { animation: dig .5s ease-in-out both; }
 @keyframes dig { 0%, 100% { transform: none; } 30% { transform: rotate(-25deg) translateY(2px); } 60% { transform: rotate(15deg) translateY(-2px); } }
-@media (prefers-reduced-motion: reduce) { .packet.hop .bag, .packet.hop .bag .sprout, .packet.hop .seeds i, .packet.trowel.hop svg { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .packet.hop .bag, .packet.hop .bag .sprout, .packet.hop .seeds i, .chip.dig.hop svg { animation: none; } }
 .row { display: flex; gap: 10px; }
-.chip { border: 0; border-radius: 999px; height: 42px; padding: 0 18px; font: 600 15px var(--display); display: inline-flex; align-items: center; gap: 6px; }
+.chip { border: 0; border-radius: 999px; height: 42px; padding: 0 clamp(12px, 4vw, 18px); font: 600 15px var(--display); display: inline-flex; align-items: center; gap: 6px; }
 .chip:disabled { opacity: .55; }
 .chip svg { width: 18px; height: 18px; }
 .win {

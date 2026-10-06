@@ -150,8 +150,9 @@ their sprouts slump (grown plants droop), turn straw coloured, and the plot glow
 ## Controls
 
 Pick a bag of seeds, then tap a plot to plant it. Each bag is a plump little sack in its number's colour, tied with twine, with the die face on its label; picking one makes it squash, hop and wiggle, a seedling pops up and waves out of its top, and a few seeds tumble out. Tap a
-plot again with the same packet, or use the trowel, to dig it up. A seed too big
-for its bed is refused. Undo and Restart (tap twice) sit under the packets; keys
+plot again with the same packet, or pick Dig (the trowel), to dig it up. A seed too big
+for its bed is refused. Undo, Dig and Restart (tap twice) sit under the bags, which
+fill the width of the screen; there is no help text, the garden speaks for itself. Keys
 1 to 6 pick a packet, 0 or Backspace the trowel, and Ctrl+Z undoes. The level
 badge opens the picker: Easy, Medium and Hard tabs of twenty gardens each. Every
 garden remembers what was planted, and a solved garden opens in bloom.
