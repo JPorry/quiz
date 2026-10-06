@@ -79,10 +79,10 @@ document.querySelector('#app').innerHTML = `
     </header>
     <div class="stage" id="stage"></div>
     <footer>
-      <p class="say" id="say" aria-live="polite"></p>
       <div class="tray" id="tray" role="group" aria-label="Seeds"></div>
       <div class="row">
         <button class="chip" id="undo">${icon('undo')}<span>Undo</span></button>
+        <button class="chip dig" id="dig" data-seed="0" aria-label="Trowel: dig up a seed" aria-pressed="false">${icon('trowel')}<span>Dig</span></button>
         <button class="chip" id="restart">${icon('restart')}<span>Restart</span></button>
       </div>
     </footer>
@@ -113,7 +113,6 @@ const scene = new GardenScene($('stage'))
 let levelIndex = Math.min(saved.level ?? 0, LEVELS.length - 1)
 let board, flowers, values, history, won, seed, complete, shown = 0
 
-const say = (text) => { $('say').textContent = text }
 const buzz = (pattern) => { try { navigator.vibrate?.(pattern) } catch { /* not allowed here */ } }
 const biggest = () => Math.max(...board.size)
 
@@ -143,24 +142,19 @@ function start(index, { fresh = false } = {}) {
   scene.load(board, flowers, [...board.givens.keys()].filter((i) => board.givens[i]), { seed: 3 + levelIndex * 7 })
   drawTray()
   refresh(true)
-  if (won) {
-    scene.celebrate()
-    say('This garden is in full bloom. Pick another from the list, or play it again with Restart.')
-  } else if (levelIndex === 0) say('Each bed of N plots takes one of each seed from 1 to N. Pick a seed packet, then tap a plot.')
-  else if (levelIndex === 1) say('The same seed can never touch, not even corner to corner.')
-  else say(`${board.beds.length} beds to fill. Seeds that touch can't match.`)
+  if (won) scene.celebrate()
 }
 
 function drawTray() {
   const top = biggest()
   $('tray').innerHTML = Array.from({ length: top }, (_, k) => k + 1).map((n) =>
-    `<button class="packet" data-seed="${n}" aria-label="Seed ${n}" aria-pressed="${n === seed}">${bag(n)}${seeds(n)}<span>${n}</span></button>`).join('') +
-    `<button class="packet trowel" data-seed="0" aria-label="Trowel: dig up a seed" aria-pressed="${seed === 0}">${icon('trowel')}</button>`
+    `<button class="packet" data-seed="${n}" aria-label="Seed ${n}" aria-pressed="${n === seed}">${bag(n)}${seeds(n)}<span>${n}</span></button>`).join('')
+  $('dig').setAttribute('aria-pressed', String(seed === 0))
 }
 
 function choose(n) {
   seed = n
-  for (const b of $('tray').children) {
+  for (const b of [...$('tray').children, $('dig')]) {
     const on = Number(b.dataset.seed) === n
     b.setAttribute('aria-pressed', String(on))
     // the picked bag hops, wiggles and tosses out a few seeds; the others let
@@ -258,7 +252,6 @@ function plant(i) {
   if (board.givens[i]) {
     scene.wobble(i)
     sounds.bonk()
-    say('That one was planted for you. It stays put.')
     return
   }
   const before = values[i]
@@ -269,26 +262,16 @@ function plant(i) {
     scene.wobble(i)
     sounds.bonk()
     buzz([10, 40, 10])
-    say(`This bed has ${board.size[i]} plot${board.size[i] === 1 ? '' : 's'}, so it only takes seeds up to ${board.size[i]}.`)
     return
   }
   history.push([i, before])
   values[i] = next
   if (next) { sounds.plant(next); buzz(10) } else { sounds.dig(); buzz(8); scene.puff(i) }
-  const { bad, fresh } = refresh(false, i)
-  if (next && bad.has(i)) {
-    sounds.droop()
-    const bedTwin = board.beds[board.bedOf[i]].some((j) => j !== i && values[j] === next)
-    say(bedTwin ? `This bed already has a ${next}. Each seed grows once per bed.` : `Two ${next}s are touching, so they wilt. The same seed can't touch, not even at a corner.`)
-  } else if (fresh.length) say(fresh.length > 1 ? `${fresh.length} beds are budding!` : `The ${flowerName(flowers[fresh[0]])} bed is budding!`)
-  else if (bad.size) say('Some seedlings are still wilting. Find the twins that touch.')
-  else say(next ? `${left()} plots left to plant.` : 'Dug up. Pick a seed and plant it somewhere better.')
+  const { bad } = refresh(false, i)
+  if (next && bad.has(i)) sounds.droop()
   if (isSolved(board, values)) win()
 }
 
-const NAMES = { tulip: 'tulip', marigold: 'marigold', buttercup: 'buttercup', daisy: 'daisy', forgetmenot: 'forget-me-not', cornflower: 'cornflower', lavender: 'lavender', pansy: 'pansy', rose: 'rose', sunflower: 'sunflower' }
-const flowerName = (f) => NAMES[f]
-const left = () => values.filter((v) => !v).length
 
 function win() {
   won = true
@@ -297,7 +280,6 @@ function win() {
   delete saved.plots[LEVELS[levelIndex].id]
   save()
   refresh()
-  say('Every bed is full. Watch the garden bloom!')
   scene.celebrate()
   sounds.win()
   setTimeout(() => {
@@ -327,8 +309,8 @@ canvas.addEventListener('pointerup', (ev) => {
 })
 canvas.addEventListener('pointercancel', () => { down = null })
 
-$('tray').onclick = (ev) => {
-  const b = ev.target.closest('.packet')
+$('tray').onclick = $('dig').onclick = (ev) => {
+  const b = ev.target.closest('[data-seed]')
   if (!b) return
   sounds.unlock()
   const n = Number(b.dataset.seed)
@@ -348,7 +330,6 @@ $('undo').onclick = () => {
   sounds.undo()
   scene.puff(i)
   refresh(false, i)
-  say('Undone.')
 }
 let armed = false
 $('restart').onclick = () => {
@@ -364,7 +345,6 @@ $('restart').onclick = () => {
   delete saved.plots[LEVELS[levelIndex].id]
   save()
   start(levelIndex, { fresh: true })
-  say('A fresh start. The seeds planted for you are still there.')
 }
 const syncSound = () => { $('sound').innerHTML = icon(sounds.enabled ? 'sound' : 'mute') }
 $('sound').onclick = () => { sounds.unlock(); sounds.enabled = !sounds.enabled; syncSound() }
