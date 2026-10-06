@@ -257,3 +257,30 @@ footer { position: relative; z-index: 2; padding: 4px 12px max(14px, env(safe-ar
 .fly svg { width: 100%; height: 100%; display: block; }
 .titles p.pulse { animation: tickup .5s cubic-bezier(.2, 1.6, .4, 1); transform-origin: left center; color: #3f9a3a; font-weight: 700; }
 @keyframes tickup { 0% { transform: scale(1); } 35% { transform: scale(1.18); } 100% { transform: scale(1); } }
+/* restart sits up top by the settings; the first tap arms it and asks "Sure?" */
+.round.restart { position: relative; transition: transform .2s cubic-bezier(.3, 1.6, .5, 1), background .2s; }
+.round.restart .sure {
+  position: absolute; top: calc(100% + 6px); left: 50%; transform: translate(-50%, -4px) scale(.8); opacity: 0; pointer-events: none;
+  padding: 4px 10px; border-radius: 99px; background: var(--rose); color: #fff; font: 600 13px var(--display); white-space: nowrap;
+  box-shadow: 0 2px 0 #d24f86; transition: opacity .15s, transform .25s cubic-bezier(.3, 1.6, .5, 1); z-index: 3;
+}
+.round.restart.armed { background: #ffe3ee; color: var(--rose); box-shadow: 0 3px 0 #e8a7c2, 0 0 0 3px var(--rose); animation: nudge .5s ease-in-out; }
+.round.restart.armed .sure { opacity: 1; transform: translate(-50%, 0) scale(1); }
+@keyframes nudge { 0%, 100% { transform: none; } 25% { transform: rotate(-25deg); } 60% { transform: rotate(12deg); } }
+/* the flags button: pressed while the tray holds flags */
+.chip.markers { transition: transform .25s cubic-bezier(.3, 1.6, .5, 1), box-shadow .2s, background .2s; }
+.chip.markers[aria-pressed="true"] { background: #fff1c9; box-shadow: 0 3px 0 #e2c46d, 0 0 0 3px #f2a93b, 0 8px 16px rgba(50, 80, 40, .2); transform: translateY(-2px); }
+.chip.markers[aria-pressed="true"] svg { animation: flutter 1.6s ease-in-out infinite; transform-origin: 25% 90%; }
+@keyframes flutter { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-8deg); } }
+/* swapping bags for flags: the tray ducks down and pops back up with the new ones */
+.tray.swap .packet { animation: swap-in .42s cubic-bezier(.3, 1.5, .5, 1) calc(var(--k, 0) * 0s) both; }
+.tray.swap .packet:nth-child(2) { animation-delay: .03s; }
+.tray.swap .packet:nth-child(3) { animation-delay: .06s; }
+.tray.swap .packet:nth-child(4) { animation-delay: .09s; }
+.tray.swap .packet:nth-child(5) { animation-delay: .12s; }
+.tray.swap .packet:nth-child(6) { animation-delay: .15s; }
+@keyframes swap-in { from { transform: translateY(26px) scale(.6); opacity: 0; } }
+.packet .marker .cloth { transform-origin: 13px 20px; transition: transform .3s cubic-bezier(.3, 1.8, .5, 1); }
+.packet[aria-pressed="true"] .marker .cloth { transform: scaleX(1.08) rotate(-4deg); }
+.packet.hop .marker .cloth { animation: wave .7s ease-out .05s both; }
+@keyframes wave { 0% { transform: none; } 30% { transform: skewY(-8deg) scaleX(.9); } 60% { transform: skewY(5deg) scaleX(1.05); } 100% { transform: none; } }

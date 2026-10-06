@@ -5,6 +5,7 @@ import { bloomMorph, cellGeometry, GROW_STEPS, NUM, PIPS, plantTop, STEPS } from
 import { Insects, KINDS } from './insects.js'
 import { buildGarden, SOIL_Y, WIND } from './garden.js'
 import { World } from './world.js'
+import { makeFlag } from './flags.js'
 
 // A tilted diorama of a garden seen through a fixed orthographic camera. Every
 // cell's plants are one baked mesh; they pop up when planted, grow buds when
@@ -147,8 +148,9 @@ export class GardenScene {
       this.world.add(mark)
       // the plants now, and the ones they replace, shrinking away
       const plant = this.slot(group), ghost = this.slot(group)
-      return { i, group, plant, ghost, mark, key: '', value: 0, stage: 'sprout', wilt: false, pop: 1, gone: 1, grow: null, wobble: -1, pending: null, phase: i * 1.7 }
+      return { i, group, plant, ghost, mark, flags: [], key: '', value: 0, stage: 'sprout', wilt: false, pop: 1, gone: 1, grow: null, wobble: -1, pending: null, phase: i * 1.7 }
     })
+    this.waving = new Set()
     const reach = Math.max(board.width, board.height) / 2 + 2
     Object.assign(this.sun.shadow.camera, { left: -reach, right: reach, top: reach, bottom: -reach, near: 0.5, far: 40 })
     this.sun.shadow.camera.updateProjectionMatrix()
@@ -272,6 +274,45 @@ export class GardenScene {
       }
       this.advance(c, type, s)
     })
+  }
+
+  // The player's marker flags: masks[i] has bit n-1 set for each flag n in
+  // plot i. New flags spring up out of the soil; pulled ones shrink away.
+  setFlags(masks, { quiet = false } = {}) {
+    masks.forEach((mask, i) => {
+      const c = this.cells[i]
+      for (let n = 1; n <= 6; n++) {
+        const on = Boolean(mask & (1 << (n - 1)))
+        let f = c.flags[n]
+        if (!on && !f) continue
+        if (!f) {
+          f = c.flags[n] = makeFlag(n, ELEVATION * 0.55)
+          c.group.add(f.group)
+        }
+        f.target = on ? 1 : 0
+        if (quiet) { f.show = f.target; f.group.scale.setScalar(Math.max(0.001, f.show)); f.group.visible = on }
+        else { f.group.visible = true; this.waving.add(f) }
+        if (on) this.waving.add(f)
+      }
+    })
+    this.shadowFrames = 3
+  }
+
+  stepFlags(dt) {
+    for (const f of this.waving) {
+      if (f.show !== f.target) {
+        // up with a springy little boing, down with a quick shrink
+        const up = f.target === 1
+        f.show = up ? Math.min(1, f.show + dt / 0.45) : Math.max(0, f.show - dt / 0.18)
+        const k = up ? spring(f.show) : f.show
+        f.group.scale.set(Math.max(0.001, k), Math.max(0.001, up ? k * (1 + 0.15 * Math.sin(f.show * Math.PI)) : k), Math.max(0.001, k))
+        if (!up && f.show === 0) f.group.visible = false
+        this.shadowFrames = 2
+      }
+      if (f.target === 0 && f.show === 0) { this.waving.delete(f); continue }
+      // the flags flutter softly in the breeze
+      f.flag.rotation.y = Math.sin(this.time * 2.1 + f.phase) * 0.12 - 0.08
+    }
   }
 
   // Moves a cell's plants on to a new stage. Growing up is one continuous
@@ -682,6 +723,7 @@ export class GardenScene {
       this.frame()
     }
     let busy = false
+    this.stepFlags(dt)
     for (const c of this.cells) {
       if (c.pending && this.time >= c.pending.at) {
         const { change } = c.pending
