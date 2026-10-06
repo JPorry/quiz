@@ -196,30 +196,38 @@ garden remembers what was planted, and a solved garden opens in bloom.
 
 ## Tutorial
 
-The first garden a new player opens teaches the game on their own board, after
-Tidal Garden's coach (`src/tutorial.js`). A card between the header and the
-garden takes one idea at a time:
+The tutorial is a garden of its own, **First Seeds** (`TUTORIAL` in
+`src/puzzles.js`, route `#/tutorial`): a 5×5 garden of six beds made for it
+alone (`node scripts/generate-levels.mjs --tutorial`), unlike any daily garden,
+and kept only if the coach finds every lesson on it in order. The first time a player opens any garden, they are
+taken to the tutorial first, and once it's done or skipped they go straight on
+to the garden they picked (the tutorial steps out of the history, so Back goes
+where it should). Leaving it with Back keeps it waiting for the next garden.
 
-1. **Welcome**: beds, plots, and filling every bed to make it bloom.
-2. **One of each**: a bed of N plots grows 1 to N. Shown on a bed with one plot
-   left if there is one, otherwise on a seed with only one plot left in its bed
-   (the seeds next door that keep it out of the others are ringed).
-3. **Never side by side**: the same seed never touches, not even at a corner.
-   Shown on a plot its bed leaves open to several seeds, where the seeds next
-   door (ringed) rule out all but one.
+A coach card between the header and the garden, after Tidal Garden's
+(`src/tutorial.js`), takes one idea at a time on the board:
+
+1. **Welcome**: a little garden to learn in; beds, plots, and filling every bed
+   to make it bloom.
+2. **One of each**: a bed of N plots grows 1 to N, shown on a bed of three
+   that's missing one seed.
+3. **Never side by side**: the same seed never touches, not even at a corner;
+   the seeds next door (ringed) rule out all but one.
 4. **Flags for notes**: a seed that can only go in one of two plots of a bed;
    the coach has the player tap Flags, pick that flag and mark both plots.
 5. **Back to the seeds**: flags are pulled up for you when you plant; tap Flags
    to bring the bags back.
-6. **You're ready**: drooping sprouts, Undo, and three gardens a day.
+6. **You're ready**: finish the little garden on your own. Its win card says
+   **Let's play** and goes on to the garden picked.
 
-The coach points the way like Tidal Garden's: the bag, flag or button to pick
-bounces with a golden glow, the plot to tap wears a pulsing gold frame, and the
-plots that decide it wear cream ones. Every lesson's move matches the garden's
-solution; when the board doesn't show an idea yet, the card says to keep going
-until it does. It can be skipped, ends if the garden blooms, and is remembered
-once done (`flower-patch.tutorial`). **Replay the tutorial** in Settings starts
-it again from the welcome, in today's easy garden, cleared for it.
+The bag, flag or button to pick bounces with a golden glow, the plot to tap
+wears a pulsing gold frame, and the plots that decide it wear cream ones. Every
+lesson's move matches the garden's solution. The tutorial is never saved as
+progress, can be skipped at any step (straight on to the garden picked), and is
+remembered once done or skipped (`flower-patch.tutorial`). **Replay the
+tutorial** in Settings plays it again from the welcome, then returns to
+wherever the player was. The tests check the tutorial garden is sound and that
+the coach walks it through every lesson without a gap.
 
 ## Three gardens a day
 

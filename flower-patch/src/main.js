@@ -1,4 +1,4 @@
-import { TIERS, puzzle, today, dayOf, dateOf } from './puzzles.js'
+import { TIERS, TUTORIAL, puzzle, today, dayOf, dateOf } from './puzzles.js'
 import { assignFlowers, bedComplete, buildBoard, conflicts, isSolved, MAX_SEED } from './logic.js'
 import { GardenScene } from './scene.js'
 import { GardenAudio } from './audio.js'
@@ -210,8 +210,12 @@ const biggest = () => Math.max(...board.size)
 // each garden's flowers are the same every time it is opened
 const flowersFor = (p, b) => assignFlowers(b, p.day * 3 + TIERS.indexOf(p.tier) + 5)
 
+// The tutorial is a garden of its own, always played from scratch.
+const isTutorial = () => current?.id === TUTORIAL.id
+
 function start(day, tier, { fresh = false } = {}) {
-  current = puzzle(day, tier)
+  current = day === 0 ? TUTORIAL : puzzle(day, tier)
+  if (day === 0) fresh = true
   board = buildBoard(current)
   flowers = flowersFor(current, board)
   values = Int8Array.from(board.givens)
@@ -271,7 +275,7 @@ function toggleMarking() {
 // frames. It ends when the player says so, skips it, or the garden blooms.
 function coach() {
   if (!current) return
-  const card = tutorial.card({ board, values, marks, seed, marking, won })
+  const card = isTutorial() ? tutorial.card({ board, values, marks, seed, marking, won }) : null
   const was = !$('coach').hidden
   $('coach').hidden = !card
   scene.showGuide(card?.target?.length || card?.because?.length ? card : null)
@@ -288,7 +292,8 @@ function coach() {
   $('coach-skip').hidden = card.step === 'outro'
 }
 $('coach-next').onclick = () => { sounds.unlock(); sounds.play(tutorial.step === 'outro' ? 'close' : 'tap'); tutorial.next(); coach() }
-$('coach-skip').onclick = () => { sounds.play('close'); tutorial.finish(); coach() }
+// skipping goes straight on to the garden the player picked
+$('coach-skip').onclick = () => { sounds.play('close'); tutorial.finish(); leaveTutorial() }
 
 function choose(n) {
   seed = n
@@ -319,7 +324,7 @@ function refresh(quiet = false, origin = null) {
   showProgress()
   $('undo').disabled = !history.length || won
   coach()
-  if (!won && current) {
+  if (!won && current && !isTutorial()) {
     saved.plots[current.id] = [...values].map((v) => v || '.').join('')
     saved.flags ??= {}
     if (hasMarks(marks)) saved.flags[current.id] = packMarks(marks)
@@ -330,7 +335,7 @@ function refresh(quiet = false, origin = null) {
 }
 
 function showProgress() {
-  const pool = `${tierName(current.tier)} · ${dayName(current.day)}`
+  const pool = isTutorial() ? t('tutorial.label') : `${tierName(current.tier)} · ${dayName(current.day)}`
   $('prog').textContent = t(won ? 'progress.won' : 'progress', { pool, shown, beds: board.beds.length })
 }
 
@@ -461,7 +466,8 @@ function plant(i) {
 function win() {
   won = true
   bloomCount = 0
-  saved.done[current.id] = true
+  if (isTutorial()) tutorial.finish()
+  else saved.done[current.id] = true
   delete saved.plots[current.id]
   if (saved.flags) delete saved.flags[current.id]
   marks.fill(0)
@@ -472,9 +478,10 @@ function win() {
   setTimeout(() => {
     const kinds = new Set(flowers).size
     if (!current) return
-    $('winmeta').textContent = t('win.meta', { beds: board.beds.length, kinds, name: current.name })
-    const next = nextGarden()
+    $('winmeta').textContent = isTutorial() ? t('win.tutorial') : t('win.meta', { beds: board.beds.length, kinds, name: current.name })
+    const next = isTutorial() || nextGarden()
     $('winnext').hidden = !next
+    $('winnext').textContent = t(isTutorial() ? 'win.play' : 'win.next')
     $('win').hidden = false
   }, 3200)
 }
@@ -511,7 +518,11 @@ $('tray').onclick = $('dig').onclick = (ev) => {
 $('markers').onclick = () => { sounds.unlock(); toggleMarking() }
 
 /* ---------- buttons ---------- */
-$('winnext').onclick = () => { const next = nextGarden(); if (next) location.hash = `#/${next.day}/${next.tier}` }
+$('winnext').onclick = () => {
+  if (isTutorial()) return leaveTutorial()
+  const next = nextGarden()
+  if (next) location.hash = `#/${next.day}/${next.tier}`
+}
 $('winhome').onclick = () => { location.hash = '' }
 $('back').onclick = () => { location.hash = backTo }
 $('undo').onclick = () => {
@@ -570,16 +581,14 @@ $('settingsdone').onclick = closeSettings
 $('settingsheet').onclick = (ev) => { if (ev.target === $('settingsheet')) closeSettings() }
 // The tutorial plays again from its welcome, in today's easy garden, cleared
 // for it (a garden in bloom stays in bloom).
+// The tutorial plays again from its welcome, in its own garden; afterwards
+// the player is back where they were.
 $('replay-tutorial').onclick = () => {
   closeSettings()
   tutorial.restart()
-  const day = today()
-  const id = `${day}-easy`
-  delete saved.plots[id]
-  delete saved.flags[id]
-  save()
-  if (location.hash === `#/${day}/easy`) start(day, 'easy', { fresh: true })
-  else { pendingFresh = id; location.hash = `#/${day}/easy` }
+  afterTutorial = location.hash === '#/tutorial' ? afterTutorial : location.hash
+  if (location.hash === '#/tutorial') route()
+  else location.hash = '#/tutorial'
 }
 $('musicvol').oninput = (ev) => { sounds.unlock(); sounds.setMusicVolume(ev.target.value / 100); showSettings() }
 $('fxvol').oninput = (ev) => { sounds.setEffectsVolume(ev.target.value / 100); showSettings() }
@@ -741,18 +750,35 @@ $('daysheet').onclick = (ev) => { if (ev.target === $('daysheet')) $('daysheet')
 // #/<day>/<tier> plays a garden, #/days is the calendar, anything else is home.
 // The phone's back gesture steps back through them.
 let backTo = ''
-let pendingFresh = null
+// where to go once the tutorial is done or skipped: the garden the player picked
+let afterTutorial = ''
+function leaveTutorial() {
+  const to = afterTutorial
+  afterTutorial = ''
+  // the tutorial steps out of the history, so Back doesn't return to it
+  window.history.replaceState(null, '', to || location.pathname + location.search)
+  route()
+}
 function route() {
   const m = location.hash.match(/^#\/(\d+)\/(easy|medium|hard)$/)
   const day = m && Number(m[1])
-  const screen = m && day >= 1 && day <= today() ? 'game' : location.hash === '#/days' ? 'days' : 'home'
+  const learning = location.hash === '#/tutorial'
+  // a first game starts with the tutorial, then goes on to the garden picked
+  if (m && day >= 1 && day <= today() && !tutorial.finished) {
+    afterTutorial = location.hash
+    window.history.replaceState(null, '', '#/tutorial')
+    return route()
+  }
+  const screen = (m && day >= 1 && day <= today()) || learning ? 'game' : location.hash === '#/days' ? 'days' : 'home'
   const was = $('shell').dataset.screen
   $('shell').dataset.screen = screen
   if (screen === 'game') {
     if (was !== 'game') backTo = was === 'days' ? '#/days' : ''
-    const fresh = pendingFresh === `${day}-${m[2]}`
-    pendingFresh = null
-    start(day, m[2], { fresh })
+    if (learning) {
+      // a tutorial opened afresh (a visit, or Replay) starts from its welcome
+      if (tutorial.finished) tutorial.restart()
+      start(0, 'easy')
+    } else start(day, m[2])
     return
   }
   current = null
