@@ -103,12 +103,48 @@ const flagSvg = (n) => {
 // seeds that hop out of the bag when it is picked
 const seeds = (n) => `<span class="seeds" aria-hidden="true">${[0, 1, 2, 3].map((k) => `<i style="--k:${k};background:${hex(blend(NUM[n], 0x8a5a3b, 0.25))}"></i>`).join('')}</span>`
 
+// The title's logo: chunky letters on a bushy green cushion, with leaves and
+// little flowers tucked round it. Every leaf and flower is its own shape, so
+// they can pop in one after another.
+// (each sits in a placed group, so popping one in scales it where it sits)
+const leaf = (x, y, r, s = 1, fill = '#7cc35a') => `<g transform="translate(${x} ${y}) rotate(${r}) scale(${s})"><g class="lf" style="--d:${(x * 7 + y * 3) % 9}"><path d="M0 0 C6 -14 22 -16 30 -8 C22 2 8 6 0 0Z" fill="${fill}" stroke="#3f6b34" stroke-width="2.4" stroke-linejoin="round"/><path d="M2 -1 C10 -6 18 -8 25 -8" stroke="#3f6b34" stroke-width="1.4" fill="none" stroke-linecap="round" opacity=".55"/></g></g>`
+const bloom = (x, y, s, petal, heart = '#ffd76a') => `<g transform="translate(${x} ${y}) scale(${s})"><g class="fl" style="--d:${(x + y) % 7}"><g class="spin">${[0, 72, 144, 216, 288].map((a) => `<ellipse cx="0" cy="-8" rx="6.4" ry="8" fill="${petal}" stroke="#3f6b34" stroke-width="1.8" transform="rotate(${a})"/>`).join('')}<circle r="4.6" fill="${heart}" stroke="#3f6b34" stroke-width="1.6"/></g></g></g>`
+const LOGO_BACK = `<svg class="logo-back" viewBox="0 0 360 230" aria-hidden="true">
+  <path class="bush" d="M44 70 C40 40 74 22 100 34 C112 12 150 8 168 26 C188 6 228 10 240 34 C268 20 304 34 304 64 C330 70 340 104 318 122 C340 140 330 176 302 182 C300 206 268 220 244 208 C226 226 190 226 176 210 C156 228 118 224 106 204 C80 216 50 202 52 176 C24 168 18 132 40 118 C20 100 28 74 44 70Z" fill="#5d9a46" stroke="#3f6b34" stroke-width="4" stroke-linejoin="round"/>
+  ${leaf(34, 98, -150, 1.1)}${leaf(26, 160, 160, 1)}${leaf(326, 96, -30, 1.1, '#8fd06a')}${leaf(330, 166, 20, 1)}${leaf(150, 22, -100, 0.9, '#8fd06a')}${leaf(214, 20, -80, 0.95)}${leaf(110, 214, 110, 0.9, '#8fd06a')}${leaf(262, 214, 70, 0.9)}
+  ${bloom(66, 44, 1.15, '#ffb3c6')}${bloom(186, 18, 1, '#fffaf0')}${bloom(300, 40, 1.15, '#9cc8ff', '#fff0a8')}${bloom(32, 196, 0.95, '#ffb3c6')}${bloom(328, 200, 0.9, '#fffaf0')}${bloom(232, 222, 0.8, '#d4b4ff', '#fff0a8')}
+</svg>`
+const SPROUT = `<svg class="sproutic" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 29 C16 22 16 18 16 14" stroke="#3f8a36" stroke-width="3.4" stroke-linecap="round" fill="none"/><path d="M16 15 C10 6 2 8 3 13 C4 19 12 18 16 15Z" fill="#7cc35a" stroke="#3f6b34" stroke-width="1.8" stroke-linejoin="round"/><path d="M16 13 C21 3 30 5 29 11 C28 17 20 17 16 13Z" fill="#9adf6e" stroke="#3f6b34" stroke-width="1.8" stroke-linejoin="round"/></svg>`
+
 document.querySelector('#app').innerHTML = `
-  <div class="app" id="shell" data-screen="home">
+  <div class="app" id="shell" data-screen="title">
+    <section class="titlepage enter" id="titlepage">
+      <div class="sky" aria-hidden="true"><i class="cloud c1"></i><i class="cloud c2"></i><i class="cloud c3"></i></div>
+      <svg class="hills" viewBox="0 0 400 120" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M0 70 C60 30 120 40 170 62 C220 84 270 30 330 38 C365 42 385 55 400 60 L400 120 L0 120Z" fill="#a9dc87"/>
+        <path d="M0 92 C70 64 150 70 210 86 C270 102 330 70 400 80 L400 120 L0 120Z" fill="#93d470"/>
+      </svg>
+      <h1 class="logo" aria-label="${t('title')}">
+        ${LOGO_BACK}
+        <span class="word w1" aria-hidden="true">${[...'Flower'].map((c, i) => `<span style="--i:${i}">${c}</span>`).join('')}</span>
+        <span class="word w2" aria-hidden="true">${[...'Patch'].map((c, i) => `<span style="--i:${i + 6}">${c}</span>`).join('')}</span>
+      </h1>
+      <p class="tagline">${t('title.tagline')}</p>
+      <div class="hero" aria-hidden="true">
+        <img src="title-garden.webp" alt="" width="990" height="600" draggable="false">
+        <svg class="butterfly" viewBox="0 0 40 32"><g class="wings"><path d="M20 16 C12 2 2 4 4 13 C5 19 13 19 20 16Z" fill="#ffd36b" stroke="#c99a2e" stroke-width="1.4"/><path d="M20 16 C28 2 38 4 36 13 C35 19 27 19 20 16Z" fill="#ffd36b" stroke="#c99a2e" stroke-width="1.4"/><path d="M20 16 C13 20 8 28 13 29 C17 30 19 23 20 16Z M20 16 C27 20 32 28 27 29 C23 30 21 23 20 16Z" fill="#ffe7a3" stroke="#c99a2e" stroke-width="1.2"/></g><path d="M20 10 L20 24" stroke="#6b4a2a" stroke-width="2.4" stroke-linecap="round"/></svg>
+      </div>
+      <nav class="titlebuttons">
+        <button class="bigplay" id="title-play">${SPROUT}<span>${t('title.play')}</span></button>
+        <button class="titlebtn" id="title-learn">${icon('learn')}<span>${t('title.learn')}</span></button>
+      </nav>
+      <button class="round titlegear" id="title-settings" aria-label="${t('header.settings')}">${icon('settings')}</button>
+    </section>
     <main class="home" id="home">
       <header class="homehead">
+        <button class="round" id="home-back" aria-label="${t('back.title')}">${icon('back')}</button>
         <div class="brand">
-          <h1 class="title" aria-label="${t('title')}">${[...t('title')].map((c, i) => (c === ' ' ? '<span class="gap"></span>' : `<span style="--i:${i}">${c}</span>`)).join('')}</h1>
+          <h1 class="hometitle">${t('home.title')}</h1>
           <p class="date" id="date"></p>
         </div>
         <button class="round" id="settings-home" aria-label="${t('header.settings')}">${icon('settings')}</button>
@@ -525,7 +561,7 @@ $('winnext').onclick = () => {
   const next = nextGarden()
   if (next) location.hash = `#/${next.day}/${next.tier}`
 }
-$('winhome').onclick = () => { location.hash = '' }
+$('winhome').onclick = () => { location.hash = '#/daily' }
 $('back').onclick = () => { location.hash = backTo }
 $('undo').onclick = () => {
   if (!history.length || won) return
@@ -747,22 +783,28 @@ $('months').addEventListener('click', (ev) => {
   if (c) { sounds.unlock(); sounds.play('open'); openDay(Number(c.dataset.day)) }
 })
 $('open-days').onclick = () => { sounds.unlock(); sounds.play('tap'); location.hash = '#/days' }
-$('days-back').onclick = () => { location.hash = '' }
+$('days-back').onclick = () => { location.hash = '#/daily' }
+$('home-back').onclick = () => { sounds.play('close'); location.hash = '' }
+// the title: Play opens today's gardens, How to play the tutorial
+$('title-play').onclick = () => { sounds.unlock(); sounds.play('open'); location.hash = '#/daily' }
+$('title-learn').onclick = () => { sounds.unlock(); sounds.play('open'); afterTutorial = '#/daily'; location.hash = '#/tutorial' }
+$('title-settings').onclick = openSettings
 $('sheetclose').onclick = () => { sounds.play('close'); $('daysheet').hidden = true }
 $('daysheet').onclick = (ev) => { if (ev.target === $('daysheet')) $('daysheet').hidden = true }
 
 /* ---------- moving between screens ---------- */
 
-// #/<day>/<tier> plays a garden, #/days is the calendar, anything else is home.
-// The phone's back gesture steps back through them.
-let backTo = ''
+// #/<day>/<tier> plays a garden, #/daily is today's three, #/days is the
+// calendar, #/tutorial the tutorial, and anything else is the title. The
+// phone's back gesture steps back through them.
+let backTo = '#/daily'
 // where to go once the tutorial is done or skipped: the garden the player picked
 let afterTutorial = ''
 function leaveTutorial() {
   const to = afterTutorial
   afterTutorial = ''
   // the tutorial steps out of the history, so Back doesn't return to it
-  window.history.replaceState(null, '', to || location.pathname + location.search)
+  window.history.replaceState(null, '', to || '#/daily')
   route()
 }
 function route() {
@@ -775,11 +817,11 @@ function route() {
     window.history.replaceState(null, '', '#/tutorial')
     return route()
   }
-  const screen = (m && day >= 1 && day <= today()) || learning ? 'game' : location.hash === '#/days' ? 'days' : 'home'
+  const screen = (m && day >= 1 && day <= today()) || learning ? 'game' : location.hash === '#/days' ? 'days' : location.hash === '#/daily' ? 'home' : 'title'
   const was = $('shell').dataset.screen
   $('shell').dataset.screen = screen
   if (screen === 'game') {
-    if (was !== 'game') backTo = was === 'days' ? '#/days' : ''
+    if (was !== 'game') backTo = was === 'days' ? '#/days' : was === 'title' ? '' : '#/daily'
     if (learning) {
       // a tutorial opened afresh (a visit, or Replay) starts from its welcome
       if (tutorial.finished) tutorial.restart()
@@ -790,7 +832,13 @@ function route() {
   current = null
   $('win').hidden = true
   sounds.setMood('garden')
-  if (screen === 'days') { $('daysheet').hidden = true; drawDays() } else drawHome()
+  if (screen === 'days') { $('daysheet').hidden = true; drawDays() } else if (screen === 'home') drawHome()
+  else if (was !== 'title') {
+    // the title plays its entrance again each time it's shown
+    $('titlepage').classList.remove('enter')
+    void $('titlepage').offsetWidth
+    $('titlepage').classList.add('enter')
+  }
 }
 addEventListener('hashchange', route)
 // a new day may have begun while the home screen sat open
@@ -838,7 +886,8 @@ window.__garden = {
   get marks() { return marks },
   tutorial,
   start(day, tier) { location.hash = `#/${day}/${tier}`; route() },
-  home() { location.hash = ''; route() },
+  home() { location.hash = '#/daily'; route() },
+  title() { location.hash = ''; route() },
   today,
   get board() { return board },
   get values() { return values },

@@ -244,13 +244,31 @@ tutorial** in Settings plays it again from the welcome, then returns to
 wherever the player was. The tests check the tutorial garden is sound and that
 the coach walks it through every lesson without a gap.
 
+## Title screen
+
+The game opens on a title screen (route `#/`). A sky with drifting clouds sits
+over soft hills; the **Flower Patch** logo is built from live text and SVG, not a
+picture: chunky cream and pink letters with a dark green outline on a bushy
+green cushion, with leaves and little flowers tucked round it. Below it the
+garden illustration (`public/title-garden.webp`, cut from the concept art with
+its lettering painted out) fades in at its edges, with a butterfly fluttering
+across it.
+
+Everything arrives in turn, and again each time the title is shown: the garden
+rises, the cushion pops up, the letters drop in one by one and squash as they
+land, the leaves pop out and the flowers spin open, the tagline fades up, then
+the buttons spring up: **Play** (today's gardens), **How to play** (the
+tutorial, returning to today's gardens) and the Settings gear. Afterwards the
+letters bob, the flowers sway, the Play button breathes and its sprout nods.
+Today's gardens has a back button to the title.
+
 ## Three gardens a day
 
 Like Tiny Isles, Flower Patch is a daily puzzle. Every day brings an easy, a medium
 and a hard garden, and a new day starts at the player's own midnight. Routes are
 hash based, so the phone's back gesture works:
 
-- **Home** (`#/`): the title and today's date, a streak (days in a row with at
+- **Today's gardens** (`#/daily`, from the title's Play): a back button to the title, today's date, a streak (days in a row with at
   least one garden in bloom), today's three flowers filling in as they are solved,
   and today's three gardens as cards, each with a little map of its beds and seeds
   and Play, Resume or In bloom. A greeting follows the day's progress, and
