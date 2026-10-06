@@ -172,9 +172,21 @@ remembered.
 
 Pick a bag of seeds, then tap a plot to plant it. Each bag is a plump little sack in its number's colour, tied with twine, with the die face on its label; picking one makes it squash, hop and wiggle, a seedling pops up and waves out of its top, and a few seeds tumble out. Tap a
 plot again with the same packet, or pick Dig (the trowel), to dig it up. A seed too big
-for its bed is refused. Undo, Dig and Restart (tap twice) sit under the bags, which
-fill the width of the screen; there is no help text, the garden speaks for itself. Keys
-1 to 6 pick a packet, 0 or Backspace the trowel, and Ctrl+Z undoes. Every
+for its bed is refused. Undo, Dig and Flags sit under the bags, which
+fill the width of the screen; Restart (tap twice; it asks "Sure?") sits up top
+by Settings. There is no help text, the garden speaks for itself. Keys 1 to 6
+pick a packet, 0 or Backspace the trowel, F (or M) toggles flags, and Ctrl+Z undoes.
+
+**Flags** are notes. The Flags button swaps the seed bags for little garden flags,
+one per number in its seed's colour, and back again; the number picked stays.
+With a flag picked, tapping an empty plot sticks that flag in it or pulls it out
+again, and the trowel pulls up every flag in a plot. A plot holds up to six, each
+in its own spot (1 to 3 at the back, 4 to 6 at the front), drawn in 3D as a
+stake with a fluttering cloth that leans back to face the camera
+(`src/flags.js`). A flag too big for its bed is refused. Planting a seed pulls the
+plot's flags and that seed's flag from every plot it rules out (the rest of its
+bed and the eight around it); undo puts them all back in one go. Flags are saved
+with the garden. Every
 garden remembers what was planted, and a solved garden opens in bloom.
 
 ## Three gardens a day

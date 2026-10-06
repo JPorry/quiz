@@ -15,6 +15,7 @@ const longDate = (day) => dateOf(day).toLocaleDateString(language(), { weekday: 
 
 const ICON = {
   back: '<path d="M15 18l-6-6 6-6"/>',
+  flag: '<path d="M6 21V4"/><path d="M6 4.5c4-2 7 2 12 0v8c-5 2-8-2-12 0" fill="currentColor" fill-opacity=".25"/>',
   play: '<path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/>',
   calendar: '<rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
   flame: '<path d="M12 3c1 3.5 5 5.5 5 10a5 5 0 0 1-10 0c0-2.2 1-3.8 2.3-5 .2 1.7 1 2.8 2.2 3.2C11 9 10.8 6 12 3z"/>',
@@ -74,6 +75,27 @@ const bag = (n) => {
     <g transform="translate(24 42) scale(6.6)">${PIPS[n].map(([x, z]) => `<circle cx="${x * 2.2}" cy="${z * 2.2}" r="${n === 1 ? 0.36 : 0.25}" fill="${dot}"/>`).join('')}</g>
   </svg>`
 }
+// A marker flag, drawn to match the bags: a little pennant in the seed's colour
+// on a wooden stake, with its number on it, stuck in a mound of soil.
+const flagSvg = (n) => {
+  const c = NUM[n], pale = n === 6
+  const body = hex(pale ? 0xfffdf8 : blend(c, 0xffffff, 0.2))
+  const light = hex(pale ? 0xffffff : blend(c, 0xffffff, 0.6))
+  const line = hex(pale ? 0xb7a585 : blend(c, 0x5a3a3a, 0.5))
+  return `<svg class="bag marker" viewBox="0 0 48 60" aria-hidden="true">
+    <ellipse cx="24" cy="57" rx="15" ry="2.6" fill="#2f5a25" opacity=".16"/>
+    <path d="M9 56 C10 50 20 48 24 48 C28 48 38 50 39 56 Z" fill="#a8774f" stroke="#7a5236" stroke-width="1.2" stroke-linejoin="round"/>
+    <circle cx="17" cy="52.5" r="1" fill="#7a5236" opacity=".5"/><circle cx="30" cy="51.5" r="1.1" fill="#7a5236" opacity=".5"/>
+    <g class="cloth">
+      <path d="M13 9 C20 6 26 11 33 8 C36 7 39 7 41 8 L41 33 C38 32 35 32 32 33 C25 36 19 31 13 33 Z" fill="${body}" stroke="${line}" stroke-width="1.4" stroke-linejoin="round"/>
+      <path d="M15.5 12 C20 10 24 13 29 11" stroke="${light}" stroke-width="2.4" stroke-linecap="round" fill="none" opacity=".9"/>
+      <text x="27.5" y="27.5" text-anchor="middle" font-family="Fredoka, Nunito, ui-rounded, sans-serif" font-weight="700" font-size="17" fill="#3e3a4a">${n}</text>
+    </g>
+    <path d="M13 6 L13 51" stroke="#8a5a3b" stroke-width="3.6" stroke-linecap="round"/>
+    <path d="M13 6 L13 51" stroke="#c89a68" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="13" cy="5.5" r="2.8" fill="#fff3dc" stroke="#8a5a3b" stroke-width="1.1"/>
+  </svg>`
+}
 // seeds that hop out of the bag when it is picked
 const seeds = (n) => `<span class="seeds" aria-hidden="true">${[0, 1, 2, 3].map((k) => `<i style="--k:${k};background:${hex(blend(NUM[n], 0x8a5a3b, 0.25))}"></i>`).join('')}</span>`
 
@@ -114,6 +136,7 @@ document.querySelector('#app').innerHTML = `
       <header>
         <button class="round" id="back" aria-label="${t('back')}">${icon('back')}</button>
         <div class="titles"><h1 id="name"></h1><p id="prog"></p></div>
+        <button class="round restart" id="restart" aria-label="${t('restart')}">${icon('restart')}<span class="sure" aria-hidden="true">${t('restart.sure')}</span></button>
         <button class="round" id="settings" aria-label="${t('header.settings')}">${icon('settings')}</button>
       </header>
       <div class="stage" id="stage"></div>
@@ -122,7 +145,7 @@ document.querySelector('#app').innerHTML = `
         <div class="row">
           <button class="chip" id="undo">${icon('undo')}<span>${t('undo')}</span></button>
           <button class="chip dig" id="dig" data-seed="0" aria-label="${t('dig.label')}" aria-pressed="false">${icon('trowel')}<span>${t('dig')}</span></button>
-          <button class="chip" id="restart">${icon('restart')}<span>${t('restart')}</span></button>
+          <button class="chip markers" id="markers" aria-pressed="false">${icon('flag')}<span>${t('markers')}</span></button>
         </div>
       </footer>
       <section class="win" id="win" hidden>
@@ -150,7 +173,7 @@ const $ = (id) => document.getElementById(id)
 // done: every garden solved, by id ("<day>-<tier>"); plots: what is planted so
 // far in gardens still being worked on, one character a cell.
 function loadSaved() {
-  const empty = { done: {}, plots: {} }
+  const empty = { done: {}, plots: {}, flags: {} }
   try { return { ...empty, ...JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}') } } catch { return empty }
 }
 const saved = loadSaved()
@@ -160,7 +183,13 @@ const sounds = new GardenAudio()
 document.documentElement.lang = language()
 const scene = new GardenScene($('stage'))
 let current = null // the garden being played
-let board, flowers, values, history, won, seed, complete, shown = 0
+let board, flowers, values, marks, history, won, seed, complete, shown = 0
+// marking: the tray holds flags rather than seeds, and tapping a plot sticks a
+// flag in it (or pulls it out again) instead of planting
+let marking = false
+// a plot's flags are a bit each, 1 to 6; saved as one character a plot
+const packMarks = (m) => String.fromCharCode(...Array.from(m, (v) => 48 + v))
+const hasMarks = (m) => m.some((v) => v)
 
 const buzz = (pattern) => { try { navigator.vibrate?.(pattern) } catch { /* not allowed here */ } }
 const biggest = () => Math.max(...board.size)
@@ -178,12 +207,16 @@ function start(day, tier, { fresh = false } = {}) {
   if (plot?.length === board.cells && !fresh) {
     ;[...plot].forEach((ch, i) => { if (!board.givens[i] && ch !== '.') values[i] = Math.min(MAX_SEED, Number(ch)) })
   }
+  marks = new Uint8Array(board.cells)
+  const flags = saved.flags?.[current.id]
+  if (flags?.length === board.cells && !fresh) [...flags].forEach((ch, i) => { if (!values[i]) marks[i] = (ch.charCodeAt(0) - 48) & 63 })
   history = []
   // a garden already solved opens in bloom, unless it is being played again
   won = !fresh && !plot && Boolean(saved.done[current.id])
-  if (won) values = Int8Array.from(board.solution)
+  if (won) { values = Int8Array.from(board.solution); marks.fill(0) }
   complete = new Set()
   seed = Math.min(seed ?? 1, biggest())
+  marking = false
   $('win').hidden = true
   $('game').dataset.tier = tier
   $('name').textContent = current.name
@@ -197,9 +230,24 @@ function start(day, tier, { fresh = false } = {}) {
 
 function drawTray() {
   const top = biggest()
+  $('tray').dataset.mode = marking ? 'flags' : 'seeds'
+  $('tray').setAttribute('aria-label', t(marking ? 'tray.flags' : 'tray'))
   $('tray').innerHTML = Array.from({ length: top }, (_, k) => k + 1).map((n) =>
-    `<button class="packet" data-seed="${n}" aria-label="${t('seed', { n })}" aria-pressed="${n === seed}">${bag(n)}${seeds(n)}<span>${n}</span></button>`).join('')
+    `<button class="packet" data-seed="${n}" aria-label="${t(marking ? 'flag' : 'seed', { n })}" aria-pressed="${n === seed}">${marking ? flagSvg(n) : bag(n) + seeds(n)}<span>${n}</span></button>`).join('')
   $('dig').setAttribute('aria-pressed', String(seed === 0))
+  $('dig').setAttribute('aria-label', t(marking ? 'dig.flags' : 'dig.label'))
+  $('markers').setAttribute('aria-pressed', String(marking))
+}
+
+// Swaps the tray between seed bags and marker flags; the number picked stays.
+function toggleMarking() {
+  marking = !marking
+  drawTray()
+  $('tray').classList.remove('swap')
+  void $('tray').offsetWidth
+  $('tray').classList.add('swap')
+  sounds.play(marking ? 'open' : 'close')
+  buzz(6)
 }
 
 function choose(n) {
@@ -224,12 +272,16 @@ function refresh(quiet = false, origin = null) {
   const stage = (i) => (won ? 'bloom' : complete.has(board.bedOf[i]) ? 'bud' : 'sprout')
   scene.setCells([...values].map((value, i) => ({ value, stage: stage(i), wilt: !won && bad.has(i) })), { quiet, origin })
   scene.setBeds(board.beds.map((_, b) => (won ? 1 : complete.has(b) ? 0.75 : 0)), { quiet, origin })
+  scene.setFlags(marks, { quiet })
   // the count catches up as each budding bed sends its flower up to it
   if (quiet || complete.size < shown) shown = complete.size
   showProgress()
   $('undo').disabled = !history.length || won
   if (!won && current) {
     saved.plots[current.id] = [...values].map((v) => v || '.').join('')
+    saved.flags ??= {}
+    if (hasMarks(marks)) saved.flags[current.id] = packMarks(marks)
+    else delete saved.flags[current.id]
     save()
   }
   return { bad, fresh }
@@ -297,6 +349,39 @@ scene.onPop = (i, stage, rank) => {
 }
 let lastBloom = 0, bloomCount = 0
 
+// Each move is undone in one go: every plot it touched, with its seed and flags
+// as they were.
+const snapshot = (cells) => cells.map((i) => [i, values[i], marks[i]])
+
+function tap(i) {
+  if (marking) mark(i)
+  else plant(i)
+}
+
+// Sticks the picked flag in a plot, or pulls it out if it's already there. The
+// trowel pulls every flag out of a plot.
+function mark(i) {
+  if (won) return
+  if (values[i]) {
+    scene.wobble(i)
+    sounds.bonk()
+    return
+  }
+  const bit = seed ? 1 << (seed - 1) : 0
+  if (seed > board.size[i]) {
+    scene.wobble(i)
+    sounds.bonk()
+    buzz([10, 40, 10])
+    return
+  }
+  const next = seed ? marks[i] ^ bit : 0
+  if (next === marks[i]) return
+  history.push(snapshot([i]))
+  marks[i] = next
+  if (next & bit) { sounds.tick(seed); buzz(6) } else { sounds.dig(); buzz(6) }
+  refresh(false, i)
+}
+
 function plant(i) {
   if (won) return
   if (board.givens[i]) {
@@ -314,8 +399,16 @@ function plant(i) {
     buzz([10, 40, 10])
     return
   }
-  history.push([i, before])
+  // planting a seed pulls the plot's flags, and that seed's flag from every
+  // plot it now rules out: the rest of its bed and the plots around it
+  const bit = next ? 1 << (next - 1) : 0
+  const cleared = next ? board.peers[i].filter((j) => marks[j] & bit) : []
+  history.push(snapshot([i, ...cleared]))
   values[i] = next
+  if (next) {
+    marks[i] = 0
+    for (const j of cleared) marks[j] &= ~bit
+  }
   if (next) { sounds.plant(next); buzz(10) } else { sounds.dig(); buzz(8); scene.puff(i) }
   const { bad } = refresh(false, i)
   if (next && bad.has(i)) sounds.droop()
@@ -328,6 +421,8 @@ function win() {
   bloomCount = 0
   saved.done[current.id] = true
   delete saved.plots[current.id]
+  if (saved.flags) delete saved.flags[current.id]
+  marks.fill(0)
   save()
   refresh()
   scene.celebrate()
@@ -357,7 +452,7 @@ canvas.addEventListener('pointerup', (ev) => {
   if (moved) return
   const p = scene.toWorld(ev.clientX, ev.clientY)
   const i = p && scene.cellAt(p)
-  if (i !== null && i !== undefined) plant(i)
+  if (i !== null && i !== undefined) tap(i)
   else if (scene.poke(ev.clientX, ev.clientY)) sounds.boing()
 })
 canvas.addEventListener('pointercancel', () => { down = null })
@@ -371,6 +466,7 @@ $('tray').onclick = $('dig').onclick = (ev) => {
   if (n) sounds.pick(n)
   else sounds.dig()
 }
+$('markers').onclick = () => { sounds.unlock(); toggleMarking() }
 
 /* ---------- buttons ---------- */
 $('winnext').onclick = () => { const next = nextGarden(); if (next) location.hash = `#/${next.day}/${next.tier}` }
@@ -378,24 +474,29 @@ $('winhome').onclick = () => { location.hash = '' }
 $('back').onclick = () => { location.hash = backTo }
 $('undo').onclick = () => {
   if (!history.length || won) return
-  const [i, before] = history.pop()
-  values[i] = before
+  const move = history.pop()
+  const [i] = move[0]
+  const replanted = move.some(([j, value]) => value !== values[j])
+  for (const [j, value, flags] of move) { values[j] = value; marks[j] = flags }
   sounds.undo()
-  scene.puff(i)
+  if (replanted) scene.puff(i)
   refresh(false, i)
 }
-let armed = false
+// Restart asks first: the first tap arms it, and it says "Sure?" for a moment.
+let armed = null
+const disarm = () => { clearTimeout(armed); armed = null; $('restart').classList.remove('armed'); $('restart').setAttribute('aria-label', t('restart')) }
 $('restart').onclick = () => {
-  const label = $('restart').querySelector('span')
+  sounds.unlock()
   if (!armed) {
-    armed = true
-    label.textContent = t('restart.sure')
-    setTimeout(() => { armed = false; label.textContent = t('restart') }, 2200)
+    $('restart').classList.add('armed')
+    $('restart').setAttribute('aria-label', t('restart.sure'))
+    sounds.play('tap')
+    armed = setTimeout(disarm, 2400)
     return
   }
-  armed = false
-  label.textContent = t('restart')
+  disarm()
   delete saved.plots[current.id]
+  if (saved.flags) delete saved.flags[current.id]
   save()
   start(current.day, current.tier, { fresh: true })
 }
@@ -437,11 +538,12 @@ addEventListener('keydown', (ev) => {
   const n = Number(ev.key)
   if (ev.key >= '1' && ev.key <= '6' && n <= biggest()) choose(n)
   else if (ev.key === '0' || ev.key === 'Backspace') choose(0)
+  else if (ev.key === 'm' || ev.key === 'f') toggleMarking()
 })
 
 /* ---------- the home screen ---------- */
 
-const state = (id) => (saved.done[id] ? 'done' : saved.plots[id]?.match(/[1-9]/) ? 'started' : 'new')
+const state = (id) => (saved.done[id] ? 'done' : saved.plots[id]?.match(/[1-9]/) || saved.flags?.[id] ? 'started' : 'new')
 const dayName = (day) => (day === today() ? t('day.today') : day === today() - 1 ? t('day.yesterday') : dateOf(day).toLocaleDateString(language(), { day: 'numeric', month: 'short', timeZone: 'UTC' }))
 
 // A little picture of a garden: its beds as soft patches of soil, green once in
@@ -624,7 +726,8 @@ requestAnimationFrame(frame)
 
 // Hooks for screenshots and checks.
 window.__garden = {
-  scene, sounds, plant, choose,
+  scene, sounds, plant, mark, choose, toggleMarking,
+  get marks() { return marks },
   start(day, tier) { location.hash = `#/${day}/${tier}`; route() },
   home() { location.hash = ''; route() },
   today,
