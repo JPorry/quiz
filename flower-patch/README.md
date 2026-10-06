@@ -259,6 +259,22 @@ gear. Afterwards the logo floats gently with a glint of light sweeping across
 its letters now and then, the Play button breathes and its sprout nods.
 Today's gardens has a back button to the title.
 
+## The menus
+
+Today's gardens and the calendar sit over the painted garden, blurred a little
+under a creamy wash, with petals drifting down. Their titles wear the logo's
+style (cream letters, a deep green outline), with the date or summary in a
+little pill. The chips show a flickering flame for the streak and three
+terracotta pots for today: bare soil, a sprout once started, a flower in the
+garden's colour once it blooms. Each garden card is pastel in its difficulty's
+colour, its map set in a little wooden planter, its difficulty shown as one to
+three dots, with a chunky Play (whose arrow nudges now and then) or Resume
+button, or a round "In bloom" stamp once solved. The bunny from the garden
+art keeps you company in a speech bubble with the day's greeting. Calendar
+days are little soil plots that turn green with a flower when all three are
+in bloom, with today's ring pulsing. Sheets and the win card wear a leafy
+sprig, and the win card's title matches the logo.
+
 ## Three gardens a day
 
 Like Tiny Isles, Flower Patch is a daily puzzle. Every day brings an easy, a medium

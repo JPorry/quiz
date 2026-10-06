@@ -105,6 +105,20 @@ const seeds = (n) => `<span class="seeds" aria-hidden="true">${[0, 1, 2, 3].map(
 
 const SPROUT = `<svg class="sproutic" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 29 C16 22 16 18 16 14" stroke="#3f8a36" stroke-width="3.4" stroke-linecap="round" fill="none"/><path d="M16 15 C10 6 2 8 3 13 C4 19 12 18 16 15Z" fill="#7cc35a" stroke="#3f6b34" stroke-width="1.8" stroke-linejoin="round"/><path d="M16 13 C21 3 30 5 29 11 C28 17 20 17 16 13Z" fill="#9adf6e" stroke="#3f6b34" stroke-width="1.8" stroke-linejoin="round"/></svg>`
 
+// A little terracotta pot for each of today's gardens: bare soil, a sprout
+// once started, a flower in the garden's own colour once it's in bloom.
+const POT_COLOR = { easy: '#8fd06a', medium: '#ffc24d', hard: '#ff8fb3' }
+const pot = (tier, st) => `<svg class="pot ${st}" viewBox="0 0 32 36" aria-hidden="true">
+  ${st === 'done' ? `<g class="potflower"><path d="M16 22 V12" stroke="#4f9a3c" stroke-width="2.4" stroke-linecap="round"/>${[0, 72, 144, 216, 288].map((a) => `<ellipse cx="16" cy="5.6" rx="3.6" ry="4.6" fill="${POT_COLOR[tier]}" stroke="#3f6b34" stroke-width="1.2" transform="rotate(${a} 16 10)"/>`).join('')}<circle cx="16" cy="10" r="2.6" fill="#fff3a8" stroke="#3f6b34" stroke-width="1.1"/></g>` : ''}
+  ${st === 'started' ? '<g class="potsprout"><path d="M16 22 V16" stroke="#4f9a3c" stroke-width="2.2" stroke-linecap="round"/><path d="M16 17 C12 12 8 14 9 16 C10 19 14 18 16 17Z M16 16 C19 11 24 12 23 15 C22 18 18 18 16 16Z" fill="#8fd06a" stroke="#3f6b34" stroke-width="1.1"/></g>' : ''}
+  <path d="M6 21 H26 L24 33 C24 34.5 22.6 35 21 35 H11 C9.4 35 8 34.5 8 33Z" fill="#e58a5c" stroke="#8a4a32" stroke-width="1.4" stroke-linejoin="round"/>
+  <rect x="4.5" y="19" width="23" height="5" rx="2.2" fill="#f0a073" stroke="#8a4a32" stroke-width="1.4"/>
+  <ellipse cx="16" cy="21" rx="9" ry="1.6" fill="#6b4630"/>
+</svg>`
+// soft petals drifting down behind the menus
+const PETALS = [...Array(9)].map((_, k) => `<i class="petal" style="--x:${(k * 37 + 7) % 100}%;--d:${(k * 1.7) % 9}s;--t:${11 + (k * 3) % 7}s;--c:${['#ffc6d6', '#fff3b8', '#d9c8ff', '#ffd9b8', '#ffffff'][k % 5]}"></i>`).join('')
+const tierPips = (tier) => `<i class="pips">${[0, 1, 2].map((k) => `<b class="${k <= TIERS.indexOf(tier) ? 'on' : ''}"></b>`).join('')}</i>`
+
 document.querySelector('#app').innerHTML = `
   <div class="app" id="shell" data-screen="title">
     <section class="titlepage enter" id="titlepage">
@@ -118,12 +132,13 @@ document.querySelector('#app').innerHTML = `
       </nav>
       <button class="round titlegear" id="title-settings" aria-label="${t('header.settings')}">${icon('settings')}</button>
     </section>
+    <div class="menubg" aria-hidden="true"><img src="title-garden.webp" alt="" draggable="false"><span class="wash"></span>${PETALS}</div>
     <main class="home" id="home">
       <header class="homehead">
         <button class="round" id="home-back" aria-label="${t('back.title')}">${icon('back')}</button>
         <div class="brand">
           <h1 class="hometitle">${t('home.title')}</h1>
-          <p class="date" id="date"></p>
+          <p class="date"><span id="date"></span></p>
         </div>
         <button class="round" id="settings-home" aria-label="${t('header.settings')}">${icon('settings')}</button>
       </header>
@@ -133,14 +148,14 @@ document.querySelector('#app').innerHTML = `
       </div>
       <div class="todays" id="todays"></div>
       <footer class="homefoot">
-        <p class="hello" id="hello"></p>
+        <div class="buddy"><img src="bunny.webp" alt="" width="240" height="240" draggable="false"><p class="hello" id="hello"></p></div>
         <button class="chip daysbutton" id="open-days">${icon('calendar')}<span>${t('home.earlier')}</span><b class="count" id="catchup" hidden></b></button>
       </footer>
     </main>
     <section class="dayspage" id="dayspage">
       <header class="dayshead">
         <button class="round" id="days-back" aria-label="${t('back.home')}">${icon('back')}</button>
-        <div class="titles"><h1>${t('days.title')}</h1><p id="dayssummary"></p></div>
+        <div class="titles"><h1 class="hometitle">${t('days.title')}</h1><p class="date"><span id="dayssummary"></span></p></div>
       </header>
       <div class="months" id="months"></div>
       <div class="picker" id="daysheet" hidden>
@@ -670,11 +685,11 @@ function greeting() {
 
 function card(p, big = false) {
   const st = state(p.id)
-  const action = { done: `${icon('check')} ${t('card.done')}`, started: `${icon('play')} ${t('card.resume')}`, new: `${icon('play')} ${t('card.play')}` }[st]
+  const action = { done: `${icon('flower')}<span>${t('card.done')}</span>`, started: `${icon('play')}<span>${t('card.resume')}</span>`, new: `${icon('play')}<span>${t('card.play')}</span>` }[st]
   return `<button class="card ${st}${big ? ' big' : ''}" data-tier="${p.tier}" data-day="${p.day}" style="--i:${TIERS.indexOf(p.tier)}"
     aria-label="${t('card.label', { tier: tierName(p.tier), name: p.name, beds: buildBoard(p).beds.length })}, ${t(`card.${st}.state`)}">
-    <span class="tier">${tierName(p.tier)}</span>
-    ${miniMap(p)}
+    <span class="tier">${tierName(p.tier)}${tierPips(p.tier)}</span>
+    <span class="planter">${miniMap(p)}</span>
     <span class="pname">${p.name}</span>
     <span class="meta">${t('card.meta', { width: p.width, height: p.height, beds: buildBoard(p).beds.length })}</span>
     <span class="status">${action}</span>
@@ -690,7 +705,7 @@ function drawHome() {
   const n = streak(now)
   $('streak').innerHTML = `${icon('flame')} ${t(n === 1 ? 'streak.one' : 'streak', { n })}`
   $('streak').hidden = n < 1
-  $('blooms').innerHTML = TIERS.map((tier, i) => `<i class="${tier} ${states[i]}">${icon('flower')}</i>`).join('') + `<span>${t('today.count', { n: solved })}</span>`
+  $('blooms').innerHTML = TIERS.map((tier, i) => pot(tier, states[i])).join('') + `<span>${t('today.count', { n: solved })}</span>`
   $('hello').textContent = `${greeting()} ${t(`hello.${solved}`)}`
   let missed = 0
   for (let day = 1; day < now; day++) missed += TIERS.filter((tier) => !saved.done[`${day}-${tier}`]).length
