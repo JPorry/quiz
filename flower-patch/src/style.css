@@ -30,7 +30,10 @@ button { font: inherit; cursor: pointer; -webkit-tap-highlight-color: transparen
 /* three screens: home, the calendar of earlier days, and a garden being planted */
 .home, .dayspage, .game { position: absolute; inset: 0; }
 .app:not([data-screen="home"]) .home, .app:not([data-screen="days"]) .dayspage, .app:not([data-screen="game"]) .game { display: none; }
-.game { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; grid-template-columns: minmax(0, 1fr); overflow: hidden; }
+.game { display: grid; grid-template: "head" auto "coach" auto "stage" minmax(0, 1fr) "foot" auto / minmax(0, 1fr); overflow: hidden; }
+.game > header { grid-area: head; }
+.game > .stage { grid-area: stage; }
+.game > footer { grid-area: foot; }
 header { display: flex; align-items: center; gap: 6px; min-width: 0; padding: max(12px, env(safe-area-inset-top)) 12px 4px; }
 .badge, .round, .chip, .packet { background: var(--cream); color: var(--ink); box-shadow: 0 3px 0 #d6e3c8, 0 6px 14px rgba(50, 80, 40, .16); }
 .badge { width: 38px; height: 38px; flex: none; border: 0; border-radius: 50%; display: grid; place-items: center; font: 600 18px var(--display); transition: transform .12s; }
@@ -284,3 +287,36 @@ footer { position: relative; z-index: 2; padding: 4px 12px max(14px, env(safe-ar
 .packet[aria-pressed="true"] .marker .cloth { transform: scaleX(1.08) rotate(-4deg); }
 .packet.hop .marker .cloth { animation: wave .7s ease-out .05s both; }
 @keyframes wave { 0% { transform: none; } 30% { transform: skewY(-8deg) scaleX(.9); } 60% { transform: skewY(5deg) scaleX(1.05); } 100% { transform: none; } }
+/* the tutorial's coach: a card between the header and the garden */
+.coach {
+  grid-area: coach; position: relative; z-index: 3; justify-self: center; width: min(440px, calc(100% - 24px)); margin: 4px 0 2px;
+  padding: 12px 16px; border-radius: 22px; background: var(--cream); color: var(--ink);
+  box-shadow: 0 4px 0 #d6e3c8, 0 12px 26px rgba(40, 70, 30, .22);
+}
+.coach[hidden] { display: none; }
+.coach.in { animation: coach-in .45s cubic-bezier(.3, 1.4, .5, 1); }
+@keyframes coach-in { from { opacity: 0; transform: translateY(-10px) scale(.97); } }
+.coach p { margin: 0; }
+.coach-title { font: 600 19px/1.2 var(--display); color: #3f8a36; }
+.coach-text { margin-top: 4px !important; font-size: 14px; line-height: 1.4; color: var(--ink-soft); font-weight: 600; }
+.coach-foot { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+.coach-instruction { flex: 1; font: 600 15px var(--display); color: var(--rose); }
+.coach-instruction:empty { display: none; }
+.coach-skip { margin-left: auto; padding: 6px 4px; border: 0; background: none; font: 700 13px var(--body); color: #9a98a6; }
+.coach-next { margin-left: auto; height: 40px; padding: 0 20px; border: 0; border-radius: 999px; background: var(--leaf); color: #fff; font: 600 15px var(--display); box-shadow: 0 3px 0 #3f8a36; }
+.coach-next[hidden], .coach-skip[hidden] { display: none; }
+.coach-skip:not([hidden]) + .coach-next { margin-left: 0; }
+.coach-next:active { transform: translateY(2px); box-shadow: 0 1px 0 #3f8a36; }
+/* what the coach asks for bounces gently, with a golden glow */
+.packet.coach-pick .bag { animation: coach-pick 1.1s ease-in-out infinite; }
+.packet.coach-pick::before { opacity: 1; transform: scale(1); background: radial-gradient(circle, rgba(255, 214, 102, .75), rgba(255, 214, 102, 0) 70%); animation: coach-glow 1.1s ease-in-out infinite; }
+.chip.coach-pick { animation: coach-pick 1.1s ease-in-out infinite; box-shadow: 0 3px 0 #e2c46d, 0 0 0 3px #ffd166, 0 8px 18px rgba(255, 190, 60, .45); }
+@keyframes coach-pick { 50% { transform: translateY(-8px); } }
+@keyframes coach-glow { 50% { opacity: .5; transform: scale(1.15); } }
+@media (max-height: 700px) {
+  .coach { padding: 8px 12px; }
+  .coach-text { font-size: 13px; }
+  .coach-foot { margin-top: 6px; }
+}
+.settings .chip.replay { justify-self: stretch; justify-content: center; background: #f1f6ec; box-shadow: 0 3px 0 #d6e3c8; }
+.settings .chip.replay svg { color: var(--leaf); }

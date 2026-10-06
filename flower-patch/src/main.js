@@ -2,6 +2,7 @@ import { TIERS, puzzle, today, dayOf, dateOf } from './puzzles.js'
 import { assignFlowers, bedComplete, buildBoard, conflicts, isSolved, MAX_SEED } from './logic.js'
 import { GardenScene } from './scene.js'
 import { GardenAudio } from './audio.js'
+import { Tutorial } from './tutorial.js'
 import { t, LANGUAGES, language, setLanguage } from './i18n.js'
 import { PIPS, NUM } from './flowers.js'
 import './style.css'
@@ -15,6 +16,7 @@ const longDate = (day) => dateOf(day).toLocaleDateString(language(), { weekday: 
 
 const ICON = {
   back: '<path d="M15 18l-6-6 6-6"/>',
+  learn: '<path d="M3 9.5 12 5l9 4.5-9 4.5z"/><path d="M7 11.5v4.5c3 2 7 2 10 0v-4.5M21 9.5v5"/>',
   flag: '<path d="M6 21V4"/><path d="M6 4.5c4-2 7 2 12 0v8c-5 2-8-2-12 0" fill="currentColor" fill-opacity=".25"/>',
   play: '<path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/>',
   calendar: '<rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
@@ -139,6 +141,15 @@ document.querySelector('#app').innerHTML = `
         <button class="round restart" id="restart" aria-label="${t('restart')}">${icon('restart')}<span class="sure" aria-hidden="true">${t('restart.sure')}</span></button>
         <button class="round" id="settings" aria-label="${t('header.settings')}">${icon('settings')}</button>
       </header>
+      <section class="coach" id="coach" aria-live="polite" hidden>
+        <p class="coach-title" id="coach-title"></p>
+        <p class="coach-text" id="coach-text"></p>
+        <div class="coach-foot">
+          <p class="coach-instruction" id="coach-instruction"></p>
+          <button class="coach-skip" id="coach-skip">${t('coach.skip')}</button>
+          <button class="coach-next" id="coach-next"></button>
+        </div>
+      </section>
       <div class="stage" id="stage"></div>
       <footer>
         <div class="tray" id="tray" role="group" aria-label="${t('tray')}"></div>
@@ -164,6 +175,7 @@ document.querySelector('#app').innerHTML = `
         <div class="setting"><label for="fxvol">${icon('sound')}<span>${t('settings.effects')}</span></label><input type="range" id="fxvol" min="0" max="100" step="5"><output id="fxval"></output></div>
         <div class="setting"><label for="language">${icon('globe')}<span>${t('settings.language')}</span></label><select id="language">${Object.entries(LANGUAGES).map(([code, { name }]) => `<option value="${code}" lang="${code}"${code === language() ? ' selected' : ''}>${name}</option>`).join('')}</select></div>
         <p class="note">${t('settings.languageNote')}</p>
+        <button class="chip replay" id="replay-tutorial">${icon('learn')}<span>${t('settings.replay')}</span></button>
         <button class="chip go" id="settingsdone">${t('settings.done')}</button>
       </div>
     </section>
@@ -180,6 +192,7 @@ const saved = loadSaved()
 const save = () => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(saved)) } catch { /* private windows */ } }
 
 const sounds = new GardenAudio()
+const tutorial = new Tutorial()
 document.documentElement.lang = language()
 const scene = new GardenScene($('stage'))
 let current = null // the garden being played
@@ -220,6 +233,7 @@ function start(day, tier, { fresh = false } = {}) {
   $('win').hidden = true
   $('game').dataset.tier = tier
   $('name').textContent = current.name
+  tutorial.forget()
   scene.load(board, flowers, [...board.givens.keys()].filter((i) => board.givens[i]), { seed: day * 3 + TIERS.indexOf(tier) })
   drawTray()
   refresh(true)
@@ -248,7 +262,33 @@ function toggleMarking() {
   $('tray').classList.add('swap')
   sounds.play(marking ? 'open' : 'close')
   buzz(6)
+  coach()
 }
+
+/* ---------- the tutorial ---------- */
+// A card above the garden says what to do: the bag, flag or button to pick
+// bounces, the plot to tap glows gold, and the plots that decide it wear cream
+// frames. It ends when the player says so, skips it, or the garden blooms.
+function coach() {
+  if (!current) return
+  const card = tutorial.card({ board, values, marks, seed, marking, won })
+  const was = !$('coach').hidden
+  $('coach').hidden = !card
+  scene.showGuide(card?.target?.length || card?.because?.length ? card : null)
+  for (const b of $('tray').children) b.classList.toggle('coach-pick', card?.pick === Number(b.dataset.seed))
+  $('markers').classList.toggle('coach-pick', card?.pick === 'markers')
+  if (!card) return
+  if (!was) { $('coach').classList.remove('in'); void $('coach').offsetWidth; $('coach').classList.add('in') }
+  $('coach').dataset.step = card.step
+  $('coach-title').textContent = card.title
+  $('coach-text').textContent = card.text
+  $('coach-instruction').textContent = card.instruction ?? ''
+  $('coach-next').textContent = card.action ?? ''
+  $('coach-next').hidden = !card.action
+  $('coach-skip').hidden = card.step === 'outro'
+}
+$('coach-next').onclick = () => { sounds.unlock(); sounds.play(tutorial.step === 'outro' ? 'close' : 'tap'); tutorial.next(); coach() }
+$('coach-skip').onclick = () => { sounds.play('close'); tutorial.finish(); coach() }
 
 function choose(n) {
   seed = n
@@ -260,6 +300,7 @@ function choose(n) {
     b.classList.remove('hop')
     if (on) { void b.offsetWidth; b.classList.add('hop') }
   }
+  coach()
 }
 
 // Brings the garden in line with the seeds planted: what grows where, which
@@ -277,6 +318,7 @@ function refresh(quiet = false, origin = null) {
   if (quiet || complete.size < shown) shown = complete.size
   showProgress()
   $('undo').disabled = !history.length || won
+  coach()
   if (!won && current) {
     saved.plots[current.id] = [...values].map((v) => v || '.').join('')
     saved.flags ??= {}
@@ -526,6 +568,19 @@ $('settings-home').onclick = openSettings
 $('closesettings').onclick = closeSettings
 $('settingsdone').onclick = closeSettings
 $('settingsheet').onclick = (ev) => { if (ev.target === $('settingsheet')) closeSettings() }
+// The tutorial plays again from its welcome, in today's easy garden, cleared
+// for it (a garden in bloom stays in bloom).
+$('replay-tutorial').onclick = () => {
+  closeSettings()
+  tutorial.restart()
+  const day = today()
+  const id = `${day}-easy`
+  delete saved.plots[id]
+  delete saved.flags[id]
+  save()
+  if (location.hash === `#/${day}/easy`) start(day, 'easy', { fresh: true })
+  else { pendingFresh = id; location.hash = `#/${day}/easy` }
+}
 $('musicvol').oninput = (ev) => { sounds.unlock(); sounds.setMusicVolume(ev.target.value / 100); showSettings() }
 $('fxvol').oninput = (ev) => { sounds.setEffectsVolume(ev.target.value / 100); showSettings() }
 // letting go of the effects slider plays a little tap at the new loudness
@@ -686,6 +741,7 @@ $('daysheet').onclick = (ev) => { if (ev.target === $('daysheet')) $('daysheet')
 // #/<day>/<tier> plays a garden, #/days is the calendar, anything else is home.
 // The phone's back gesture steps back through them.
 let backTo = ''
+let pendingFresh = null
 function route() {
   const m = location.hash.match(/^#\/(\d+)\/(easy|medium|hard)$/)
   const day = m && Number(m[1])
@@ -694,7 +750,9 @@ function route() {
   $('shell').dataset.screen = screen
   if (screen === 'game') {
     if (was !== 'game') backTo = was === 'days' ? '#/days' : ''
-    start(day, m[2])
+    const fresh = pendingFresh === `${day}-${m[2]}`
+    pendingFresh = null
+    start(day, m[2], { fresh })
     return
   }
   current = null
@@ -728,6 +786,7 @@ requestAnimationFrame(frame)
 window.__garden = {
   scene, sounds, plant, mark, choose, toggleMarking,
   get marks() { return marks },
+  tutorial,
   start(day, tier) { location.hash = `#/${day}/${tier}`; route() },
   home() { location.hash = ''; route() },
   today,

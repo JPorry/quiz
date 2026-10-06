@@ -43,6 +43,23 @@ const BLINK = SWELL + RISE + 0.15
 const OPEN_LEAVES = 0.35
 const EMPTY = new THREE.BufferGeometry()
 const MARK = new RoundedBoxGeometry(0.92, 0.01, 0.92, 2, 0.12)
+// the coach's marks: rounded squares lying flat on a plot, as an outline or filled
+const roundSquare = (size, r) => {
+  const h = size / 2
+  const p = new THREE.Shape()
+  p.moveTo(-h + r, -h); p.lineTo(h - r, -h); p.quadraticCurveTo(h, -h, h, -h + r); p.lineTo(h, h - r)
+  p.quadraticCurveTo(h, h, h - r, h); p.lineTo(-h + r, h); p.quadraticCurveTo(-h, h, -h, h - r); p.lineTo(-h, -h + r); p.quadraticCurveTo(-h, -h, -h + r, -h)
+  return p
+}
+const flat = (shape) => new THREE.ShapeGeometry(shape, 6).rotateX(-Math.PI / 2)
+const frame = (outer, inner) => {
+  const shape = roundSquare(outer, 0.16)
+  shape.holes.push(roundSquare(inner, 0.11))
+  return flat(shape)
+}
+const GUIDE_FRAME = frame(0.96, 0.82)
+const BECAUSE_FRAME = frame(0.86, 0.76)
+const GUIDE_FILL = flat(roundSquare(0.84, 0.12))
 
 export class GardenScene {
   constructor(container) {
@@ -151,6 +168,9 @@ export class GardenScene {
       return { i, group, plant, ghost, mark, flags: [], key: '', value: 0, stage: 'sprout', wilt: false, pop: 1, gone: 1, grow: null, wobble: -1, pending: null, phase: i * 1.7 }
     })
     this.waving = new Set()
+    this.guideKey = ''
+    this.guideMarks = new THREE.Group()
+    this.world.add(this.guideMarks)
     const reach = Math.max(board.width, board.height) / 2 + 2
     Object.assign(this.sun.shadow.camera, { left: -reach, right: reach, top: reach, bottom: -reach, near: 0.5, far: 40 })
     this.sun.shadow.camera.updateProjectionMatrix()
@@ -296,6 +316,32 @@ export class GardenScene {
       }
     })
     this.shadowFrames = 3
+  }
+
+  // The tutorial's pointing: a pulsing gold frame (and a soft glow) on each
+  // plot to tap, and cream frames on the plots that decide it.
+  showGuide(guide) {
+    const key = guide ? JSON.stringify([guide.target, guide.because]) : ''
+    if (key === this.guideKey || !this.guideMarks) return
+    this.guideKey = key
+    this.guideMarks.clear()
+    if (!guide) return
+    this.guideGold ??= new THREE.MeshBasicMaterial({ color: 0xffc94d, transparent: true, depthTest: false })
+    this.guideCream ??= new THREE.MeshBasicMaterial({ color: 0xfff3cf, transparent: true, opacity: 0.95, depthTest: false })
+    this.guideGlow ??= new THREE.MeshBasicMaterial({ color: 0xffe08a, transparent: true, opacity: 0.35, depthTest: false, depthWrite: false })
+    const add = (i, geometry, material, lift) => {
+      const mesh = new THREE.Mesh(geometry, material)
+      mesh.position.copy(this.center(i))
+      mesh.position.y += lift
+      mesh.renderOrder = 8
+      this.guideMarks.add(mesh)
+      return mesh
+    }
+    for (const i of guide.because ?? []) add(i, BECAUSE_FRAME, this.guideCream, 0.02)
+    for (const i of guide.target ?? []) {
+      add(i, GUIDE_FILL, this.guideGlow, 0.012).renderOrder = 7
+      add(i, GUIDE_FRAME, this.guideGold, 0.022).userData.pulse = true
+    }
   }
 
   stepFlags(dt) {
@@ -724,6 +770,12 @@ export class GardenScene {
     }
     let busy = false
     this.stepFlags(dt)
+    if (this.guideMarks?.children.length) {
+      const k = Math.sin(this.time * 4)
+      this.guideGold.opacity = 0.75 + 0.25 * k
+      this.guideGlow.opacity = 0.25 + 0.15 * k
+      for (const m of this.guideMarks.children) if (m.userData.pulse) m.scale.setScalar(1 + 0.03 * k)
+    }
     for (const c of this.cells) {
       if (c.pending && this.time >= c.pending.at) {
         const { change } = c.pending
