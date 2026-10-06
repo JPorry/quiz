@@ -168,9 +168,24 @@ digging, the finale, a gust of wind, and so on) always sit inside the music. The
 `public/audio/` and `src/audioManifest.js` lists them; `src/audio.js` plays them.
 
 The gear in the header opens Settings: a Music and an Effects slider (sliding to nothing turns
-that sound off) and the language. Only English for now: the words live in `src/locales/en.js`
-and `src/i18n.js` picks the language, so more can be added by adding a locale. Settings are
-remembered.
+that sound off) and the language. Settings are remembered.
+
+## Languages
+
+The game speaks English and Spanish (Spain). Every word the player sees lives in
+a dictionary per language (`src/locales/en.js`, `src/locales/es.js`), read through
+`src/i18n.js`: `t('key', { values })` fills in `{placeholders}`. The Spanish uses
+«bancal» for a bed and «parcela» for a plot, speaks with «tú», and avoids words
+that assume the player's gender. Garden names have their own word lists per
+language in `src/puzzles.js`, in the same order, so a garden's name is the same
+idea in each («Buttercup Corner» is «Rincón del Botón de Oro»); the tutorial
+garden is «Primeras Semillas». Dates and months come from the browser in the
+chosen language, capitalised as headings. The first visit follows the device's
+language; the picker in Settings changes it and reloads the game on the same
+screen, with Settings open. Anything a language hasn't translated falls back to
+English, and a test checks every language has every string with the same
+placeholders. To add a language, copy `es.js`, translate it, add its name lists,
+and list it in `LANGUAGES`.
 
 ## Controls
 

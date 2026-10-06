@@ -188,17 +188,17 @@ footer { position: relative; z-index: 2; padding: 4px 12px max(14px, env(safe-ar
 .card .map { grid-column: 1; grid-row: 1 / 4; width: 74px; height: 74px; padding: 5px; border-radius: 16px; background: var(--tint); }
 .card .map .soil { fill: #c99a73; }
 .card .map .grown { fill: #8fd06c; }
-.card .pname { grid-column: 2; grid-row: 2; font: 600 18px var(--display); line-height: 1.15; margin: 4px 0 2px; overflow-wrap: anywhere; }
+.card .pname { grid-column: 2; grid-row: 2; font: 600 clamp(15px, 4.4vw, 18px) var(--display); line-height: 1.15; margin: 4px 0 2px; overflow-wrap: break-word; hyphens: auto; }
 .card .meta { grid-column: 2; grid-row: 3; font: 600 13px var(--body); color: var(--ink-soft); }
-.card .status { grid-column: 3; grid-row: 1 / 4; display: inline-flex; align-items: center; gap: 5px; height: 40px; padding: 0 16px; border-radius: 99px;
+.card .status { grid-column: 3; grid-row: 1 / 4; display: inline-flex; align-items: center; gap: 5px; height: 40px; padding: 0 14px; white-space: nowrap; border-radius: 99px;
   background: var(--leaf); color: #fff; font: 600 15px var(--display); box-shadow: 0 3px 0 #3f8a36; }
 .card .status svg { width: 16px; height: 16px; }
 .card.started .status { background: #f2a93b; box-shadow: 0 3px 0 #c98420; }
 .card.done { background: #effae8; }
 .card.done .status { background: transparent; color: var(--leaf); box-shadow: none; padding: 0 4px; }
-.card.big { padding: 14px; grid-template-columns: 88px minmax(0, 1fr) auto; }
-.card.big .map { width: 88px; height: 88px; }
-.card.big .pname { font-size: 20px; }
+.card.big { padding: 14px; grid-template-columns: 80px minmax(0, 1fr) auto; }
+.card.big .map { width: 80px; height: 80px; }
+.card.big .pname { font-size: clamp(16px, 4.8vw, 20px); }
 @keyframes card-in { from { opacity: 0; transform: translateY(18px) scale(.96); } }
 @media (max-width: 360px) {
   .card, .card.big { grid-template-columns: 64px minmax(0, 1fr); }
@@ -320,3 +320,7 @@ footer { position: relative; z-index: 2; padding: 4px 12px max(14px, env(safe-ar
 }
 .settings .chip.replay { justify-self: stretch; justify-content: center; background: #f1f6ec; box-shadow: 0 3px 0 #d6e3c8; }
 .settings .chip.replay svg { color: var(--leaf); }
+/* the buttons under the tray share the width, however long their words */
+.game footer .row { width: 100%; max-width: 420px; justify-content: center; gap: 8px; }
+.game footer .row .chip { min-width: 0; flex: 0 1 auto; padding: 0 clamp(10px, 3vw, 18px); font-size: clamp(13px, 3.7vw, 15px); white-space: nowrap; }
+.game footer .row .chip span { overflow: hidden; text-overflow: ellipsis; }
