@@ -9,7 +9,7 @@ import { toon } from './look.js'
 
 const STAKE = 0.24
 const W = 0.26, H = 0.2
-const SPOTS = [[-0.36, -0.02], [-0.07, -0.02], [0.22, -0.02], [-0.36, 0.38], [-0.07, 0.38], [0.22, 0.38]]
+const SPOTS = [[-0.36, -0.2], [-0.07, -0.2], [0.22, -0.2], [-0.36, 0.3], [-0.07, 0.3], [0.22, 0.3]]
 
 const stake = new THREE.CylinderGeometry(0.016, 0.021, STAKE, 6).translate(0, STAKE / 2, 0)
 // the flag hangs off the top of its stake with a soft ripple in it
