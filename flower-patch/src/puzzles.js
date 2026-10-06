@@ -48,3 +48,13 @@ export function puzzle(day, tier) {
     beds: rows(beds, width), givens: rows(givens, width), solution: rows(solution, width),
   }
 }
+
+// The tutorial's own little garden: five beds on a 5×5 plot, with a bed of two
+// that's missing one seed, a seed decided by its neighbours, and a seed with two
+// places left, so every lesson can be shown on it in order.
+export const TUTORIAL = {
+  id: 'tutorial', day: 0, tier: 'easy', name: 'First Seeds', width: 5, height: 5,
+  beds: ['CBBAA', 'CBBAA', 'DDDAA', 'EEDDD', 'EEEEF'],
+  givens: ['.....', '14.64', '.6..2', '.5...', '.146.'],
+  solution: ['23151', '14264', '36132', '25254', '31461'],
+}

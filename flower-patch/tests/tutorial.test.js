@@ -1,7 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { buildBoard } from '../src/logic.js'
-import { puzzle, TIERS } from '../src/puzzles.js'
+import { puzzle, TIERS, TUTORIAL } from '../src/puzzles.js'
+import { checkLevel } from '../scripts/check.mjs'
 import { findLesson, options, Tutorial } from '../src/tutorial.js'
 
 const memory = () => { const m = new Map(); return { getItem: (k) => m.get(k) ?? null, setItem: (k, v) => m.set(k, v), removeItem: (k) => m.delete(k) } }
@@ -35,10 +36,14 @@ test('every easy garden can start its first lessons straight away', () => {
   }
 })
 
-test('the coach walks from the welcome through every lesson, and remembers', () => {
+test('the tutorial garden is sound and easy', () => {
+  assert.deepEqual(checkLevel(TUTORIAL, 'easy'), [])
+})
+
+test('the coach walks the tutorial garden through every lesson, one after another, and remembers', () => {
   const storage = memory()
   const tutorial = new Tutorial(storage)
-  const board = buildBoard(puzzle(1, 'easy'))
+  const board = buildBoard(TUTORIAL)
   const values = Int8Array.from(board.givens)
   const marks = new Uint8Array(board.cells)
   let play = { board, values, marks, seed: 1, marking: false, won: false }
@@ -47,12 +52,13 @@ test('the coach walks from the welcome through every lesson, and remembers', () 
   const seen = new Set()
   for (let k = 0; k < 200 && tutorial.step !== 'outro'; k++) {
     const card = tutorial.card(play)
+    if (card.step === 'outro') break
     seen.add(card.step)
     const m = tutorial.lesson
     if (card.step === 'putaway') play = { ...play, marking: false }
     else if (card.step === 'flags') { play = { ...play, marking: true, seed: m.value }; for (const i of m.cells) marks[i] |= 1 << (m.value - 1) }
     else if (m) { values[m.cell] = m.value; play = { ...play, seed: m.value } }
-    else { const i = values.findIndex((v) => !v); values[i] = board.solution[i] }
+    else assert.fail(`the tutorial garden ran out of ${card.step} lessons`)
   }
   assert.ok(['bed', 'touch', 'flags', 'putaway'].every((s) => seen.has(s)), [...seen].join())
   assert.equal(tutorial.card(play).step, 'outro')
