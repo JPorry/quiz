@@ -764,6 +764,17 @@ addEventListener('hashchange', route)
 // a new day may have begun while the home screen sat open
 addEventListener('visibilitychange', () => { if (!document.hidden && !current) route() })
 
+/* ---------- no zooming or selecting ---------- */
+// The viewport meta and CSS stop most zooming (touch-action turns double-tap
+// zoom off); iOS Safari ignores them for pinches, and desktop browsers zoom on
+// Ctrl with the wheel or keys, so those are caught here too. A double click, a
+// long press's menu and text selection do nothing either.
+const stop = (ev) => ev.preventDefault()
+for (const name of ['gesturestart', 'gesturechange', 'gestureend', 'dblclick', 'selectstart', 'contextmenu']) document.addEventListener(name, stop, { passive: false })
+document.addEventListener('touchmove', (ev) => { if (ev.touches.length > 1) ev.preventDefault() }, { passive: false })
+document.addEventListener('wheel', (ev) => { if (ev.ctrlKey) ev.preventDefault() }, { passive: false })
+addEventListener('keydown', (ev) => { if ((ev.ctrlKey || ev.metaKey) && ['+', '=', '-', '_', '0'].includes(ev.key)) ev.preventDefault() })
+
 /* ---------- loop ---------- */
 let last = performance.now()
 // test captures run slowly in software rendering, so they keep their resolution

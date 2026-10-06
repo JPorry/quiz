@@ -13,8 +13,13 @@
   --body: 'Nunito', ui-rounded, system-ui, sans-serif;
   color-scheme: light;
 }
-* { box-sizing: border-box; }
+/* No zooming, selecting or callouts anywhere: it's a game, not a page. Panning
+   stays, so the home screen and calendar still scroll, but pinches and double
+   taps do nothing (iOS gets the rest from src/main.js). */
+* { box-sizing: border-box; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+html { touch-action: pan-x pan-y; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 html, body, #app { margin: 0; height: 100%; }
+button, a, input, select, label, .card, .cell { touch-action: manipulation; }
 body {
   background: linear-gradient(180deg, var(--sky) 0, var(--meadow) 90px, var(--meadow) 30%, var(--lawn) 70%);
   color: var(--ink);
