@@ -1,12 +1,14 @@
 import { POOLS } from './levels.js'
 import { assignFlowers, bedComplete, buildBoard, conflicts, isSolved, MAX_SEED } from './logic.js'
 import { GardenScene } from './scene.js'
-import { Sounds } from './sounds.js'
+import { GardenAudio } from './audio.js'
+import { t, LANGUAGES, language, setLanguage } from './i18n.js'
 import { PIPS, NUM } from './flowers.js'
 import './style.css'
 
 const STORAGE_KEY = 'flower-patch.v1'
-const POOL_NAMES = { easy: 'Easy', medium: 'Medium', hard: 'Hard' }
+const POOLS_ORDER = ['easy', 'medium', 'hard']
+const poolName = (pool) => t(`pool.${pool}`)
 // every level in play order, easy to hard, each knowing which pool it is in
 const LEVELS = Object.entries(POOLS).flatMap(([pool, levels]) => levels.map((level, k) => ({ ...level, pool, number: k + 1 })))
 
@@ -19,6 +21,9 @@ const ICON = {
   check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
   sound: '<path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/>',
   mute: '<path d="M11 5 6 9H2v6h4l5 4z"/><path d="m22 9-6 6M16 9l6 6"/>',
+  settings: '<path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
+  music: '<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>',
+  globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
   trowel: '<path d="M12.5 11.5 20 4"/><path d="M12.8 7.2 5 9.5c-1.6.5-2 2.5-.9 3.7l6.7 6.7c1.2 1.1 3.2.7 3.7-.9l2.3-7.8z"/>',
 }
 const icon = (name) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[name]}</svg>`
@@ -71,32 +76,42 @@ const seeds = (n) => `<span class="seeds" aria-hidden="true">${[0, 1, 2, 3].map(
 document.querySelector('#app').innerHTML = `
   <div class="app">
     <header>
-      <button class="badge" id="num" aria-label="Choose a garden">1</button>
+      <button class="badge" id="num" aria-label="${t('header.choose')}">1</button>
       <div class="titles"><h1 id="name"></h1><p id="prog"></p></div>
-      <button class="round" id="sound" aria-label="Sound">${icon('sound')}</button>
-      <button class="round" id="prev" aria-label="Previous garden">${icon('prev')}</button>
-      <button class="round" id="next" aria-label="Next garden">${icon('next')}</button>
+      <button class="round" id="settings" aria-label="${t('header.settings')}">${icon('settings')}</button>
+      <button class="round" id="prev" aria-label="${t('header.prev')}">${icon('prev')}</button>
+      <button class="round" id="next" aria-label="${t('header.next')}">${icon('next')}</button>
     </header>
     <div class="stage" id="stage"></div>
     <footer>
-      <div class="tray" id="tray" role="group" aria-label="Seeds"></div>
+      <div class="tray" id="tray" role="group" aria-label="${t('tray')}"></div>
       <div class="row">
-        <button class="chip" id="undo">${icon('undo')}<span>Undo</span></button>
-        <button class="chip dig" id="dig" data-seed="0" aria-label="Trowel: dig up a seed" aria-pressed="false">${icon('trowel')}<span>Dig</span></button>
-        <button class="chip" id="restart">${icon('restart')}<span>Restart</span></button>
+        <button class="chip" id="undo">${icon('undo')}<span>${t('undo')}</span></button>
+        <button class="chip dig" id="dig" data-seed="0" aria-label="${t('dig.label')}" aria-pressed="false">${icon('trowel')}<span>${t('dig')}</span></button>
+        <button class="chip" id="restart">${icon('restart')}<span>${t('restart')}</span></button>
       </div>
     </footer>
     <section class="picker" id="picker" hidden>
       <div class="sheet">
-        <div class="sheethead"><h2>Choose a garden</h2><button class="round" id="closepicker" aria-label="Close">${icon('close')}</button></div>
+        <div class="sheethead"><h2>${t('picker.title')}</h2><button class="round" id="closepicker" aria-label="${t('close')}">${icon('close')}</button></div>
         <div class="tabs" id="tabs" role="tablist"></div>
         <div class="grid" id="grid"></div>
       </div>
     </section>
     <section class="win" id="win" hidden>
-      <h2>In full bloom!</h2>
+      <h2>${t('win.title')}</h2>
       <p id="winmeta"></p>
-      <button class="chip go" id="winnext">Next garden</button>
+      <button class="chip go" id="winnext">${t('win.next')}</button>
+    </section>
+    <section class="picker" id="settingsheet" hidden>
+      <div class="sheet settings" role="dialog" aria-labelledby="settingstitle">
+        <div class="sheethead"><h2 id="settingstitle">${t('settings.title')}</h2><button class="round" id="closesettings" aria-label="${t('close')}">${icon('close')}</button></div>
+        <div class="setting"><label for="musicvol">${icon('music')}<span>${t('settings.music')}</span></label><input type="range" id="musicvol" min="0" max="100" step="5"><output id="musicval"></output></div>
+        <div class="setting"><label for="fxvol">${icon('sound')}<span>${t('settings.effects')}</span></label><input type="range" id="fxvol" min="0" max="100" step="5"><output id="fxval"></output></div>
+        <div class="setting"><label for="language">${icon('globe')}<span>${t('settings.language')}</span></label><select id="language">${Object.entries(LANGUAGES).map(([code, { name }]) => `<option value="${code}" lang="${code}"${code === language() ? ' selected' : ''}>${name}</option>`).join('')}</select></div>
+        <p class="note">${t('settings.languageNote')}</p>
+        <button class="chip go" id="settingsdone">${t('settings.done')}</button>
+      </div>
     </section>
   </div>`
 const $ = (id) => document.getElementById(id)
@@ -108,7 +123,8 @@ function loadSaved() {
 const saved = loadSaved()
 const save = () => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(saved)) } catch { /* private windows */ } }
 
-const sounds = new Sounds()
+const sounds = new GardenAudio()
+document.documentElement.lang = language()
 const scene = new GardenScene($('stage'))
 let levelIndex = Math.min(saved.level ?? 0, LEVELS.length - 1)
 let board, flowers, values, history, won, seed, complete, shown = 0
@@ -143,12 +159,14 @@ function start(index, { fresh = false } = {}) {
   drawTray()
   refresh(true)
   if (won) scene.celebrate()
+  // the music relaxes into the garden, or brightens for one in bloom
+  sounds.setMood(won ? 'bloom' : 'garden')
 }
 
 function drawTray() {
   const top = biggest()
   $('tray').innerHTML = Array.from({ length: top }, (_, k) => k + 1).map((n) =>
-    `<button class="packet" data-seed="${n}" aria-label="Seed ${n}" aria-pressed="${n === seed}">${bag(n)}${seeds(n)}<span>${n}</span></button>`).join('')
+    `<button class="packet" data-seed="${n}" aria-label="${t('seed', { n })}" aria-pressed="${n === seed}">${bag(n)}${seeds(n)}<span>${n}</span></button>`).join('')
   $('dig').setAttribute('aria-pressed', String(seed === 0))
 }
 
@@ -186,8 +204,8 @@ function refresh(quiet = false, origin = null) {
 }
 
 function showProgress() {
-  const pool = POOL_NAMES[LEVELS[levelIndex].pool]
-  $('prog').textContent = won ? `${pool} · all ${board.beds.length} beds in bloom` : `${pool} · ${shown} of ${board.beds.length} beds in flower`
+  const pool = poolName(LEVELS[levelIndex].pool)
+  $('prog').textContent = t(won ? 'progress.won' : 'progress', { pool, shown, beds: board.beds.length })
 }
 
 // A little flower flies from a bed that has just budded up to the count, which
@@ -284,7 +302,7 @@ function win() {
   sounds.win()
   setTimeout(() => {
     const kinds = new Set(flowers).size
-    $('winmeta').textContent = `${board.beds.length} beds of ${kinds} kinds of flower in ${LEVELS[levelIndex].name}.`
+    $('winmeta').textContent = t('win.meta', { beds: board.beds.length, kinds, name: LEVELS[levelIndex].name })
     $('win').hidden = false
   }, 3200)
 }
@@ -336,19 +354,47 @@ $('restart').onclick = () => {
   const label = $('restart').querySelector('span')
   if (!armed) {
     armed = true
-    label.textContent = 'Sure?'
-    setTimeout(() => { armed = false; label.textContent = 'Restart' }, 2200)
+    label.textContent = t('restart.sure')
+    setTimeout(() => { armed = false; label.textContent = t('restart') }, 2200)
     return
   }
   armed = false
-  label.textContent = 'Restart'
+  label.textContent = t('restart')
   delete saved.plots[LEVELS[levelIndex].id]
   save()
   start(levelIndex, { fresh: true })
 }
-const syncSound = () => { $('sound').innerHTML = icon(sounds.enabled ? 'sound' : 'mute') }
-$('sound').onclick = () => { sounds.unlock(); sounds.enabled = !sounds.enabled; syncSound() }
-syncSound()
+/* ---------- settings ---------- */
+// How loud the music and the sound effects are, and the language. Sliding a sound to nothing
+// turns it off; everything is remembered.
+function showSettings() {
+  for (const [id, out, value] of [['musicvol', 'musicval', sounds.musicVolume], ['fxvol', 'fxval', sounds.effectsVolume]]) {
+    const v = Math.round(value * 100)
+    $(id).value = v
+    $(id).style.setProperty('--fill', `${v}%`)
+    $(out).textContent = v ? `${v}%` : '—'
+  }
+}
+function openSettings() {
+  sounds.unlock()
+  sounds.play('open')
+  showSettings()
+  $('settingsheet').hidden = false
+}
+function closeSettings() {
+  sounds.play('close')
+  $('settingsheet').hidden = true
+}
+$('settings').onclick = openSettings
+$('closesettings').onclick = closeSettings
+$('settingsdone').onclick = closeSettings
+$('settingsheet').onclick = (ev) => { if (ev.target === $('settingsheet')) closeSettings() }
+$('musicvol').oninput = (ev) => { sounds.unlock(); sounds.setMusicVolume(ev.target.value / 100); showSettings() }
+$('fxvol').oninput = (ev) => { sounds.setEffectsVolume(ev.target.value / 100); showSettings() }
+// letting go of the effects slider plays a little tap at the new loudness
+$('fxvol').onchange = () => sounds.play('tap')
+// a new language reloads the game in it
+$('language').onchange = (ev) => { setLanguage(ev.target.value); location.reload() }
 addEventListener('keydown', (ev) => {
   if ((ev.ctrlKey || ev.metaKey) && ev.key === 'z') return void $('undo').click()
   const n = Number(ev.key)
@@ -359,7 +405,7 @@ addEventListener('keydown', (ev) => {
 /* ---------- choosing a level ---------- */
 let pickerPool = 'easy'
 function drawPicker() {
-  $('tabs').innerHTML = Object.entries(POOL_NAMES).map(([pool, label]) => {
+  $('tabs').innerHTML = POOLS_ORDER.map((pool) => [pool, poolName(pool)]).map(([pool, label]) => {
     const levels = LEVELS.filter((l) => l.pool === pool)
     const done = levels.filter((l) => saved.done.includes(l.id)).length
     return `<button role="tab" class="tab" data-pool="${pool}" aria-selected="${pool === pickerPool}">${label}<small>${done}/${levels.length}</small></button>`
@@ -367,7 +413,7 @@ function drawPicker() {
   $('grid').innerHTML = LEVELS.map((l, i) => [l, i]).filter(([l]) => l.pool === pickerPool).map(([l, i]) => {
     const done = saved.done.includes(l.id)
     const started = !done && saved.plots[l.id]
-    return `<button class="tile${done ? ' done' : ''}${i === levelIndex ? ' here' : ''}" data-index="${i}" aria-label="${l.name}, ${l.width} by ${l.height}${done ? ', in bloom' : started ? ', started' : ''}">
+    return `<button class="tile${done ? ' done' : ''}${i === levelIndex ? ' here' : ''}" data-index="${i}" aria-label="${t('picker.tile', { name: l.name, width: l.width, height: l.height })}${done ? t('picker.done') : started ? t('picker.started') : ''}">
       <span>${l.number}</span><small>${l.height}×${l.width}</small>${done ? `<i class="tick">${icon('check')}</i>` : ''}</button>`
   }).join('')
 }
@@ -406,7 +452,7 @@ requestAnimationFrame(frame)
 
 // Hooks for screenshots and checks.
 window.__garden = {
-  scene, start, plant, choose,
+  scene, sounds, start, plant, choose,
   get board() { return board },
   get values() { return values },
   // plant the whole solution, or all but the last `leave` cells
