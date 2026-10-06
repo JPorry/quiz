@@ -48,7 +48,8 @@ button:focus-visible { outline: 3px solid #ffd166; outline-offset: 2px; }
 .stage::before, .stage::after { content: ''; position: absolute; left: 0; right: 0; height: 28px; pointer-events: none; z-index: 1; }
 .stage::before { top: 0; background: linear-gradient(var(--meadow), transparent); }
 .stage::after { bottom: 0; background: linear-gradient(transparent, var(--lawn)); }
-footer { padding: 4px 12px max(14px, env(safe-area-inset-bottom)); display: grid; gap: 10px; justify-items: center; }
+/* above the garden's soft bottom fade, so a hopping bag is never cut off */
+footer { position: relative; z-index: 2; padding: 4px 12px max(14px, env(safe-area-inset-bottom)); display: grid; gap: 10px; justify-items: center; }
 /* seed bags: a plump little sack of seeds in each number's colour, tied with
    twine, a seedling peeking out and the die face on its label */
 .tray { display: flex; gap: 2px; justify-content: center; align-items: flex-end; flex-wrap: nowrap; width: 100%; max-width: 360px; }
