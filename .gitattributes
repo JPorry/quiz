@@ -1,0 +1,2 @@
+# Preserve the generated legacy demo exactly and keep bundled code out of diffs.
+public/flower-patch/assets/* -text -diff linguist-generated=true
