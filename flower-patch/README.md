@@ -27,19 +27,23 @@ hooks for checks: `start(index)`, `solve(leave)` and `advance(seconds)`.
 ## How it looks
 
 The garden is a tilted diorama seen through a fixed orthographic camera. Each
-bed is a planter: soil sunk inside a terracotta brick wall of four courses laid
-like a real wall, each shifted half a brick, with cream mortar between, running
-from the lawn to a rim well above the soil. Pips sit a little in from each
-plot's edges, so sprouts, buds and labels always stay inside the wall, with a strip of striped lawn between beds, so the
-regions read at a glance.
+bed is a soft, pillowy mound of soil with no wall: its outline follows the bed's
+plots with generously rounded corners, and the soil rounds over a shoulder at
+the edge and comes down onto the lawn, which runs between beds as a grass path
+with a soft contact shadow along each side. Pips sit a little in from each
+plot's edges, so sprouts, buds and labels always stay on the bed, and the paths
+make the regions read at a glance.
 
 The soil is a real surface, not a picture (`soilSurface` in `src/garden.js`):
 every plot is a soft, rounded mound of earth, highest in the middle where its
-plants grow, dipping into a furrow where it meets the next plot and settling
-lower against the wall, with small lumps all over. It is shaded by its own
-shape (furrows and the foot of the wall darker, crowns lighter), mottled with
-damper and drier patches, and scattered with little clods. When a bed flowers,
-the same mounds turn into soft green cushions of moss. A white picket fence, bushes, mushrooms, and a watering can sit around the edge.
+plants grow, dipping into a furrow where it meets the next plot, with small
+lumps all over. At the bed's edge it follows a quarter round down to the path,
+measured from the bed's rounded outline (`edgeDistance`), and points that fall
+out on the path are pulled onto the outline so the edge is a smooth curve. It
+is shaded by its own shape (furrows and the shoulder darker, crowns lighter),
+mottled with damper and drier patches, and scattered with little clods. When a bed flowers,
+the same mounds turn into soft green cushions of moss, all but a rim of soil down
+the rounded edge, so every bed keeps its outline against the grass paths. A white picket fence, bushes, mushrooms, and a watering can sit around the edge.
 Rows stretch a little to make up for the tilt, so plots look square and the
 garden fills a tall phone.
 

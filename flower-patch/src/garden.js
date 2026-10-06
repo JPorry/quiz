@@ -4,8 +4,9 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import { toon, part, baked, canvasTexture, seeded } from './look.js'
 import { palette } from './flowers.js'
 
-// The garden around the plants: raised beds of soil walled in brick, a striped
-// lawn between them, a picket fence, and a few things left lying about.
+// The garden around the plants: beds of soil heaped into soft, rounded mounds
+// with paths of striped lawn between them, a picket fence, and a few things left
+// lying about.
 
 export const SOIL_Y = 0.16
 const GAP = 0.055 // half the strip of lawn between two beds
@@ -67,6 +68,25 @@ function bedShape(cells, width, height, gap = GAP, round = 0.16) {
   return shape
 }
 
+// How far (x, z) lies inside a bed's rounded outline, in plot units from the
+// board's corner: positive inside, negative out on the path.
+function edgeDistance(cells, width, height, gap, round) {
+  const pts = bedShape(cells, width, height, gap, round).getPoints(8).map((p) => [p.x + width / 2, height / 2 - p.y])
+  const distance = (x, z) => {
+    let best = Infinity, inside = false, near = null
+    for (let k = 0, j = pts.length - 1; k < pts.length; j = k++) {
+      const [ax, az] = pts[j], [bx, bz] = pts[k]
+      if ((az > z) !== (bz > z) && x < ax + ((z - az) / (bz - az)) * (bx - ax)) inside = !inside
+      const dx = bx - ax, dz = bz - az
+      const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz || 1)))
+      const d = Math.hypot(x - ax - t * dx, z - az - t * dz)
+      if (d < best) { best = d; near = [ax + t * dx, az + t * dz] }
+    }
+    return { d: inside ? best : -best, near }
+  }
+  return distance
+}
+
 // The shape extruded and turned to lie on the lawn, its top at SOIL_Y.
 function bedGeometry(shape, width, height, { depth = SOIL_Y, bevel = 0, size = 0, segments = 1 } = {}) {
   const g = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: bevel > 0, bevelThickness: bevel, bevelSize: size, bevelSegments: segments, curveSegments: 6 })
@@ -77,28 +97,11 @@ function bedGeometry(shape, width, height, { depth = SOIL_Y, bevel = 0, size = 0
   return g
 }
 
-// A brick wall all round a bed, from the lawn up to just above the soil, in
-// courses laid like a real wall, each one shifted half a brick.
-const BRICK = new RoundedBoxGeometry(1, 1, 1, 1, 0.18)
-const BRICK_COLORS = [0xe98a62, 0xdb7a57, 0xf09a70, 0xe0845e]
-// the wall stands well above the soil, so every bed reads as a planter
-const WALL_ABOVE = 0.08
-const COURSES = 4
-const COURSE = (SOIL_Y + WALL_ABOVE) / COURSES
-
-function wall(shape, rand) {
-  const parts = []
-  const n = Math.max(8, Math.round(shape.getLength() / 0.1))
-  for (let c = 0; c < COURSES; c++) {
-    for (let k = 0; k < n; k++) {
-      const u = ((k + (c % 2) * 0.5) / n) % 1
-      const p = shape.getPointAt(u), t = shape.getTangentAt(u)
-      const color = BRICK_COLORS[Math.floor(rand() * BRICK_COLORS.length)]
-      parts.push(part(BRICK, color, [p.x, COURSE * (c + 0.5), -p.y], [shape.getLength() / n - 0.008, COURSE - 0.006, 0.07], [0, Math.atan2(t.y, t.x), 0]))
-    }
-  }
-  return parts
-}
+// Each bed is a soft mound of earth: the soil rounds over at its edge like a
+// pillow and comes down onto the lawn, which runs between beds as a path, so
+// neighbours never crowd each other.
+const SHOULDER = 0.2 // how far in from the bed's edge the soil starts to round over
+const DROP = 0.13 // how far it falls over that shoulder
 
 function speckle(g, x, y, w, h, colors, n, rand, size = 2.2) {
   for (let k = 0; k < n; k++) {
@@ -176,30 +179,29 @@ function noise(seed) {
   }
 }
 
-const SOIL_IN = 0.115 // how far the soil keeps in from a bed's edge: the inside of the wall
+const SOIL_IN = 0.1 // how far the soil keeps in from a bed's edge: half the path between beds
+const LAWN_TOP = 0.014 // the turf's top, where the soil meets the path
 const SOIL_RES = 14 // grid steps per plot
 
 // The height of the soil at (x, z), in plot units from the board's corner, as
 // an offset from SOIL_Y. Every plot is a soft mound, highest in its middle
 // where the plants grow, dipping into a furrow where it meets the next plot and
-// settling lower against the wall, with small lumps all over.
-function soilHeight(board, lumps) {
+// rolling down over the mound's shoulder at the bed's edge, with small lumps all over.
+function soilHeight(board, lumps, edge) {
   return (x, z) => {
     const c = Math.min(board.width - 1, Math.max(0, Math.floor(x))), r = Math.min(board.height - 1, Math.max(0, Math.floor(z)))
     const fx = x - c, fz = z - r
     // a rounded crown: flat-ish on top, falling away towards the plot's sides
     const crown = Math.pow(Math.max(0, Math.sin(Math.PI * fx)), 0.6) * Math.pow(Math.max(0, Math.sin(Math.PI * fz)), 0.6)
-    // how close to a wall: sides that face another bed or the edge of the board
-    const i = r * board.width + c, b = board.bedOf[i]
-    const open = (dc, dr) => { const cc = c + dc, rr = r + dr; return cc >= 0 && cc < board.width && rr >= 0 && rr < board.height && board.bedOf[rr * board.width + cc] === b }
-    let wall = 9
-    if (!open(-1, 0)) wall = Math.min(wall, fx - SOIL_IN)
-    if (!open(1, 0)) wall = Math.min(wall, 1 - SOIL_IN - fx)
-    if (!open(0, -1)) wall = Math.min(wall, fz - SOIL_IN)
-    if (!open(0, 1)) wall = Math.min(wall, 1 - SOIL_IN - fz)
-    const nearWall = 1 - Math.min(1, Math.max(0, wall) / 0.16)
+    // how far in from the bed's rounded edge
+    const wall = edge(x, z).d
+    // a quarter round: flat until the shoulder, then curving down to the lawn
+    const k = 1 - Math.min(1, Math.max(0, wall) / SHOULDER)
+    const nearWall = 1 - Math.sqrt(Math.max(0, 1 - k * k))
     const lump = (lumps(x * 5, z * 5) - 0.5) * 0.02 + (lumps(x * 13 + 7, z * 13 + 3) - 0.5) * 0.008
-    return { h: -0.055 * (1 - crown) - 0.02 * nearWall * nearWall + lump * (0.5 + 0.5 * (1 - crown)), crown, nearWall }
+    // the plots' own crowns and furrows soften out on the shoulder
+    const h = (-0.055 * (1 - crown) + lump * (0.5 + 0.5 * (1 - crown))) * (1 - 0.6 * nearWall) - DROP * nearWall
+    return { h: Math.max(h, LAWN_TOP - SOIL_Y), crown, nearWall, out: wall < 0 }
   }
 }
 
@@ -210,19 +212,24 @@ const CLOD = new THREE.IcosahedronGeometry(1, 1)
 // lighter), with little clods of earth scattered over it.
 export function soilSurface(board, cells, seed) {
   const lumps = noise(seed)
-  const height = soilHeight(board, lumps)
-  const pos = [], nor = [], col = [], uv = [], idx = []
-  const tone = (crown, nearWall) => 0.7 + 0.4 * Math.sqrt(crown) - 0.18 * nearWall
+  const edge = edgeDistance(cells, board.width, board.height, SOIL_IN, 0.3)
+  const height = soilHeight(board, lumps, edge)
+  const pos = [], nor = [], col = [], uv = [], rim = [], idx = []
+  const tone = (crown, nearWall) => 0.7 + 0.4 * Math.sqrt(crown) - 0.45 * nearWall * nearWall
   for (const i of cells) {
-    const c = i % board.width, r = Math.floor(i / board.width), b = board.bedOf[i]
-    const open = (dc, dr) => { const cc = c + dc, rr = r + dr; return cc >= 0 && cc < board.width && rr >= 0 && rr < board.height && board.bedOf[rr * board.width + cc] === b }
-    const x0 = c + (open(-1, 0) ? 0 : SOIL_IN), x1 = c + 1 - (open(1, 0) ? 0 : SOIL_IN)
-    const z0 = r + (open(0, -1) ? 0 : SOIL_IN), z1 = r + 1 - (open(0, 1) ? 0 : SOIL_IN)
+    const c = i % board.width, r = Math.floor(i / board.width)
+    const x0 = c, x1 = c + 1, z0 = r, z1 = r + 1
     const start = pos.length / 3
+    const out = []
     for (let k = 0; k <= SOIL_RES; k++) {
       for (let j = 0; j <= SOIL_RES; j++) {
-        const x = x0 + (x1 - x0) * (j / SOIL_RES), z = z0 + (z1 - z0) * (k / SOIL_RES)
+        let x = x0 + (x1 - x0) * (j / SOIL_RES), z = z0 + (z1 - z0) * (k / SOIL_RES)
+        // a point out on the path is pulled onto the bed's edge, so the edge is a smooth curve
+        const { d, near } = edge(x, z)
+        if (d < 0) [x, z] = near
         const { h, crown, nearWall } = height(x, z)
+        const away = d < 0
+        out.push(away)
         // the normal from the slope of the surface, so plots join without seams
         const e = 0.01
         const dx = (height(x + e, z).h - height(x - e, z).h) / (2 * e), dz = (height(x, z + e).h - height(x, z - e).h) / (2 * e)
@@ -232,12 +239,15 @@ export function soilSurface(board, cells, seed) {
         const t = tone(crown, nearWall)
         col.push(t, t * 0.98, t * 0.96)
         uv.push(x / board.width, 1 - z / board.height)
+        rim.push(nearWall)
       }
     }
     const row = SOIL_RES + 1
     for (let k = 0; k < SOIL_RES; k++) {
       for (let j = 0; j < SOIL_RES; j++) {
-        const a = start + k * row + j
+        const a = start + k * row + j, o = a - start
+        // out on the path the soil is flat on the lawn: leave it to the lawn
+        if (out[o] && out[o + 1] && out[o + row] && out[o + row + 1]) continue
         idx.push(a, a + row, a + 1, a + 1, a + row, a + row + 1)
       }
     }
@@ -247,6 +257,7 @@ export function soilSurface(board, cells, seed) {
   g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3))
   g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3))
   g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2))
+  g.setAttribute('rim', new THREE.Float32BufferAttribute(rim, 1))
   g.setIndex(idx)
   // clods: small rounded lumps of earth sitting on the surface
   const rand = seeded(seed + 31)
@@ -255,7 +266,8 @@ export function soilSurface(board, cells, seed) {
     const c = i % board.width, r = Math.floor(i / board.width)
     for (let k = 0; k < 11; k++) {
       const x = c + 0.12 + rand() * 0.76, z = r + 0.12 + rand() * 0.76
-      const { h, crown, nearWall } = height(x, z)
+      const { h, crown, nearWall, out: away } = height(x, z)
+      if (away || nearWall > 0.6) continue
       const size = 0.014 + rand() * 0.026
       const m = new THREE.Matrix4().compose(
         new THREE.Vector3(x - board.width / 2, SOIL_Y + h + size * 0.25, z - board.height / 2),
@@ -269,6 +281,7 @@ export function soilSurface(board, cells, seed) {
       const cu = new Float32Array(n * 2)
       for (let v = 0; v < n; v++) { cu[v * 2] = (clod.attributes.position.getX(v) + board.width / 2) / board.width; cu[v * 2 + 1] = 1 - (clod.attributes.position.getZ(v) + board.height / 2) / board.height }
       clod.setAttribute('uv', new THREE.BufferAttribute(cu, 2))
+      clod.setAttribute('rim', new THREE.BufferAttribute(new Float32Array(n), 1))
       clods.push(clod)
     }
   }
@@ -295,15 +308,21 @@ function bedMaterial(soil, carpet, width, height) {
     shader.uniforms.windDir = WIND.dir
     shader.uniforms.windFront = WIND.front
     shader.uniforms.windOn = WIND.on
+    // how far down the bed's rounded edge a point is: the edge stays soil when
+    // the bed flowers, so every bed keeps its outline against the grass paths
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nattribute float rim;\nvarying float vRim;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvRim = rim;')
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform sampler2D carpet;\nuniform float grow;\nuniform vec2 origin;\nuniform float reach;\nuniform vec2 board;\nuniform vec2 windDir;\nuniform float windFront;\nuniform float windOn;')
+      .replace('#include <common>', '#include <common>\nvarying float vRim;\nuniform sampler2D carpet;\nuniform float grow;\nuniform vec2 origin;\nuniform float reach;\nuniform vec2 board;\nuniform vec2 windDir;\nuniform float windFront;\nuniform float windOn;')
       .replace('#include <map_fragment>', `#include <map_fragment>
         vec4 carpetColor = texture2D(carpet, vMapUv);
         float away = distance(vec2(vMapUv.x, 1.0 - vMapUv.y) * board, origin);
         float spread = 1.0 - smoothstep(reach - 0.35, reach, away);
         // a bright edge rides the front of the spreading carpet
         float edge = smoothstep(reach - 0.35, reach - 0.15, away) * spread * step(reach, 6.0);
-        diffuseColor.rgb = mix(diffuseColor.rgb, carpetColor.rgb, grow * spread) + vec3(0.18, 0.2, 0.08) * edge * grow;
+        float inner = 1.0 - smoothstep(0.1, 0.3, vRim);
+        diffuseColor.rgb = mix(diffuseColor.rgb, carpetColor.rgb, grow * spread * inner) + vec3(0.18, 0.2, 0.08) * edge * grow * inner;
         // the wind's ripple: a soft light band, brighter on the green
         vec2 here = vec2(vMapUv.x, 1.0 - vMapUv.y) * board - board * 0.5;
         float behind = windFront - dot(here, windDir);
@@ -402,25 +421,24 @@ export function buildGarden(board, flowers, fixed, seed) {
   const group = new THREE.Group()
   const soil = soilTexture(board, seed, fixed)
   const carpet = carpetTexture(board, flowers, seed)
-  // the mortar between the bricks; the soil's own sides hide behind the wall
-  const mortar = toon(0xf1e2cf, { rim: 0.1 })
-  const deep = toon(0x5e3b25, { rim: 0 })
-  const rand = seeded(seed + 11)
-  const bricks = []
+  // the mound's earthy sides, a little darker than the tilled soil on top
+  const earth = toon(0x8f5d3c, { rim: 0.18 })
+  const groundShade = new THREE.MeshBasicMaterial({ color: 0x3f7a2c, transparent: true, opacity: 0.28, depthWrite: false })
   const beds = board.beds.map((cells) => {
     const material = bedMaterial(soil, carpet, board.width, board.height)
-    const shape = bedShape(cells, board.width, board.height, 0.08, 0.2)
-    // a plain block of earth under the shaped surface, hidden by the wall
-    const base = new THREE.Mesh(bedGeometry(shape, board.width, board.height, { depth: SOIL_Y - 0.05, bevel: 0 }), [deep, mortar])
-    group.add(base)
-    bricks.push(...wall(shape, rand))
+    // a block of earth under the soil, so no lawn shows through between plots
+    const shape = bedShape(cells, board.width, board.height, SOIL_IN + 0.06, 0.2)
+    group.add(new THREE.Mesh(bedGeometry(shape, board.width, board.height, { depth: SOIL_Y - 0.09 }), earth))
+    // a soft contact shadow on the path all round the mound
+    const shade = new THREE.Mesh(new THREE.ShapeGeometry(bedShape(cells, board.width, board.height, SOIL_IN - 0.04, 0.34), 6).rotateX(-Math.PI / 2), groundShade)
+    shade.position.y = LAWN_TOP + 0.001
+    group.add(shade)
     const mesh = new THREE.Mesh(soilSurface(board, cells, seed + cells[0]), material)
     mesh.receiveShadow = true
     mesh.castShadow = true
     group.add(mesh)
     return { mesh, material }
   })
-  group.add(baked(bricks, { line: 0x8a4a3a, width: 0.004 }))
   const lawn = new THREE.Mesh(new THREE.PlaneGeometry(40, 40).rotateX(-Math.PI / 2), toon(0xffffff, { rim: 0 }).clone())
   lawn.material.map = lawnTexture(seed)
   lawn.material.map.wrapS = lawn.material.map.wrapT = THREE.RepeatWrapping
