@@ -428,7 +428,7 @@ footer { position: relative; z-index: 2; padding: 4px 12px max(14px, env(safe-ar
 }
 @keyframes title-in { from { opacity: 0; transform: translateY(-14px) scale(.9); } }
 .homehead { align-items: center; }
-.homehead .brand, .dayshead .titles { display: grid; justify-items: start; gap: 6px; }
+.homehead .brand, .dayshead .titles { display: grid; justify-items: start; gap: 12px; }
 .date { margin: 0 !important; }
 .date span { display: inline-block; padding: 3px 12px; border-radius: 99px; background: rgba(255, 252, 242, .9); font: 700 13px var(--body); color: #4f7a3d; box-shadow: 0 2px 0 rgba(60, 110, 40, .2); }
 .home .round, .dayspage .round { background: #fffaf0; box-shadow: 0 4px 0 #cfdcbf, 0 8px 16px rgba(50, 80, 40, .18); }
