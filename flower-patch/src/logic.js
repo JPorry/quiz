@@ -296,9 +296,9 @@ export function playerSolve(board, givens = board.givens, allow = TECHNIQUES) {
 // Single-cell beds always grow a sunflower. Every other bed gets one of nine
 // flowers, never the same as a bed it touches (even at a corner), picking
 // colours far from its neighbours' and spreading the flowers around evenly.
-export const FLOWERS = ['tulip', 'marigold', 'buttercup', 'daisy', 'forgetmenot', 'cornflower', 'lavender', 'pansy', 'rose']
+export const FLOWERS = ['tulip', 'marigold', 'buttercup', 'daisy', 'poppy', 'cornflower', 'lavender', 'pansy', 'rose']
 // where each flower's colour sits on the colour wheel, in degrees; the daisy is white
-const HUE = { tulip: 350, marigold: 30, buttercup: 52, daisy: 180, forgetmenot: 200, cornflower: 226, lavender: 268, pansy: 285, rose: 325 }
+const HUE = { tulip: 350, marigold: 30, buttercup: 52, daisy: 180, poppy: 200, cornflower: 226, lavender: 268, pansy: 285, rose: 325 }
 
 export function bedNeighbors(board) {
   const near = board.beds.map(() => new Set())
