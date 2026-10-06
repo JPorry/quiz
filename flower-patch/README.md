@@ -47,8 +47,8 @@ Around the fence is a little world (`src/world.js`) that fills whatever lawn the
 screen shows: a cottage with a round roof and a puffing chimney behind the
 garden, puffy trees (some in pink blossom), flowering bushes, spotted mushrooms,
 a gnome, stepping stones leading down from the garden, and a pond with lily pads
-and a paddling duck. Bunnies hop about and stop to look around, a snail glides
-along, and ladybirds scurry in loops, each with a soft round shadow. Tap a
+and a paddling duck. A bunny hops about and stops to look around, a snail glides
+along, and a ladybird or two scurry in loops, each with a soft round shadow. Tap a
 critter and it jumps. Everything is chunky and round with sticker outlines.
 
 A seed shows as tiny green seedlings laid out like a die's pips
@@ -109,7 +109,10 @@ top of its head, so they never pass through a flower:
   flower, close up and potter round its petals.
 
 Now and then a newly opened flower draws a visitor, who stops at a few flowers
-and wanders off again. Tap the lawn near a critter to make it jump.
+and wanders off again. Visitors give each other room: no two land on the same
+flower, and any that fly too close drift apart. On the lawn, critters never
+walk into trees, bushes or each other: each picks a spot it can reach with a
+clear path, away from where the others are and are heading. Tap the lawn near a critter to make it jump.
 
 Now and then (every 7 to 17 seconds, at random) a gentle breeze drifts across
 the garden from a random direction. A faint light ripple rolls slowly over the
