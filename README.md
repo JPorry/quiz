@@ -96,3 +96,15 @@ The same deployment builds the standalone Tidal Garden project in
 in `bunny-burrows/`, is built (after its tests pass) and published under
 `/bunny-burrows/` the same way. Tiny Isles, in `tiny-isles/`, is
 published under `/tiny-isles/` the same way.
+
+## Flower Patch
+
+Flower Patch now lives in its own repository:
+[JPorry/flower-patch](https://github.com/JPorry/flower-patch). Its source,
+assets, puzzle generators, tests, and project history have moved there.
+
+The existing `/flower-patch/` web demo remains available as a static snapshot in
+`public/flower-patch/`, built from the standalone repository's commit
+`5188f1e3f8a1dddf2870b60cc1ce0b3fc834e902`. Vite copies this snapshot into the
+Pages build. Further Flower Patch development happens in the new repository;
+the demo is no longer rebuilt as part of this project.
