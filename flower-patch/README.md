@@ -174,7 +174,8 @@ Pick a bag of seeds, then tap a plot to plant it. Each bag is a plump little sac
 plot again with the same packet, or pick Dig (the trowel), to dig it up. A seed too big
 for its bed is refused. Undo, Dig and Flags sit under the bags, which
 fill the width of the screen; Restart (tap twice; it asks "Sure?") sits up top
-by Settings. There is no help text, the garden speaks for itself. Keys 1 to 6
+by Settings. Settings holds the music and effects volumes, the language, and
+Replay the tutorial. There is no help text, the garden speaks for itself. Keys 1 to 6
 pick a packet, 0 or Backspace the trowel, F (or M) toggles flags, and Ctrl+Z undoes.
 
 **Flags** are notes. The Flags button swaps the seed bags for little garden flags,
@@ -188,6 +189,33 @@ plot's flags and that seed's flag from every plot it rules out (the rest of its
 bed and the eight around it); undo puts them all back in one go. Flags are saved
 with the garden. Every
 garden remembers what was planted, and a solved garden opens in bloom.
+
+## Tutorial
+
+The first garden a new player opens teaches the game on their own board, after
+Tidal Garden's coach (`src/tutorial.js`). A card between the header and the
+garden takes one idea at a time:
+
+1. **Welcome**: beds, plots, and filling every bed to make it bloom.
+2. **One of each**: a bed of N plots grows 1 to N. Shown on a bed with one plot
+   left if there is one, otherwise on a seed with only one plot left in its bed
+   (the seeds next door that keep it out of the others are ringed).
+3. **Never side by side**: the same seed never touches, not even at a corner.
+   Shown on a plot its bed leaves open to several seeds, where the seeds next
+   door (ringed) rule out all but one.
+4. **Flags for notes**: a seed that can only go in one of two plots of a bed;
+   the coach has the player tap Flags, pick that flag and mark both plots.
+5. **Back to the seeds**: flags are pulled up for you when you plant; tap Flags
+   to bring the bags back.
+6. **You're ready**: drooping sprouts, Undo, and three gardens a day.
+
+The coach points the way like Tidal Garden's: the bag, flag or button to pick
+bounces with a golden glow, the plot to tap wears a pulsing gold frame, and the
+plots that decide it wear cream ones. Every lesson's move matches the garden's
+solution; when the board doesn't show an idea yet, the card says to keep going
+until it does. It can be skipped, ends if the garden blooms, and is remembered
+once done (`flower-patch.tutorial`). **Replay the tutorial** in Settings starts
+it again from the welcome, in today's easy garden, cleared for it.
 
 ## Three gardens a day
 
