@@ -100,7 +100,7 @@ function bedGeometry(shape, width, height, { depth = SOIL_Y, bevel = 0, size = 0
 // Each bed is a soft mound of earth: the soil rounds over at its edge like a
 // pillow and comes down onto the lawn, which runs between beds as a path, so
 // neighbours never crowd each other.
-const SHOULDER = 0.2 // how far in from the bed's edge the soil starts to round over
+const SHOULDER = 0.15 // how far in from the bed's edge the soil starts to round over
 const DROP = 0.13 // how far it falls over that shoulder
 
 function speckle(g, x, y, w, h, colors, n, rand, size = 2.2) {
@@ -179,7 +179,7 @@ function noise(seed) {
   }
 }
 
-const SOIL_IN = 0.1 // how far the soil keeps in from a bed's edge: half the path between beds
+const SOIL_IN = 0.045 // how far the soil keeps in from a bed's edge: half the path between beds
 const LAWN_TOP = 0.014 // the turf's top, where the soil meets the path
 const SOIL_RES = 14 // grid steps per plot
 
@@ -212,7 +212,7 @@ const CLOD = new THREE.IcosahedronGeometry(1, 1)
 // lighter), with little clods of earth scattered over it.
 export function soilSurface(board, cells, seed) {
   const lumps = noise(seed)
-  const edge = edgeDistance(cells, board.width, board.height, SOIL_IN, 0.3)
+  const edge = edgeDistance(cells, board.width, board.height, SOIL_IN, 0.26)
   const height = soilHeight(board, lumps, edge)
   const pos = [], nor = [], col = [], uv = [], rim = [], idx = []
   const tone = (crown, nearWall) => 0.7 + 0.4 * Math.sqrt(crown) - 0.45 * nearWall * nearWall
@@ -427,10 +427,10 @@ export function buildGarden(board, flowers, fixed, seed) {
   const beds = board.beds.map((cells) => {
     const material = bedMaterial(soil, carpet, board.width, board.height)
     // a block of earth under the soil, so no lawn shows through between plots
-    const shape = bedShape(cells, board.width, board.height, SOIL_IN + 0.06, 0.2)
+    const shape = bedShape(cells, board.width, board.height, SOIL_IN + 0.05, 0.2)
     group.add(new THREE.Mesh(bedGeometry(shape, board.width, board.height, { depth: SOIL_Y - 0.09 }), earth))
     // a soft contact shadow on the path all round the mound
-    const shade = new THREE.Mesh(new THREE.ShapeGeometry(bedShape(cells, board.width, board.height, SOIL_IN - 0.04, 0.34), 6).rotateX(-Math.PI / 2), groundShade)
+    const shade = new THREE.Mesh(new THREE.ShapeGeometry(bedShape(cells, board.width, board.height, SOIL_IN - 0.025, 0.3), 6).rotateX(-Math.PI / 2), groundShade)
     shade.position.y = LAWN_TOP + 0.001
     group.add(shade)
     const mesh = new THREE.Mesh(soilSurface(board, cells, seed + cells[0]), material)
