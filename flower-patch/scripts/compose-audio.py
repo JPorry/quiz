@@ -444,8 +444,8 @@ def effects():
         # A bed comes into flower: a little harp run that climbs with the bed's size, and a sparkle.
         run = [(i * 0.07, 1.4, 0, SCALE[i + n // 2], 66 + i * 3) for i in range(4)]
         sfx[f'bed-{n}'] = (notes_sfx(run + [(0.3, 1.6, 1, SCALE[n + 6], 52)], {0: HARP, 1: CELESTA}, reverb=0.6), 0.6)
-    # The soil swells and cracks as a seedling wakes.
-    sfx['sprout'] = (mix(hush(0.3, 700, 3200, 0.35, attack=0.04, rng=np.random.default_rng(SEED + 9)), bubble(520, 0.12, 0.18), at=[0, 0.08]), 0.24)
+    # The soil gives way as a seedling wakes: two soft little bubbles, no rustle or swoosh.
+    sfx['sprout'] = (mix(bubble(midi_hz(SCALE[0]), 0.1, 0.3), bubble(midi_hz(SCALE[2]), 0.11, 0.22), at=[0, 0.07]), 0.2)
     for r in range(6):
         # A plant pops into flower: a round little pop and a plucked note, rising with each plant.
         sfx[f'bud-{r}'] = (mix(bubble(midi_hz(SCALE[r]) * 0.5, 0.08, 0.35), notes_sfx([(0.01, 0.6, 0, SCALE[r + 2], 70)], {0: PIZZICATO})), 0.5)

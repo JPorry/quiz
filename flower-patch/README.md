@@ -166,7 +166,7 @@ brighter one plays for a garden in full bloom. Everything is in G major and ever
 pentatonic scale, so the effects (picking a bag, planting, a seedling waking, a bed flowering,
 digging, the finale, a gust of wind, and so on) always sit inside the music. Planting is a tiny
 bright plip, a soft kalimba note and a celesta twinkle an octave up, with no thump, so it sounds
-like a seed rather than a knock; a seedling waking is a light airy rustle and a little bubble. The files live in
+like a seed rather than a knock; a seedling waking is two soft little bubbles, with no rustle. The files live in
 `public/audio/` and `src/audioManifest.js` lists them; `src/audio.js` plays them.
 
 The gear in the header opens Settings: a Music and an Effects slider (sliding to nothing turns
