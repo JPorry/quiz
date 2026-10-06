@@ -433,16 +433,19 @@ def effects():
         note = SCALE[n + 1]
         # Picking a bag: a paper rustle and a soft wooden note, higher for bigger seeds.
         sfx[f'pick-{n}'] = (mix(rustle(0.12, 0.25), notes_sfx([(0, 0.4, 0, note, 74)], {0: MARIMBA})), 0.5)
-        # Planting: a soft pat of earth and a warm kalimba note for the seed.
-        sfx[f'plant-{n}'] = (mix(tone(150, 85, 0.18, 0.7, attack=0.006), soil(0.15, 0.25),
-                                 notes_sfx([(0.01, 0.7, 0, SCALE[n - 1], 66)], {0: KALIMBA}), at=[0, 0, 0.01]), 0.55)
+        # Planting: a tiny bright plip as the seed drops in, a soft kalimba note
+        # with a celesta twinkle an octave up, and the faintest brush of earth.
+        # No thump: it should sound like a seed, not a knock.
+        plip = mix(tone(900, 1700, 0.05, 0.22, attack=0.003), tone(1300, 2300, 0.04, 0.1, attack=0.003), at=[0, 0.03])
+        sfx[f'plant-{n}'] = (mix(plip, notes_sfx([(0, 0.7, 0, SCALE[n - 1], 54), (0.02, 0.8, 1, SCALE[n - 1] + 12, 40)], {0: KALIMBA, 1: CELESTA}, reverb=0.55),
+                                 hush(0.12, 1800, 6000, 0.05, attack=0.01, rng=np.random.default_rng(SEED + n)), at=[0, 0.005, 0]), 0.42)
         # A seedling opens its leaves: a tiny bright chirp of two music box notes.
         sfx[f'awake-{n}'] = (notes_sfx([(0, 0.5, 0, note + 12, 62), (0.07, 0.6, 0, SCALE[n + 3] + 12, 66)], {0: MUSIC_BOX}, reverb=0.5), 0.42)
         # A bed comes into flower: a little harp run that climbs with the bed's size, and a sparkle.
         run = [(i * 0.07, 1.4, 0, SCALE[i + n // 2], 66 + i * 3) for i in range(4)]
         sfx[f'bed-{n}'] = (notes_sfx(run + [(0.3, 1.6, 1, SCALE[n + 6], 52)], {0: HARP, 1: CELESTA}, reverb=0.6), 0.6)
-    # The soil swells and cracks as a seedling wakes.
-    sfx['sprout'] = (mix(soil(0.35, 0.6), tone(110, 160, 0.25, 0.3, attack=0.05)), 0.32)
+    # The soil gives way as a seedling wakes: two soft little bubbles, no rustle or swoosh.
+    sfx['sprout'] = (mix(bubble(midi_hz(SCALE[0]), 0.1, 0.3), bubble(midi_hz(SCALE[2]), 0.11, 0.22), at=[0, 0.07]), 0.2)
     for r in range(6):
         # A plant pops into flower: a round little pop and a plucked note, rising with each plant.
         sfx[f'bud-{r}'] = (mix(bubble(midi_hz(SCALE[r]) * 0.5, 0.08, 0.35), notes_sfx([(0.01, 0.6, 0, SCALE[r + 2], 70)], {0: PIZZICATO})), 0.5)
