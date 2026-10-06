@@ -528,3 +528,15 @@ footer { position: relative; z-index: 2; padding: 4px 12px max(14px, env(safe-ar
   background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 34'%3E%3Cg stroke='%233f6b34' stroke-width='1.6' stroke-linejoin='round'%3E%3Cpath d='M58 26 C44 12 26 12 18 20 C28 30 46 32 58 26Z' fill='%238fd06a'/%3E%3Cpath d='M62 26 C76 12 94 12 102 20 C92 30 74 32 62 26Z' fill='%23a6e07a'/%3E%3Cpath d='M60 24 C54 12 56 4 60 2 C64 4 66 12 60 24Z' fill='%237cc35a'/%3E%3C/g%3E%3Cg stroke='%23b0476e' stroke-width='1'%3E%3Ccircle cx='60' cy='22' r='5' fill='%23ffb3c6'/%3E%3C/g%3E%3Ccircle cx='60' cy='22' r='2.2' fill='%23ffe27a'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 .win h2 { font: 700 32px var(--display); color: #ffa3bd; -webkit-text-stroke: 7px #8a3a5c; paint-order: stroke fill; text-shadow: 0 4px 0 #6e2c48; }
+/* the header: back, title and settings on one line, centred together; then the
+   date on the left and today's pots (with the streak) on the right */
+.homehead, .dayshead { align-items: center; }
+.homehead .brand, .dayshead .titles { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: flex-start; }
+.home .chips { justify-content: space-between; align-items: center; }
+.home .chips .date span { font-size: clamp(12px, 3.5vw, 14px); padding: 6px 12px; white-space: nowrap; }
+.blooms { gap: 4px; }
+.blooms .flame { display: inline-flex; align-items: center; gap: 2px; margin-right: 4px; padding-right: 8px; border-right: 2px solid rgba(60, 110, 40, .15); }
+.blooms .flame svg { width: 18px; height: 18px; color: #ff7a3d; fill: #ffc06b; transform-origin: 50% 90%; animation: flicker 1.6s ease-in-out infinite; }
+.blooms .flame b { font: 700 14px var(--display); color: #e2672c; }
+.blooms .count { margin-left: 4px; font-weight: 700; }
+.dayssum { position: relative; z-index: 1; margin: 6px 16px 10px !important; text-align: left; max-width: 520px; }
