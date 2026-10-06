@@ -36,8 +36,10 @@ test('every easy garden can start its first lessons straight away', () => {
   }
 })
 
-test('the tutorial garden is sound and easy', () => {
+test('the tutorial garden is sound, easy, and its own', async () => {
   assert.deepEqual(checkLevel(TUTORIAL, 'easy'), [])
+  const { DAYS } = await import('../src/days.js')
+  assert.ok(!DAYS.flat().some((p) => p.split(':')[1] === TUTORIAL.beds.join('')))
 })
 
 test('the coach walks the tutorial garden through every lesson, one after another, and remembers', () => {

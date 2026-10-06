@@ -197,8 +197,9 @@ garden remembers what was planted, and a solved garden opens in bloom.
 ## Tutorial
 
 The tutorial is a garden of its own, **First Seeds** (`TUTORIAL` in
-`src/puzzles.js`, route `#/tutorial`): a 5×5 garden of six beds chosen so every
-lesson shows up in order. The first time a player opens any garden, they are
+`src/puzzles.js`, route `#/tutorial`): a 5×5 garden of six beds made for it
+alone (`node scripts/generate-levels.mjs --tutorial`), unlike any daily garden,
+and kept only if the coach finds every lesson on it in order. The first time a player opens any garden, they are
 taken to the tutorial first, and once it's done or skipped they go straight on
 to the garden they picked (the tutorial steps out of the history, so Back goes
 where it should). Leaving it with Back keeps it waiting for the next garden.
@@ -208,8 +209,8 @@ A coach card between the header and the garden, after Tidal Garden's
 
 1. **Welcome**: a little garden to learn in; beds, plots, and filling every bed
    to make it bloom.
-2. **One of each**: a bed of N plots grows 1 to N, shown on a bed of two that's
-   missing one seed.
+2. **One of each**: a bed of N plots grows 1 to N, shown on a bed of three
+   that's missing one seed.
 3. **Never side by side**: the same seed never touches, not even at a corner;
    the seeds next door (ringed) rule out all but one.
 4. **Flags for notes**: a seed that can only go in one of two plots of a bed;

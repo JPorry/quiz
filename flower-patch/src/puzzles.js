@@ -49,12 +49,13 @@ export function puzzle(day, tier) {
   }
 }
 
-// The tutorial's own little garden: five beds on a 5×5 plot, with a bed of two
-// that's missing one seed, a seed decided by its neighbours, and a seed with two
-// places left, so every lesson can be shown on it in order.
+// The tutorial's own little garden, made for it alone by
+// `node scripts/generate-levels.mjs --tutorial`: 5×5, easy, and shaped so the
+// coach finds every lesson in order, starting with a bed of three with one plot
+// left. It is unlike any daily garden.
 export const TUTORIAL = {
   id: 'tutorial', day: 0, tier: 'easy', name: 'First Seeds', width: 5, height: 5,
-  beds: ['CBBAA', 'CBBAA', 'DDDAA', 'EEDDD', 'EEEEF'],
-  givens: ['.....', '14.64', '.6..2', '.5...', '.146.'],
-  solution: ['23151', '14264', '36132', '25254', '31461'],
+  beds: ['AABBC', 'AABBC', 'AADBC', 'EEDDF', 'EEDDF'],
+  givens: ['.41..', '16.51', '2....', '..1..', '....1'],
+  solution: ['34132', '16251', '25343', '14152', '23241'],
 }
