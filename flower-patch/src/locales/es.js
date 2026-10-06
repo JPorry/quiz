@@ -2,6 +2,11 @@
 // game speaks to the player with «tú», in words that don't assume a gender.
 export const ES = {
   'title': 'Flower Patch',
+  'title.tagline': 'Un jardín pequeñito. Un puzle precioso.',
+  'title.play': 'Jugar',
+  'title.learn': 'Cómo se juega',
+  'back.title': 'Portada',
+  'home.title': 'Jardines de hoy',
   'header.settings': 'Ajustes',
   'back': 'Atrás',
   'back.home': 'Inicio',

@@ -1,6 +1,11 @@
 // English, the game's first language and the fallback for every other.
 export const EN = {
   'title': 'Flower Patch',
+  'title.tagline': 'A little garden. A lovely puzzle.',
+  'title.play': 'Play',
+  'title.learn': 'How to play',
+  'back.title': 'Title screen',
+  'home.title': 'Today’s gardens',
   'header.settings': 'Settings',
   'back': 'Back',
   'back.home': 'Home',

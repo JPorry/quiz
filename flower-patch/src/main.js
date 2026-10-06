@@ -103,12 +103,26 @@ const flagSvg = (n) => {
 // seeds that hop out of the bag when it is picked
 const seeds = (n) => `<span class="seeds" aria-hidden="true">${[0, 1, 2, 3].map((k) => `<i style="--k:${k};background:${hex(blend(NUM[n], 0x8a5a3b, 0.25))}"></i>`).join('')}</span>`
 
+const SPROUT = `<svg class="sproutic" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 29 C16 22 16 18 16 14" stroke="#3f8a36" stroke-width="3.4" stroke-linecap="round" fill="none"/><path d="M16 15 C10 6 2 8 3 13 C4 19 12 18 16 15Z" fill="#7cc35a" stroke="#3f6b34" stroke-width="1.8" stroke-linejoin="round"/><path d="M16 13 C21 3 30 5 29 11 C28 17 20 17 16 13Z" fill="#9adf6e" stroke="#3f6b34" stroke-width="1.8" stroke-linejoin="round"/></svg>`
+
 document.querySelector('#app').innerHTML = `
-  <div class="app" id="shell" data-screen="home">
+  <div class="app" id="shell" data-screen="title">
+    <section class="titlepage enter" id="titlepage">
+      <img class="titlebg" src="title-garden.webp" alt="" draggable="false" aria-hidden="true">
+      <h1 class="logo"><img src="title-logo.webp" alt="${t('title')}" width="900" height="600" draggable="false"><i class="glint" aria-hidden="true" style="-webkit-mask-image:url(title-logo.webp);mask-image:url(title-logo.webp)"></i></h1>
+      <div class="titlespace"></div>
+      <p class="tagline">${t('title.tagline')}</p>
+      <nav class="titlebuttons">
+        <button class="bigplay" id="title-play">${SPROUT}<span>${t('title.play')}</span></button>
+        <button class="titlebtn" id="title-learn">${icon('learn')}<span>${t('title.learn')}</span></button>
+      </nav>
+      <button class="round titlegear" id="title-settings" aria-label="${t('header.settings')}">${icon('settings')}</button>
+    </section>
     <main class="home" id="home">
       <header class="homehead">
+        <button class="round" id="home-back" aria-label="${t('back.title')}">${icon('back')}</button>
         <div class="brand">
-          <h1 class="title" aria-label="${t('title')}">${[...t('title')].map((c, i) => (c === ' ' ? '<span class="gap"></span>' : `<span style="--i:${i}">${c}</span>`)).join('')}</h1>
+          <h1 class="hometitle">${t('home.title')}</h1>
           <p class="date" id="date"></p>
         </div>
         <button class="round" id="settings-home" aria-label="${t('header.settings')}">${icon('settings')}</button>
@@ -525,7 +539,7 @@ $('winnext').onclick = () => {
   const next = nextGarden()
   if (next) location.hash = `#/${next.day}/${next.tier}`
 }
-$('winhome').onclick = () => { location.hash = '' }
+$('winhome').onclick = () => { location.hash = '#/daily' }
 $('back').onclick = () => { location.hash = backTo }
 $('undo').onclick = () => {
   if (!history.length || won) return
@@ -747,22 +761,28 @@ $('months').addEventListener('click', (ev) => {
   if (c) { sounds.unlock(); sounds.play('open'); openDay(Number(c.dataset.day)) }
 })
 $('open-days').onclick = () => { sounds.unlock(); sounds.play('tap'); location.hash = '#/days' }
-$('days-back').onclick = () => { location.hash = '' }
+$('days-back').onclick = () => { location.hash = '#/daily' }
+$('home-back').onclick = () => { sounds.play('close'); location.hash = '' }
+// the title: Play opens today's gardens, How to play the tutorial
+$('title-play').onclick = () => { sounds.unlock(); sounds.play('open'); location.hash = '#/daily' }
+$('title-learn').onclick = () => { sounds.unlock(); sounds.play('open'); afterTutorial = '#/daily'; location.hash = '#/tutorial' }
+$('title-settings').onclick = openSettings
 $('sheetclose').onclick = () => { sounds.play('close'); $('daysheet').hidden = true }
 $('daysheet').onclick = (ev) => { if (ev.target === $('daysheet')) $('daysheet').hidden = true }
 
 /* ---------- moving between screens ---------- */
 
-// #/<day>/<tier> plays a garden, #/days is the calendar, anything else is home.
-// The phone's back gesture steps back through them.
-let backTo = ''
+// #/<day>/<tier> plays a garden, #/daily is today's three, #/days is the
+// calendar, #/tutorial the tutorial, and anything else is the title. The
+// phone's back gesture steps back through them.
+let backTo = '#/daily'
 // where to go once the tutorial is done or skipped: the garden the player picked
 let afterTutorial = ''
 function leaveTutorial() {
   const to = afterTutorial
   afterTutorial = ''
   // the tutorial steps out of the history, so Back doesn't return to it
-  window.history.replaceState(null, '', to || location.pathname + location.search)
+  window.history.replaceState(null, '', to || '#/daily')
   route()
 }
 function route() {
@@ -775,11 +795,11 @@ function route() {
     window.history.replaceState(null, '', '#/tutorial')
     return route()
   }
-  const screen = (m && day >= 1 && day <= today()) || learning ? 'game' : location.hash === '#/days' ? 'days' : 'home'
+  const screen = (m && day >= 1 && day <= today()) || learning ? 'game' : location.hash === '#/days' ? 'days' : location.hash === '#/daily' ? 'home' : 'title'
   const was = $('shell').dataset.screen
   $('shell').dataset.screen = screen
   if (screen === 'game') {
-    if (was !== 'game') backTo = was === 'days' ? '#/days' : ''
+    if (was !== 'game') backTo = was === 'days' ? '#/days' : was === 'title' ? '' : '#/daily'
     if (learning) {
       // a tutorial opened afresh (a visit, or Replay) starts from its welcome
       if (tutorial.finished) tutorial.restart()
@@ -790,7 +810,13 @@ function route() {
   current = null
   $('win').hidden = true
   sounds.setMood('garden')
-  if (screen === 'days') { $('daysheet').hidden = true; drawDays() } else drawHome()
+  if (screen === 'days') { $('daysheet').hidden = true; drawDays() } else if (screen === 'home') drawHome()
+  else if (was !== 'title') {
+    // the title plays its entrance again each time it's shown
+    $('titlepage').classList.remove('enter')
+    void $('titlepage').offsetWidth
+    $('titlepage').classList.add('enter')
+  }
 }
 addEventListener('hashchange', route)
 // a new day may have begun while the home screen sat open
@@ -838,7 +864,8 @@ window.__garden = {
   get marks() { return marks },
   tutorial,
   start(day, tier) { location.hash = `#/${day}/${tier}`; route() },
-  home() { location.hash = ''; route() },
+  home() { location.hash = '#/daily'; route() },
+  title() { location.hash = ''; route() },
   today,
   get board() { return board },
   get values() { return values },
