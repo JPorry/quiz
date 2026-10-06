@@ -246,20 +246,17 @@ the coach walks it through every lesson without a gap.
 
 ## Title screen
 
-The game opens on a title screen (route `#/`). A sky with drifting clouds sits
-over soft hills; the **Flower Patch** logo is built from live text and SVG, not a
-picture: chunky cream and pink letters with a dark green outline on a bushy
-green cushion, with leaves and little flowers tucked round it. Below it the
-garden illustration (`public/title-garden.webp`, cut from the concept art with
-its lettering painted out) fades in at its edges, with a butterfly fluttering
-across it.
+The game opens on a title screen (route `#/`): the painted garden
+(`public/title-garden.webp`) fills the screen, with the **Flower Patch** logo
+(`public/title-logo.webp`, a separate transparent image) in its sky and the
+buttons on its lawn.
 
 Everything arrives in turn, and again each time the title is shown: the garden
-rises, the cushion pops up, the letters drop in one by one and squash as they
-land, the leaves pop out and the flowers spin open, the tagline fades up, then
-the buttons spring up: **Play** (today's gardens), **How to play** (the
-tutorial, returning to today's gardens) and the Settings gear. Afterwards the
-letters bob, the flowers sway, the Play button breathes and its sprout nods.
+eases in, the logo drops from above and lands with a squash and a wobble, the
+tagline fades up, then the buttons spring up: **Play** (today's gardens),
+**How to play** (the tutorial, returning to today's gardens) and the Settings
+gear. Afterwards the logo floats gently with a glint of light sweeping across
+its letters now and then, the Play button breathes and its sprout nods.
 Today's gardens has a back button to the title.
 
 ## Three gardens a day
