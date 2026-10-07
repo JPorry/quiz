@@ -11,6 +11,7 @@ import { AUDIO } from './audioManifest.js'
 // Each screen's music, and how loud it sits: every screen shares the same tracks,
 // so moving between them only eases the volume, a touch quieter while puzzling.
 const MOODS = {
+  title: { tracks: 'harbor', level: 0.7 },
   home: { tracks: 'harbor', level: 0.62 },
   days: { tracks: 'harbor', level: 0.55 },
   play: { tracks: 'harbor', level: 0.5 },
@@ -23,14 +24,20 @@ export class HarborAudio {
     this.storage = storage
     this.music = true
     this.effects = true
+    // how loud each one plays, from 0 to 1, set in Settings
+    this.musicVolume = 1
+    this.effectsVolume = 1
+    const level = (value) => (Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 1)
     try {
       const saved = JSON.parse(storage?.getItem(PREFERENCES) ?? 'null')
       if (saved) {
         this.music = saved.music !== false
         this.effects = saved.effects !== false
+        this.musicVolume = level(saved.musicVolume)
+        this.effectsVolume = level(saved.effectsVolume)
       }
     } catch { /* preferences are a nicety */ }
-    this.mood = 'home'
+    this.mood = 'title'
     this.buffers = new Map()
     this.decks = []
     this.turn = { harbor: 0 }
@@ -38,10 +45,10 @@ export class HarborAudio {
   }
 
   save() {
-    try { this.storage?.setItem(PREFERENCES, JSON.stringify({ music: this.music, effects: this.effects })) } catch { /* fine without */ }
+    try { this.storage?.setItem(PREFERENCES, JSON.stringify({ music: this.music, effects: this.effects, musicVolume: this.musicVolume, effectsVolume: this.effectsVolume })) } catch { /* fine without */ }
   }
 
-  musicGain(mood = this.mood) { return this.music ? MOODS[mood].level : 0 }
+  musicGain(mood = this.mood) { return this.music ? MOODS[mood].level * this.musicVolume : 0 }
 
   // The first tap wakes everything up: the mixer, the effects, and the music decks.
   unlock() {
@@ -61,7 +68,7 @@ export class HarborAudio {
     this.musicLevel.gain.value = this.musicGain()
     this.musicLevel.connect(compressor)
     this.fxLevel = c.createGain()
-    this.fxLevel.gain.value = 0.9
+    this.fxLevel.gain.value = 0.9 * this.effectsVolume
     this.fxLevel.connect(compressor)
     // Two decks, each a streaming audio element, both started inside this tap so
     // that iOS lets them play later on their own.
@@ -154,6 +161,7 @@ export class HarborAudio {
 
   setMusic(on) {
     this.music = on
+    if (on && !this.musicVolume) this.musicVolume = 0.8
     this.save()
     if (!this.context) return
     this.musicLevel.gain.setTargetAtTime(this.musicGain(), this.context.currentTime, 0.5)
@@ -172,7 +180,26 @@ export class HarborAudio {
 
   setEffects(on) {
     this.effects = on
+    if (on && !this.effectsVolume) this.effectsVolume = 0.8
     this.save()
+  }
+
+  // The Settings sliders. Sliding to nothing switches that sound off; sliding up
+  // switches it back on.
+  setMusicVolume(volume) {
+    this.musicVolume = Math.min(1, Math.max(0, volume))
+    if ((this.musicVolume > 0) !== this.music) this.setMusic(this.musicVolume > 0)
+    else {
+      this.save()
+      if (this.context) this.musicLevel.gain.setTargetAtTime(this.musicGain(), this.context.currentTime, 0.1)
+    }
+  }
+
+  setEffectsVolume(volume) {
+    this.effectsVolume = Math.min(1, Math.max(0, volume))
+    this.effects = this.effectsVolume > 0
+    this.save()
+    if (this.context) this.fxLevel.gain.setTargetAtTime(0.9 * this.effectsVolume, this.context.currentTime, 0.05)
   }
 
   // Plays a named effect now, or `at` seconds from now.

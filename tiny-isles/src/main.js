@@ -24,38 +24,87 @@ const ICON = {
   flame: '<path d="M12 3c1 3.5 5 5.5 5 10a5 5 0 0 1-10 0c0-2.2 1-3.8 2.3-5 .2 1.7 1 2.8 2.2 3.2C11 9 10.8 6 12 3z"/>',
   sound: '<path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/>',
   music: '<path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>',
+  settings: '<circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/>',
+  learn: '<path d="M2.5 9 12 4.5 21.5 9 12 13.5z"/><path d="M6.5 11v4.5c0 1.5 2.5 3 5.5 3s5.5-1.5 5.5-3V11"/>',
   mute: '<path d="M11 5 6 9H2v6h4l5 4z"/><path d="m22 9-6 6M16 9l6 6"/>',
 }
 const icon = (name) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[name]}</svg>`
 
+// A friendly gull in a sailor's cap keeps you company on the home screen.
+const GULL = `<svg class="gull" viewBox="0 0 64 64" aria-hidden="true">
+  <circle cx="32" cy="32" r="32" fill="#bfeefa"/>
+  <path d="M0 46 Q16 40 32 46 T64 46 V64 H0Z" fill="#5cc8d8"/>
+  <path d="M0 50 Q16 44 32 50 T64 50" stroke="#fff" stroke-width="2.4" fill="none" opacity=".8"/>
+  <ellipse cx="33" cy="44" rx="15" ry="11" fill="#fff" stroke="#2c4a63" stroke-width="2"/>
+  <path d="M22 42 C26 36 34 38 37 44 C32 46 26 46 22 42Z" fill="#d7e2ec" stroke="#2c4a63" stroke-width="1.6" stroke-linejoin="round"/>
+  <circle cx="34" cy="27" r="11" fill="#fff" stroke="#2c4a63" stroke-width="2"/>
+  <path d="M42 28 L53 31 L42 33Z" fill="#ffb238" stroke="#b26a10" stroke-width="1.4" stroke-linejoin="round"/>
+  <circle cx="37" cy="25" r="2.4" fill="#2c4a63"/><circle cx="37.8" cy="24.2" r=".8" fill="#fff"/>
+  <ellipse cx="31" cy="30.5" rx="2.6" ry="1.6" fill="#ffb3c2" opacity=".8"/>
+  <path d="M24 18 Q34 10 44 18 L43 21 Q34 16 25 21Z" fill="#fff" stroke="#2c4a63" stroke-width="1.6" stroke-linejoin="round"/>
+  <path d="M25 21 Q34 16 43 21 L42 23 Q34 19 26 23Z" fill="#2f7de1" stroke="#2c4a63" stroke-width="1.4" stroke-linejoin="round"/>
+</svg>`
+// a little sailboat for the big Play button
+const BOAT = `<svg class="boatic" viewBox="0 0 32 32" aria-hidden="true"><path d="M15 4 V22" stroke="#7a4f33" stroke-width="2" stroke-linecap="round"/><path d="M16 5 L27 20 H16Z" fill="#fff" stroke="#2c4a63" stroke-width="1.6" stroke-linejoin="round"/><path d="M14 8 L6 20 H14Z" fill="#ff7a5c" stroke="#2c4a63" stroke-width="1.6" stroke-linejoin="round"/><path d="M4 23 H28 L25 28 H7Z" fill="#2f7de1" stroke="#2c4a63" stroke-width="1.6" stroke-linejoin="round"/></svg>`
+// bubbles rising behind the menus
+const BUBBLES = [...Array(10)].map((_, k) => `<i class="bubble" style="--x:${(k * 37 + 7) % 100}%;--d:${(k * 1.9) % 10}s;--t:${12 + (k * 3) % 8}s;--s:${6 + (k * 5) % 9}px"></i>`).join('')
+const tierPips = (tier) => `<i class="pips">${[0, 1, 2].map((k) => `<b class="${k <= TIERS.indexOf(tier) ? 'on' : ''}"></b>`).join('')}</i>`
+// how to play: one line a rule, each with a little picture
+const RULES = [
+  ['badge', 'Each island shows how many bridges it wants.'],
+  ['drag', 'Drag from an island toward a neighbour to build a bridge. Drag again for a two-lane bridge.'],
+  ['cross', 'Bridges run straight to the nearest island and never cross.'],
+  ['join', 'Join every island into one network.'],
+  ['fog', 'Fog hides some numbers. Work them out from their neighbours: the fog lifts when you win.'],
+  ['swipe', 'Swipe across a bridge to take it down.'],
+]
+const RULE_ART = {
+  badge: '<circle cx="20" cy="20" r="15" fill="#fffaf2" stroke="#2c4a63" stroke-width="2"/><path d="M20 5 a15 15 0 0 1 13 22" stroke="#4fb8d8" stroke-width="4" fill="none" stroke-linecap="round"/><text x="20" y="26" text-anchor="middle" font-family="Fredoka, sans-serif" font-weight="700" font-size="17" fill="#2c4a63">3</text>',
+  drag: '<circle cx="8" cy="20" r="6" fill="#9edc78" stroke="#2c4a63" stroke-width="1.6"/><circle cx="32" cy="20" r="6" fill="#9edc78" stroke="#2c4a63" stroke-width="1.6"/><rect x="14" y="17" width="12" height="6" rx="1.5" fill="#e8b98a" stroke="#7a4f33" stroke-width="1.2"/><path d="M22 30 l4 -4" stroke="#ff7a5c" stroke-width="2.4" stroke-linecap="round"/>',
+  cross: '<rect x="4" y="18" width="32" height="5" rx="1.5" fill="#e8b98a" stroke="#7a4f33" stroke-width="1.2"/><rect x="17.5" y="4" width="5" height="32" rx="1.5" fill="#e8b98a" stroke="#7a4f33" stroke-width="1.2" opacity=".45"/><path d="M12 8 L28 32 M28 8 L12 32" stroke="#ff5f6d" stroke-width="3" stroke-linecap="round"/>',
+  join: '<circle cx="8" cy="8" r="5" fill="#9edc78" stroke="#2c4a63" stroke-width="1.4"/><circle cx="32" cy="8" r="5" fill="#9edc78" stroke="#2c4a63" stroke-width="1.4"/><circle cx="8" cy="32" r="5" fill="#9edc78" stroke="#2c4a63" stroke-width="1.4"/><circle cx="32" cy="32" r="5" fill="#9edc78" stroke="#2c4a63" stroke-width="1.4"/><path d="M13 8 H27 M32 13 V27 M8 13 V27" stroke="#c98d55" stroke-width="3"/>',
+  fog: '<circle cx="14" cy="22" r="8" fill="#eef3fb" stroke="#7d8aa6" stroke-width="1.6"/><circle cx="26" cy="20" r="10" fill="#eef3fb" stroke="#7d8aa6" stroke-width="1.6"/><text x="22" y="26" text-anchor="middle" font-family="Fredoka, sans-serif" font-weight="700" font-size="14" fill="#7d8aa6">?</text>',
+  swipe: '<rect x="4" y="17" width="32" height="6" rx="1.5" fill="#e8b98a" stroke="#7a4f33" stroke-width="1.2"/><path d="M10 34 Q20 18 32 6" stroke="#ff7a5c" stroke-width="3" fill="none" stroke-linecap="round" stroke-dasharray="1 5"/><path d="M28 6 h5 v5" stroke="#ff7a5c" stroke-width="2.4" fill="none" stroke-linecap="round"/>',
+}
+
 document.querySelector('#app').innerHTML = `
-  <div class="app" id="shell" data-screen="home">
+  <div class="app" id="shell" data-screen="title">
+    <section class="titlepage enter" id="titlepage">
+      <img class="titlebg" src="title-sea.webp" alt="" draggable="false" aria-hidden="true">
+      <h1 class="logo"><img src="title-logo.webp" alt="Tiny Isles" width="900" height="448" draggable="false"><i class="glint" aria-hidden="true" style="-webkit-mask-image:url(title-logo.webp);mask-image:url(title-logo.webp)"></i></h1>
+      <div class="titlespace"></div>
+      <p class="tagline">Little islands. Lovely bridges.</p>
+      <nav class="titlebuttons">
+        <button class="bigplay" id="title-play">${BOAT}<span>Play</span></button>
+        <button class="titlebtn" id="title-learn">${icon('learn')}<span>How to play</span></button>
+      </nav>
+      <button class="round titlegear" id="title-settings" aria-label="Settings">${icon('settings')}</button>
+    </section>
+    <div class="menubg" aria-hidden="true"><img src="title-sea.webp" alt="" draggable="false"><span class="wash"></span>${BUBBLES}</div>
     <main class="home" id="home">
-      <div class="clouds" aria-hidden="true"><i></i><i></i><i></i></div>
       <header class="homehead">
-        <div class="brand">
-          <h1 class="title" aria-label="Tiny Isles">${[...'Tiny Isles'].map((c, i) => (c === ' ' ? '<span class="gap"></span>' : `<span style="--i:${i}">${c}</span>`)).join('')}</h1>
-          <p class="date" id="date"></p>
-        </div>
-        <button class="round" id="sound" aria-label="Sound">${icon('sound')}</button>
+        <button class="round" id="home-back" aria-label="Back to the title">${icon('back')}</button>
+        <div class="brand"><h1 class="hometitle">Today’s islands</h1></div>
+        <button class="round" id="settings-home" aria-label="Settings">${icon('settings')}</button>
       </header>
       <div class="chips">
-        <span class="tag-chip streak" id="streak"></span>
+        <p class="date"><span id="date"></span></p>
         <span class="tag-chip shells" id="shells"></span>
       </div>
-      <div class="homestage" id="homestage"><div class="labels" id="labels"></div></div>
+      <div class="todays" id="todays"></div>
       <footer class="homefoot">
-        <p class="hello" id="hello"></p>
+        <div class="buddy">${GULL}<p class="hello" id="hello"></p></div>
         <button class="chip daysbutton" id="open-days">${icon('calendar')}<span>Earlier days</span><b class="count" id="catchup" hidden></b></button>
       </footer>
     </main>
     <section class="dayspage" id="dayspage">
       <header class="dayshead">
-        <button class="round" id="days-back" aria-label="Back home">${icon('back')}</button>
-        <div class="titles"><h1>Earlier days</h1><p id="dayssummary"></p></div>
+        <button class="round" id="days-back" aria-label="Back to today">${icon('back')}</button>
+        <div class="titles"><h1 class="hometitle">Earlier days</h1></div>
       </header>
+      <p class="date dayssum"><span id="dayssummary"></span></p>
       <div class="months" id="months"></div>
-      <div class="daysheet" id="daysheet" hidden>
+      <div class="picker" id="daysheet" hidden>
         <div class="sheet">
           <div class="sheethead"><h2 id="sheetdate"></h2><button class="round" id="sheetclose" aria-label="Close">${icon('close')}</button></div>
           <div class="cards" id="cards"></div>
@@ -66,14 +115,14 @@ document.querySelector('#app').innerHTML = `
       <header>
         <button class="round" id="home-button" aria-label="Back">${icon('back')}</button>
         <div class="titles"><h1 id="name"></h1><p id="prog"></p></div>
-        <button class="round" id="sound2" aria-label="Sound">${icon('sound')}</button>
+        <button class="round restart" id="restart" aria-label="Restart">${icon('restart')}<span class="sure" aria-hidden="true">Sure?</span></button>
+        <button class="round" id="settings" aria-label="Settings">${icon('settings')}</button>
       </header>
       <div class="stage" id="stage"></div>
       <footer>
         <p class="say" id="say" aria-live="polite"></p>
         <div class="row">
           <button class="chip" id="undo">${icon('undo')}<span>Undo</span></button>
-          <button class="chip" id="restart">${icon('restart')}<span>Restart</span></button>
         </div>
       </footer>
       <section class="win" id="win" hidden>
@@ -85,10 +134,22 @@ document.querySelector('#app').innerHTML = `
         </div>
       </section>
     </div>
-    <div class="soundmenu" id="soundmenu" hidden>
-      <button class="toggle" id="toggle-music" aria-pressed="true">${icon('music')}<span>Music</span><i></i></button>
-      <button class="toggle" id="toggle-fx" aria-pressed="true">${icon('sound')}<span>Sounds</span><i></i></button>
-    </div>
+    <section class="picker" id="settingsheet" hidden>
+      <div class="sheet settings" role="dialog" aria-labelledby="settingstitle">
+        <div class="sheethead"><h2 id="settingstitle">Settings</h2><button class="round" id="closesettings" aria-label="Close">${icon('close')}</button></div>
+        <div class="setting"><label for="musicvol">${icon('music')}<span>Music</span></label><input type="range" id="musicvol" min="0" max="100" step="5"><output id="musicval"></output></div>
+        <div class="setting"><label for="fxvol">${icon('sound')}<span>Sounds</span></label><input type="range" id="fxvol" min="0" max="100" step="5"><output id="fxval"></output></div>
+        <button class="chip replay" id="settings-learn">${icon('learn')}<span>How to play</span></button>
+        <button class="chip go" id="settingsdone">Done</button>
+      </div>
+    </section>
+    <section class="picker" id="rulesheet" hidden>
+      <div class="sheet rules" role="dialog" aria-labelledby="rulestitle">
+        <div class="sheethead"><h2 id="rulestitle">How to play</h2><button class="round" id="closerules" aria-label="Close">${icon('close')}</button></div>
+        <ol class="rulelist">${RULES.map(([art, text]) => `<li><svg viewBox="0 0 40 40" aria-hidden="true">${RULE_ART[art]}</svg><span>${text}</span></li>`).join('')}</ol>
+        <button class="chip go" id="rulesdone">Let’s build!</button>
+      </div>
+    </section>
   </div>`
 const $ = (id) => document.getElementById(id)
 
@@ -152,65 +213,43 @@ function streak(now) {
   return n
 }
 
-// Today's three islands sit on the home screen's sea in a little staircase,
-// easy at the front up to hard at the back. Each city shows how its puzzle is
-// going: a cottage when untouched, a town once started, a skyline when solved.
-const HOME = { width: 3, height: 3, burrows: [[2, 0, 3], [1, 1, 5], [0, 2, 7]] }
-const HOME_TIER = { new: 0, started: 3, done: 8 }
-
 function greeting() {
   const h = new Date().getHours()
-  return h < 5 ? 'Good night' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'
+  return h < 5 ? 'Ahoy, night owl' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'
+}
+
+// A puzzle as a card: its difficulty, a little map in a sea-blue frame, its name,
+// its size, and what to do next (a joined one wears a round stamp).
+function card(p, i) {
+  const st = state(p.id)
+  const status = { done: `${icon('check')}<span>Joined!</span>`, started: `${icon('play')}<span>Resume</span>`, new: `${icon('play')}<span>Play</span>` }[st]
+  return `<button class="card ${st}" data-tier="${p.tier}" data-day="${p.day}" style="--i:${i}" aria-label="${TIER_NAMES[p.tier]}: ${p.name}, ${p.burrows.length} islands${p.fog ? ', with fog' : ''}${st === 'done' ? ', joined' : st === 'started' ? ', started' : ''}">
+    <span class="planter">${miniMap(p)}</span>
+    <span class="tier">${TIER_NAMES[p.tier]}${tierPips(p.tier)}</span>
+    <span class="pname">${p.name}</span>
+    <span class="meta">${p.width}×${p.height} · ${p.burrows.length} islands${p.fog ? ` · ${icon('cloud')} fog` : ''}</span>
+    <span class="status">${status}</span>
+  </button>`
 }
 
 function drawHome() {
   const now = today()
-  $('date').textContent = dateOf(now).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' })
+  $('date').textContent = dateOf(now).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'long', timeZone: 'UTC' })
   const states = TIERS.map((tier) => state(`${now}-${tier}`))
-  scene.mount($('homestage'))
-  scene.load(buildBoard(HOME), { seed: now, badges: false, headroom: 1.6 })
-  scene.setIslands(TIERS.map((tier, i) => ({ tier: HOME_TIER[states[i]], have: 0, done: states[i] === 'done', over: false })))
-  scene.setBridges([])
-  $('labels').innerHTML = TIERS.map((tier, i) => {
-    const p = puzzle(now, tier)
-    const st = states[i]
-    const action = { done: `${icon('check')} Solved`, started: `${icon('play')} Resume`, new: `${icon('play')} Play` }[st]
-    return `<button class="label ${st}" data-tier="${tier}" data-day="${now}" style="--i:${i}" aria-label="${TIER_NAMES[tier]}: ${p.name}, ${p.burrows.length} islands${p.fog ? ', with fog' : ''}, ${st === 'done' ? 'solved' : st === 'started' ? 'started' : 'not started'}">
-      <span class="ltier">${TIER_NAMES[tier]}${p.fog ? ` ${icon('cloud')}` : ''}</span>
-      <span class="lname">${p.name}</span>
-      <span class="lgo">${action}</span>
-    </button>`
-  }).join('')
-  placeLabels()
-  const solvedToday = states.filter((s) => s === 'done').length
+  $('todays').innerHTML = TIERS.map((tier, i) => card(puzzle(now, tier), i)).join('')
+  const solvedToday = states.filter((x) => x === 'done').length
   const n = streak(now)
-  $('streak').innerHTML = `${icon('flame')} ${n} day${n === 1 ? '' : 's'}`
-  $('streak').hidden = n < 1
-  $('shells').innerHTML = TIERS.map((t, i) => `<i class="${t} ${states[i]}">${icon('shell')}</i>`).join('') + `<span>${solvedToday}/3 today</span>`
+  $('shells').innerHTML = `${n > 1 ? `<span class="flame">${icon('flame')}<b>${n}</b></span>` : ''}${TIERS.map((t, i) => `<i class="${t} ${states[i]}">${icon('shell')}</i>`).join('')}<span class="count">${solvedToday}/3</span>`
   $('hello').textContent = `${greeting()}! ${[
-    'Three new islands rose from the sea today. Tap one to start building.',
-    'One down, two to go. The others are waiting for bridges.',
-    'Two joined up! One last island to go today.',
+    'Three new islands rose from the sea today. Shall we build some bridges?',
+    'One joined up, two to go. The others are waiting for bridges.',
+    'Two joined! One last island town to go today.',
     'All of today’s islands are joined. New ones arrive tomorrow!',
   ][solvedToday]}`
   let missed = 0
   for (let day = 1; day < now; day++) missed += TIERS.filter((t) => !saved.done[`${day}-${t}`]).length
   $('catchup').hidden = !missed
   $('catchup').textContent = missed > 99 ? '99+' : missed
-}
-
-// the labels float above their islands
-function placeLabels() {
-  const box = $('homestage').getBoundingClientRect()
-  document.querySelectorAll('.label').forEach((el, i) => {
-    const is = scene.islands?.[i]
-    if (!is) return
-    const p = is.group.position.clone()
-    p.y = 0.75 + is.r * 0.6
-    const { x, y } = scene.toScreen(p)
-    el.style.left = `${x - box.left}px`
-    el.style.top = `${y - box.top}px`
-  })
 }
 
 /* ---------- earlier days: a calendar, month by month ---------- */
@@ -221,11 +260,11 @@ function drawDays() {
   for (let day = now; day >= 1; day--) {
     const date = dateOf(day)
     const key = `${date.getUTCFullYear()}-${date.getUTCMonth()}`
-    if (!months.length || months.at(-1).key !== key) months.push({ key, date, days: [] })
+    if (!months.length || months.at(-1).key !== key) months.push({ key, date })
   }
   let solved = 0
   for (let day = 1; day <= now; day++) solved += TIERS.filter((t) => saved.done[`${day}-${t}`]).length
-  $('dayssummary').textContent = `${solved} of ${now * 3} puzzles solved`
+  $('dayssummary').textContent = `${solved} of ${now * 3} puzzles joined`
   const weekdays = [...Array(7)].map((_, k) => new Date(Date.UTC(2024, 0, 1 + k)).toLocaleDateString(undefined, { weekday: 'narrow', timeZone: 'UTC' }))
   $('months').innerHTML = months.map(({ date }) => {
     const y = date.getUTCFullYear(), m = date.getUTCMonth()
@@ -238,7 +277,7 @@ function drawDays() {
       if (day < 1 || day > now) { cells.push(`<span class="cell off">${d}</span>`); continue }
       const sts = TIERS.map((t) => state(`${day}-${t}`))
       const all = sts.every((x) => x === 'done')
-      cells.push(`<button class="cell${all ? ' complete' : ''}${day === now ? ' today' : ''}" data-day="${day}" aria-label="${dayLabel(day, now)}: ${sts.filter((x) => x === 'done').length} of 3 solved"><b>${d}</b><span class="dots">${TIERS.map((t, i) => `<i class="${t} ${sts[i]}"></i>`).join('')}</span></button>`)
+      cells.push(`<button class="cell${all ? ' complete' : ''}${day === now ? ' today' : ''}" data-day="${day}" aria-label="${dayLabel(day, now)}: ${sts.filter((x) => x === 'done').length} of 3 joined"><b>${d}</b><span class="dots">${TIERS.map((t, i) => `<i class="${t} ${sts[i]}"></i>`).join('')}</span></button>`)
     }
     return `<section class="month"><h2>${first.toLocaleDateString(undefined, { month: 'long', year: 'numeric', timeZone: 'UTC' })}</h2>
       <div class="week">${weekdays.map((w) => `<span>${w}</span>`).join('')}</div>
@@ -248,60 +287,76 @@ function drawDays() {
 
 function openDay(day) {
   $('sheetdate').textContent = day === today() ? 'Today' : dateOf(day).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' })
-  $('cards').innerHTML = TIERS.map((tier) => {
-    const p = puzzle(day, tier)
-    const st = state(p.id)
-    const label = { done: `${icon('check')} Solved`, started: 'Resume', new: 'Play' }[st]
-    return `<button class="card ${st}" data-tier="${tier}" data-day="${day}" aria-label="${TIER_NAMES[tier]}: ${p.name}, ${p.burrows.length} islands${p.fog ? ', with fog' : ''}">
-      <span class="tier">${TIER_NAMES[tier]}</span>
-      ${miniMap(p)}
-      <span class="pname">${p.name}</span>
-      <span class="meta"><span>${p.burrows.length} islands</span>${p.fog ? `<span class="fogtag">${icon('cloud')} Fog</span>` : ''}</span>
-      <span class="status">${label}</span>
-    </button>`
-  }).join('')
+  $('cards').innerHTML = TIERS.map((tier, i) => card(puzzle(day, tier), i)).join('')
   $('daysheet').hidden = false
 }
 
 const play = (day, tier) => { audio.unlock(); audio.play('tap'); location.hash = `#/${day}/${tier}` }
-$('labels').addEventListener('click', (ev) => {
-  const b = ev.target.closest('[data-tier]')
-  if (b) play(b.dataset.day, b.dataset.tier)
-})
-$('cards').addEventListener('click', (ev) => {
-  const b = ev.target.closest('[data-tier]')
-  if (b) play(b.dataset.day, b.dataset.tier)
-})
+for (const id of ['todays', 'cards']) {
+  $(id).addEventListener('click', (ev) => {
+    const b = ev.target.closest('[data-tier]')
+    if (b) play(b.dataset.day, b.dataset.tier)
+  })
+}
 $('months').addEventListener('click', (ev) => {
   const c = ev.target.closest('.cell[data-day]')
   if (c) { audio.unlock(); audio.play('swoosh'); openDay(Number(c.dataset.day)) }
 })
+$('title-play').onclick = () => { audio.unlock(); audio.play('start'); location.hash = '#/today' }
+$('home-back').onclick = () => { audio.play('back'); location.hash = '' }
 $('open-days').onclick = () => { audio.unlock(); audio.play('tap'); location.hash = '#/days' }
-$('days-back').onclick = () => { audio.play('back'); location.hash = '' }
+$('days-back').onclick = () => { audio.play('back'); location.hash = '#/today' }
 $('sheetclose').onclick = () => { audio.play('back'); $('daysheet').hidden = true }
-$('daysheet').onclick = (ev) => { if (ev.target === $('daysheet')) $('daysheet').hidden = true }
+
+/* ---------- settings and how to play ---------- */
+
+function showSheet(id) {
+  audio.unlock()
+  audio.play('swoosh')
+  $(id).hidden = false
+}
+function syncSettings() {
+  $('musicvol').value = Math.round(audio.music ? audio.musicVolume * 100 : 0)
+  $('fxvol').value = Math.round(audio.effects ? audio.effectsVolume * 100 : 0)
+  $('musicval').textContent = `${$('musicvol').value}%`
+  $('fxval').textContent = `${$('fxvol').value}%`
+}
+for (const id of ['title-settings', 'settings-home', 'settings']) $(id).onclick = () => { syncSettings(); showSheet('settingsheet') }
+$('musicvol').oninput = () => { audio.setMusicVolume($('musicvol').value / 100); syncSettings() }
+$('fxvol').oninput = () => { audio.setEffectsVolume($('fxvol').value / 100); syncSettings() }
+$('fxvol').onchange = () => audio.play('tap')
+for (const id of ['title-learn', 'settings-learn']) $(id).onclick = () => { $('settingsheet').hidden = true; showSheet('rulesheet') }
+for (const [button, sheet] of [['closesettings', 'settingsheet'], ['settingsdone', 'settingsheet'], ['closerules', 'rulesheet'], ['rulesdone', 'rulesheet']]) {
+  $(button).onclick = () => { audio.play('back'); $(sheet).hidden = true }
+}
+for (const sheet of ['settingsheet', 'rulesheet', 'daysheet']) $(sheet).addEventListener('click', (ev) => { if (ev.target === $(sheet)) $(sheet).hidden = true })
 
 /* ---------- moving between screens ---------- */
 
-// #/<day>/<tier> plays a puzzle, #/days is the calendar, anything else is home.
-// The phone's back gesture steps back through them.
-let backTo = ''
+// "" is the title, #/today today's puzzles, #/days the calendar, and
+// #/<day>/<tier> a puzzle. The phone's back gesture steps back through them.
+let backTo = '#/today'
 function route() {
   const m = location.hash.match(/^#\/(\d+)\/(easy|medium|hard)$/)
   const day = m && Number(m[1])
-  const screen = m && day >= 1 && day <= today() ? 'game' : location.hash === '#/days' ? 'days' : 'home'
+  const screen = m && day >= 1 && day <= today() ? 'game' : location.hash === '#/days' ? 'days' : location.hash === '#/today' ? 'home' : 'title'
   const was = $('shell').dataset.screen
   $('shell').dataset.screen = screen
   if (screen === 'game') {
-    if (was !== 'game') { backTo = was === 'days' ? '#/days' : ''; audio.play('start', { at: 0.1 }) }
+    if (was !== 'game') { backTo = was === 'days' ? '#/days' : '#/today'; audio.play('start', { at: 0.1 }) }
     audio.setMood('play')
-    scene.mount($('stage'))
     start(day, m[2])
     return
   }
   current = null
   audio.setMood(screen)
-  if (screen === 'days') { $('daysheet').hidden = true; drawDays() } else drawHome()
+  if (screen === 'days') { $('daysheet').hidden = true; drawDays() } else if (screen === 'home') drawHome()
+  else {
+    // replay the title's entrance each time it is shown
+    $('titlepage').classList.remove('enter')
+    void $('titlepage').offsetWidth
+    $('titlepage').classList.add('enter')
+  }
 }
 addEventListener('hashchange', route)
 $('home-button').onclick = () => { audio.play('back'); location.hash = backTo }
@@ -570,7 +625,7 @@ function updateDrag(dt) {
 }
 
 /* ---------- buttons ---------- */
-$('winhome').onclick = () => { location.hash = '' }
+$('winhome').onclick = () => { location.hash = '#/today' }
 $('undo').onclick = () => {
   if (!history.length || won) return
   const [edge, before] = history.pop()
@@ -579,17 +634,18 @@ $('undo').onclick = () => {
   audio.play('undo')
   refresh()
 }
-let armed = false
+// Restart asks once: the first tap shows "Sure?", a second within a moment clears the board.
+let armed = 0
 $('restart').onclick = () => {
-  const label = $('restart').querySelector('span')
   if (!armed) {
-    armed = true
-    label.textContent = 'Sure?'
-    setTimeout(() => { armed = false; label.textContent = 'Restart' }, 2200)
+    $('restart').classList.add('armed')
+    armed = setTimeout(() => { armed = 0; $('restart').classList.remove('armed') }, 2200)
+    audio.play('tap')
     return
   }
-  armed = false
-  label.textContent = 'Restart'
+  clearTimeout(armed)
+  armed = 0
+  $('restart').classList.remove('armed')
   audio.play('restart')
   // a solved puzzle stays solved; restarting just clears the board to play again
   delete saved.progress[current.id]
@@ -599,29 +655,6 @@ $('restart').onclick = () => {
   if (solved) saved.done[current.id] = solved
   save()
 }
-// The speaker button opens a little menu with the music and the sounds, each its own switch.
-function syncSound() {
-  for (const id of ['sound', 'sound2']) $(id).innerHTML = icon(audio.music || audio.effects ? 'sound' : 'mute')
-  $('toggle-music').setAttribute('aria-pressed', audio.music)
-  $('toggle-fx').setAttribute('aria-pressed', audio.effects)
-}
-for (const id of ['sound', 'sound2']) {
-  $(id).onclick = (ev) => {
-    ev.stopPropagation()
-    audio.unlock()
-    const menu = $('soundmenu')
-    if (!menu.hidden) { menu.hidden = true; return }
-    const r = $(id).getBoundingClientRect()
-    menu.style.top = `${r.bottom + 8}px`
-    menu.style.right = `${innerWidth - r.right}px`
-    menu.hidden = false
-    audio.play('tap')
-  }
-}
-$('toggle-music').onclick = () => { audio.setMusic(!audio.music); audio.play('tap'); syncSound() }
-$('toggle-fx').onclick = () => { audio.setEffects(!audio.effects); audio.play('tap'); syncSound() }
-addEventListener('pointerdown', (ev) => { if (!ev.target.closest('#soundmenu, #sound, #sound2')) $('soundmenu').hidden = true })
-syncSound()
 addEventListener('keydown', (ev) => { if ((ev.ctrlKey || ev.metaKey) && ev.key === 'z' && current) $('undo').click() })
 
 /* ---------- loop ---------- */
@@ -629,16 +662,14 @@ let last = performance.now()
 // test captures run slowly in software rendering, so they keep their resolution
 const capture = new URLSearchParams(location.search).has('capture')
 function frame(now) {
-  // the sea is drawn on the home screen and while a puzzle is open
-  const home = $('shell').dataset.screen === 'home'
-  if ((current || home) && !document.hidden) {
+  // the sea is only drawn while a puzzle is open
+  if (current && !document.hidden) {
     if (!capture) scene.tune(now - last)
     const dt = Math.min(0.05, (now - last) / 1000)
     updateDrag(dt)
     scene.update(dt)
     scene.render()
     if (touch.busy || touch.drawn) { touch.update(dt); touch.drawn = touch.busy }
-    if (home) placeLabels()
   }
   last = now
   requestAnimationFrame(frame)

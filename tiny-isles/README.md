@@ -130,8 +130,7 @@ music:
 | Open a puzzle | a little boat's toot-toot |
 | Every island joined | a steel-drum fanfare with harp, celesta, a gull and two toots |
 
-The speaker button opens a menu with separate Music and Sounds switches, which
-are remembered. To rebuild the audio (needs fluidsynth, fluid-soundfont-gm,
+Settings has a volume slider for each (see Screens). To rebuild the audio (needs fluidsynth, fluid-soundfont-gm,
 ffmpeg, numpy and scipy):
 
 ```sh
@@ -147,33 +146,38 @@ the same. Swiping across bridges from open water takes each one you pass over
 down at once, single or double, with a splash. Every touch sends a ripple out from the
 finger (warm yellow on an island), a swipe across the water leaves a fading
 streak, and each bridge it cuts flashes a coral starburst (`src/touch.js`). A bridge that would cross another stops short and the one in the way
-wobbles. Undo and Restart (tap twice) sit below the sea, and the back button
-(or the phone's back gesture) returns home.
+wobbles. Undo sits below the sea and Restart in the header, and the back button
+(or the phone's back gesture) returns to wherever the puzzle was opened from.
 
-## Home
+## Screens
 
-The home screen is a little live sea with today's three islands set in a
-staircase, easy at the front up to hard at the back. Each island has a floating
-label with its difficulty, name, a cloud when it has fog, and Play, Resume or
-Solved. Tapping the island or its label opens the puzzle. The islands' cities
-show how each puzzle is going: a cottage when untouched, a town once started, a
-skyline when solved. Above the sea sit the bobbing title, today's date, a streak
-chip (days in a row with a puzzle solved) and three shells that fill in as
-today's puzzles are solved; below it, a greeting that follows the day's
-progress and an Earlier days button counting the puzzles still open on past
-days.
+The screens follow Flower Patch's layout:
 
-Earlier days (`#/days`) is a calendar, newest month first. Each day shows three
-dots, filled in the difficulty's colour once that puzzle is solved and grey
-once started; finished days turn green and today is ringed. Tapping a day opens
-a sheet with its three puzzles as cards, each with a little map of its islands
-(and the bridges laid so far). Back from a puzzle returns wherever it was
-opened from.
+- **Title** (`#`): the painted sea (`public/title-sea.webp`) fills the screen with
+  the logo (`public/title-logo.webp`) floating in it, a tagline, a big Play
+  button with a rocking sailboat, How to play, and a settings gear. The logo
+  drops in and wobbles, the buttons pop up in turn, and a glint of light sweeps
+  the letters now and then.
+- **Today's islands** (`#/today`): the same painting softened with a light wash
+  and bubbles drifting up. A title in the logo's style, the date, a chip with
+  the streak and three shells that fill in as today's puzzles are joined, then
+  today's easy, medium and hard puzzles as cards: a little map in a sandy frame,
+  difficulty pips, the name and size, and Play, Resume or a round "Joined!"
+  stamp. Below, a gull in a sailor's cap says hello, and Earlier days counts the
+  puzzles still open on past days.
+- **Earlier days** (`#/days`): month calendars on the same background. Each day
+  is a sandy cell with three dots that fill in the difficulty's colour; a
+  finished day turns green and gets a little flag, and today is ringed. Tapping
+  a day opens a sheet with its three cards.
+- **A puzzle** (`#/<day>/<tier>`): back, the name and progress, Restart (tap
+  twice: a "Sure?" pops out) and settings in the header; the sea; then the
+  game's messages and Undo.
 
-Bridges are saved as they are laid, so any puzzle can be left and picked up
-later, and a solved one opens finished (Restart plays it again). Puzzles are
-addressed as `#/<day>/<tier>`. The home screen and the puzzle screen share one
-renderer, which moves between them; nothing is drawn on the calendar.
+Settings has Music and Sounds volume sliders (remembered; sliding to nothing
+switches one off) and How to play, a sheet of the rules with a little picture
+each. Bridges are saved as they are laid, so any puzzle can be left and picked
+up later, and a joined one opens finished (Restart plays it again). The 3D sea
+is only drawn while a puzzle is open.
 
 ## Levels
 
