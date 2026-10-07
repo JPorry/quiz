@@ -94,9 +94,8 @@ The published URL will be shown in the completed deployment job.
 The same deployment builds the standalone Tidal Garden project in
 `tidal-garden/` and publishes it under `/tidal-garden/` on the same site. Bunny Burrows,
 in `bunny-burrows/`, is built (after its tests pass) and published under
-`/bunny-burrows/` the same way. Tiny Isles, in `tiny-isles/`, is
-published under `/tiny-isles/` the same way, and Hamster Hideaway, in
-`hamster-hideaway/`, under `/hamster-hideaway/` (after its tests pass and its
+`/bunny-burrows/` the same way. Hamster Hideaway, in `hamster-hideaway/`, is
+published under `/hamster-hideaway/` the same way (after its tests pass and its
 daily puzzles are verified).
 
 ## Flower Patch
@@ -110,3 +109,16 @@ The existing `/flower-patch/` web demo remains available as a static snapshot in
 `5188f1e3f8a1dddf2870b60cc1ce0b3fc834e902`. Vite copies this snapshot into the
 Pages build. Further Flower Patch development happens in the new repository;
 the demo is no longer rebuilt as part of this project.
+
+## Tiny Islands
+
+Tiny Islands now lives in its own repository:
+[JPorry/tiny-islands](https://github.com/JPorry/tiny-islands). Its source, artwork,
+audio, puzzle generators, tests, and project history have moved there.
+
+The existing `/tiny-isles/` web demo remains available as a static snapshot in
+`public/tiny-isles/`, built from the extracted repository's commit
+`e0d4e3511f121bd2b266b1797f2caf5a720d4bd2` (quiz commit `610b532`). Vite copies
+this snapshot into the Pages build; further development happens in the new
+repository. The snapshot keeps the existing browser save namespace. Only its page title and
+logo accessibility label were corrected to Tiny Islands after extraction.

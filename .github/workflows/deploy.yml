@@ -30,7 +30,6 @@ jobs:
             package-lock.json
             tidal-garden/package-lock.json
             bunny-burrows/package-lock.json
-            tiny-isles/package-lock.json
             hamster-hideaway/package-lock.json
 
       - name: Set up GitHub Pages
@@ -67,21 +66,6 @@ jobs:
 
       - name: Publish Bunny Burrows under /bunny-burrows/
         run: cp -R bunny-burrows/dist dist/bunny-burrows
-
-      - name: Install Tiny Isles dependencies
-        working-directory: tiny-isles
-        run: npm ci --no-audit --no-fund
-
-      - name: Test Tiny Isles
-        working-directory: tiny-isles
-        run: npm test
-
-      - name: Build Tiny Isles
-        working-directory: tiny-isles
-        run: npm run build
-
-      - name: Publish Tiny Isles under /tiny-isles/
-        run: cp -R tiny-isles/dist dist/tiny-isles
 
       - name: Install Hamster Hideaway dependencies
         working-directory: hamster-hideaway

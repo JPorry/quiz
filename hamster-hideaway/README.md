@@ -3,7 +3,7 @@
 A cozy Three.js take on Nurikabe: lay see-through play tubes through a glass
 hamster habitat so that every hamster gets a room of its own. Every day brings
 three new puzzles, one easy, one medium and one hard, and every earlier day stays
-open to play. Like Tiny Isles, this is a standalone project with its own Vite
+open to play. Like Bunny Burrows, this is a standalone project with its own Vite
 setup, build, and storage namespace, and it is published under
 `/hamster-hideaway/` on the same GitHub Pages site.
 
