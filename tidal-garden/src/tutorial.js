@@ -1,13 +1,12 @@
-// The guided gardens. A small coach walks a new player through the first garden one rule at a
+// The guided gardens. A small coach walks a new player through the tutorial garden one rule at a
 // time, each shown on a real tile of their own board: never three in a row, mind the gap, and five
-// and five. The first garden of each later chapter gets a shorter guide of its own, showing its new
-// clue deciding a tile. The coach points at the piece to pick and makes the right tile glow, with
-// soft rings on what decides it, then hands over with where the hint lives.
-import { CHAPTERS } from './game.js'
+// and five. The first daily garden with a new kind of clue (villages, lighthouses, ferries or
+// pilgrims) gets a shorter guide of its own, showing that clue deciding a tile. The coach points at
+// the piece to pick and makes the right tile glow, with soft rings on what decides it, then hands
+// over with where the hint lives.
 import { t, terrain, pieceName } from './i18n.js'
 import { easiestDeductions, VILLAGE_TECHNIQUES, LIGHT_TECHNIQUES, FERRY_TECHNIQUES, PILGRIM_TECHNIQUES } from './solver.js'
 
-export const TUTORIAL_LEVEL = 0
 const STORAGE_KEY = 'tidal-garden.guides'
 const OLD_KEY = 'tidal-garden.tutorial'
 
@@ -80,16 +79,13 @@ export const GUIDES = {
   lighthouses: { techniques: LIGHT_TECHNIQUES },
   ferries: { techniques: FERRY_TECHNIQUES },
   pilgrims: { techniques: PILGRIM_TECHNIQUES },
-  crossings: { techniques: [...FERRY_TECHNIQUES, ...PILGRIM_TECHNIQUES] },
-  archipelago: { techniques: [...VILLAGE_TECHNIQUES, ...LIGHT_TECHNIQUES, ...FERRY_TECHNIQUES, ...PILGRIM_TECHNIQUES] },
 }
-const CHAPTER_GUIDES = ['villages', 'lighthouses', 'ferries', 'pilgrims', 'crossings', 'archipelago']
 
-// Which guide belongs to a garden: the basics in the first, and a chapter's own in its first garden.
-export function guideFor(level) {
-  if (level === TUTORIAL_LEVEL) return 'basics'
-  const index = CHAPTERS.findIndex((chapter) => chapter.start === level)
-  return index > 0 ? CHAPTER_GUIDES[index - 1] ?? null : null
+// Which guide a garden would show: the basics in the tutorial garden, and in a daily garden the
+// first of its kinds of clue the player hasn't been shown yet.
+export function guideFor(puzzle, finished = new Set()) {
+  if (puzzle.id === 'tutorial') return 'basics'
+  return (puzzle.kinds ?? []).find((kind) => GUIDES[kind] && !finished.has(kind)) ?? null
 }
 
 // What the coach says about each clue deciding a tile.
@@ -148,7 +144,12 @@ export class Tutorial {
     } catch { /* Shown again, which is harmless. */ }
     this.states = {}
     this.current = null
+    // A garden keeps the guide it opened with, so finishing one never starts another mid-garden.
+    this.chosen = {}
   }
+
+  // Whether the basics (the tutorial garden) have been played or skipped.
+  get basicsDone() { return this.finished.has('basics') }
 
   save() {
     try { this.storage?.setItem(STORAGE_KEY, JSON.stringify([...this.finished])) } catch { /* Fine without. */ }
@@ -170,6 +171,7 @@ export class Tutorial {
   restart() {
     this.finished.clear()
     this.states = {}
+    this.chosen = {}
     try { this.storage?.removeItem(OLD_KEY) } catch { /* Fine without. */ }
     this.save()
   }
@@ -184,11 +186,13 @@ export class Tutorial {
 
   // What the coach shows right now for this garden, board and selected piece, or null when it has
   // nothing to say. Moves past lessons whose tile is in place.
-  card(level, grid, selected, complete, puzzle = {}) {
-    const id = guideFor(level)
+  card(puzzle, grid, selected, complete) {
+    if (!(puzzle.id in this.chosen)) this.chosen[puzzle.id] = guideFor(puzzle, this.finished)
+    const id = this.chosen[puzzle.id]
     this.current = id
     if (!id || this.finished.has(id)) return null
-    if (complete) { this.finish(id); return null }
+    // Finishing a garden mid-guide ends the guide; opening one already finished leaves it waiting.
+    if (complete) { if (this.states[id] && this.states[id].step !== 'welcome') this.finish(id); return null }
     const guide = GUIDES[id]
     const steps = id === 'basics' ? BASICS : ['lesson']
     const state = this.state(id)

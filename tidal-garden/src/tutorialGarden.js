@@ -1,0 +1,36 @@
+// The tutorial garden, First Light: a gentle 10×10 garden of its own, played before a player's first
+// daily garden, where the coach finds every lesson of the basics in order (see src/tutorial.js).
+export const TUTORIAL = {
+  id: 'tutorial',
+  day: 0,
+  tier: 'easy',
+  kinds: [],
+  signs: [],
+  lights: [],
+  ferries: [],
+  pilgrims: [],
+  puzzle: [
+    [null, 1, null, 0, 0, null, null, 1, null, 1],
+    [null, null, null, 0, null, null, null, 0, null, 1],
+    [0, null, 0, null, 1, 0, 1, 1, null, 0],
+    [null, null, 0, null, 1, 0, 1, 0, null, null],
+    [1, null, null, 1, 0, null, 0, 1, 0, 0],
+    [null, 0, 0, null, 0, null, 1, 1, 0, 1],
+    [null, null, null, 0, 1, 0, null, null, 1, 0],
+    [null, 0, 0, 1, 0, null, null, null, 1, 0],
+    [null, 0, null, 1, 1, null, null, 0, 0, null],
+    [0, 1, null, 0, 1, 1, null, 0, 1, 0],
+  ],
+  solution: [
+    [0, 1, 1, 0, 0, 1, 0, 1, 0, 1],
+    [1, 0, 1, 0, 0, 1, 0, 0, 1, 1],
+    [0, 1, 0, 1, 1, 0, 1, 1, 0, 0],
+    [0, 1, 0, 0, 1, 0, 1, 0, 1, 1],
+    [1, 0, 1, 1, 0, 1, 0, 1, 0, 0],
+    [1, 0, 0, 1, 0, 0, 1, 1, 0, 1],
+    [0, 1, 1, 0, 1, 0, 1, 0, 1, 0],
+    [1, 0, 0, 1, 0, 1, 0, 1, 1, 0],
+    [1, 0, 0, 1, 1, 0, 1, 0, 0, 1],
+    [0, 1, 1, 0, 1, 1, 0, 0, 1, 0],
+  ],
+}

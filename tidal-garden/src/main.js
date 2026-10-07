@@ -1,12 +1,12 @@
-import { createIcons, Music, Map as MapIcon, Lock, Play, Footprints, Ship, Sun, House, ArrowRight, Check, ChevronDown, CircleHelp, Clock3, Fingerprint, Grid3x3, Lightbulb, MoonStar, Move3d, RotateCcw, Scale, Sprout, Undo2, Volume2, VolumeX, X, Settings as SettingsIcon, Languages, GraduationCap, Trash2 } from 'lucide'
-import { GardenGame, GARDENS, GARDEN_NAMES, CHAPTERS, chapterOf, findViolations, findHint } from './game.js'
+import { createIcons, Music, Play, Footprints, Ship, Sun, House, ArrowLeft, ArrowRight, Check, CircleHelp, Clock3, Fingerprint, Grid3x3, Lightbulb, MoonStar, Move3d, RotateCcw, Scale, Sprout, Undo2, Volume2, X, Settings as SettingsIcon, Languages, GraduationCap, Trash2, Calendar, Flame } from 'lucide'
+import { GardenGame, findViolations, findHint } from './game.js'
 import { GardenScene } from './scene.js'
-import { mapLayout, mapMarkup, MAP_ART } from './map.js'
 import { GardenAudio } from './audio.js'
-import { TITLE_ART } from './titleArt.js'
 import { DeviceTilt } from './tilt.js'
 import { Tutorial } from './tutorial.js'
-import { t, LANGUAGES, language, setLanguage, gardenName, chapterName, chapterIntro, terrain } from './i18n.js'
+import { TIERS, today, dayOf, dateOf, puzzle } from './daily.js'
+import { TUTORIAL } from './tutorialGarden.js'
+import { t, LANGUAGES, language, setLanguage, terrain } from './i18n.js'
 import './style.css'
 
 const game = new GardenGame()
@@ -19,6 +19,13 @@ const app = document.querySelector('#app')
 document.documentElement.lang = language()
 document.querySelector('meta[name="description"]')?.setAttribute('content', t('app.description'))
 const icon = (name) => `<i data-lucide="${name}" aria-hidden="true"></i>`
+const tierName = (tier) => t(`tier.${tier}`)
+const tierPips = (tier) => `<i class="pips">${[0, 1, 2].map((k) => `<b class="${k <= TIERS.indexOf(tier) ? 'on' : ''}"></b>`).join('')}</i>`
+const capital = (text) => text.charAt(0).toLocaleUpperCase(language()) + text.slice(1)
+const longDate = (day) => capital(dateOf(day).toLocaleDateString(language(), { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' }))
+const dayName = (day) => (day === today() ? t('day.today') : day === today() - 1 ? t('day.yesterday') : capital(dateOf(day).toLocaleDateString(language(), { day: 'numeric', month: 'short', timeZone: 'UTC' })))
+// Little drifting petals and bubbles over the menus.
+const DRIFT = [...Array(10)].map((_, k) => `<i class="drift ${k % 3 ? 'petal' : 'bubble'}" style="--x:${(k * 37 + 7) % 100}%;--d:${(k * 1.7) % 9}s;--t:${12 + (k * 3) % 7}s;--c:${['#ffc6d6', '#fff3b8', '#ffffff', '#ffd9b8', '#d4f4ff'][k % 5]}"></i>`).join('')
 // The picker is three little diorama pieces: a pool, a grassy islet, and an empty socket.
 const PIECE_ART = {
   water: `<svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" fill="#35b3c4"/><rect x="4" y="4" width="56" height="56" rx="11" fill="none" stroke="#7fdcd6" stroke-width="3"/><g class="art-waves" stroke="#b5f0ee" stroke-width="3" fill="none" stroke-linecap="round"><path d="M-24 24 q6 -5 12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0"/><path d="M-36 42 q6 -5 12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0"/></g><path class="art-glint" d="M47 13 l1.4 3.6 3.6 1.4 -3.6 1.4 -1.4 3.6 -1.4 -3.6 -3.6 -1.4 3.6 -1.4z" fill="#fff"/></svg>`,
@@ -28,18 +35,18 @@ const PIECE_ART = {
 const PARTICLES = Array.from({ length: 10 }, (_, i) => `<i style="--a: ${i * 36 + (i % 2) * 14}deg; --i: ${i}"></i>`).join('')
 const piece = (kind, value, label, name) => `<button class="piece ${kind}" data-value="${value}" aria-label="${label}" aria-pressed="false"><span class="piece-stage"><span class="piece-shadow"></span><span class="piece-ring"></span><span class="piece-tile">${PIECE_ART[kind]}</span><span class="piece-burst" aria-hidden="true">${PARTICLES}</span></span><span class="piece-name">${name}</span></button>`
 app.innerHTML = `
-  <main class="garden-app">
+  <main class="garden-app" data-screen="title">
     <div class="dusk" aria-hidden="true"></div>
     <div class="world" id="world">
       <div class="board-access" role="group" aria-label="${t('board.grid')}"></div>
     </div>
     <div class="game-layout">
       <header class="game-bar">
-        <button class="round-button" id="to-map" aria-label="${t('bar.map')}" title="${t('bar.map')}">${icon('map')}</button>
+        <button class="round-button" id="back" aria-label="${t('back')}" title="${t('back')}">${icon('arrow-left')}</button>
         <div class="garden-pill">
-          <span class="pill-number" id="chapter-number">1</span>
+          <span class="pill-number" id="tier-badge" aria-hidden="true"></span>
           <span class="pill-text">
-            <small><span id="caption-chapter"></span><span class="pill-dot"></span><span id="time">00:00</span></small>
+            <small><span id="caption-day"></span><span class="pill-dot"></span><span id="time">00:00</span></small>
             <strong id="garden-name"></strong>
             <span class="pill-progress" aria-hidden="true"><span id="progress-bar"></span></span>
           </span>
@@ -73,48 +80,54 @@ app.innerHTML = `
       </footer>
     </div>
     <section class="finale-card" id="finale-card" aria-labelledby="finale-title" inert>
-      <p class="eyebrow"><span></span>${t('finale.garden')} <b id="finale-number">01</b>&nbsp;·&nbsp;<em id="finale-name"></em></p>
+      <p class="eyebrow"><span></span><b id="finale-tier"></b>&nbsp;·&nbsp;<em id="finale-name"></em></p>
       <h2 id="finale-title">${t('finale.title')}</h2>
-      <p class="finale-meta"><span>${icon('clock-3')}${t('finale.grownIn')} <b id="finale-time">00:00</b></span><span class="time-divider"></span><span><b id="finale-count">1</b> ${t('finale.of', { total: GARDEN_NAMES.length })}</span></p>
+      <p class="finale-meta"><span>${icon('clock-3')}${t('finale.grownIn')} <b id="finale-time">00:00</b></span><span class="time-divider"></span><span id="finale-today"></span></p>
       <div class="finale-actions">
         <button class="secondary-button" id="finale-stay">${t('finale.stay')}</button>
         <button class="primary-button" id="finale-next"><span id="finale-next-label">${t('finale.next')}</span> ${icon('arrow-right')}</button>
       </div>
       <p class="finale-tip">${t('finale.tip')}</p>
     </section>
-    <section class="title-screen" id="title-screen" aria-label="Tidal Garden">
-      ${TITLE_ART}
-      <div class="title-content">
-        <h1 class="title-logo"><span class="logo-line">Tidal</span> <span class="logo-line">Garden</span></h1>
-        <svg class="title-flourish" viewBox="0 0 120 12" aria-hidden="true"><path d="M2 6 q7 -6 14 0 t14 0 t14 0 M76 6 q7 -6 14 0 t14 0 t14 0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="60" cy="6" r="3" fill="currentColor"/></svg>
-        <p class="title-tagline">${t('title.tagline')}</p>
-      </div>
-      <div class="title-bottom">
-        <button class="play-button" id="title-play">${icon('play')}<span>${t('title.play')}</span></button>
-        <p class="title-progress" id="title-progress"></p>
-      </div>
-      <div class="title-tools">
-        <button class="round-button open-settings" aria-label="${t('settings')}" title="${t('settings')}">${icon('settings')}</button>
-        <button class="round-button" id="title-help" aria-label="${t('bar.rules')}" title="${t('bar.rules')}">${icon('circle-help')}</button>
-      </div>
+    <section class="titlepage enter" id="titlepage" aria-label="Tidal Garden">
+      <img class="titlebg" src="title-sea.webp" alt="" draggable="false" aria-hidden="true">
+      <h1 class="logo"><img src="title-logo.webp" alt="Tidal Garden" width="1000" height="500" draggable="false"><i class="glint" aria-hidden="true" style="-webkit-mask-image:url(title-logo.webp);mask-image:url(title-logo.webp)"></i></h1>
+      <p class="tagline">${t('title.tagline')}</p>
+      <div class="titlespace"></div>
+      <nav class="titlebuttons">
+        <button class="bigplay" id="title-play">${icon('play')}<span>${t('title.play')}</span></button>
+        <button class="titlebtn" id="title-learn">${icon('graduation-cap')}<span>${t('title.learn')}</span></button>
+      </nav>
+      <button class="round titlegear open-settings" aria-label="${t('settings')}">${icon('settings')}</button>
     </section>
-    <section class="map-screen" id="map-screen" aria-label="${t('map.label')}" inert>
-      <div class="map-scroll" id="map-scroll"><div class="map-canvas" id="map-canvas"></div></div>
-      <header class="map-bar">
-        <button class="round-button" id="map-home" aria-label="${t('map.home')}">${icon('house')}</button>
-        <div class="map-progress" id="map-progress" aria-live="polite"><span>${icon('sprout')}</span><b id="map-count">0</b><small>/ ${GARDEN_NAMES.length}</small></div>
-        <div class="map-tools">
-          <button class="round-button open-settings" aria-label="${t('settings')}" title="${t('settings')}">${icon('settings')}</button>
-        </div>
+    <div class="menubg" aria-hidden="true"><img src="title-sea.webp" alt="" draggable="false"><span class="wash"></span>${DRIFT}</div>
+    <section class="home" id="home" aria-label="${t('home.title')}">
+      <header class="homehead">
+        <button class="round" id="home-back" aria-label="${t('back.title')}">${icon('arrow-left')}</button>
+        <div class="brand"><h1 class="hometitle">${t('home.title')}</h1></div>
+        <button class="round open-settings" aria-label="${t('settings')}">${icon('settings')}</button>
       </header>
-      <p class="map-toast" id="map-toast" role="status"></p>
-      <div class="map-card" id="map-card" role="dialog" aria-labelledby="map-card-title" inert>
-        <button class="round-button map-card-close" id="map-card-close" aria-label="${t('close')}">${icon('x')}</button>
-        <p class="map-card-chapter" id="map-card-chapter"></p>
-        <h2 id="map-card-title"></h2>
-        <p class="map-card-name" id="map-card-name"></p>
-        <p class="map-card-status" id="map-card-status"></p>
-        <button class="play-button" id="map-card-play">${icon('play')}<span id="map-card-play-label">${t('map.play')}</span></button>
+      <div class="chips">
+        <p class="date"><span id="date"></span></p>
+        <span class="tag-chip blooms" id="blooms"></span>
+      </div>
+      <div class="todays" id="todays"></div>
+      <footer class="homefoot">
+        <p class="hello" id="hello"></p>
+        <button class="chip daysbutton" id="open-days">${icon('calendar')}<span>${t('home.earlier')}</span><b class="count" id="catchup" hidden></b></button>
+      </footer>
+    </section>
+    <section class="dayspage" id="dayspage" aria-label="${t('days.title')}">
+      <header class="dayshead">
+        <button class="round" id="days-back" aria-label="${t('back.home')}">${icon('arrow-left')}</button>
+        <div class="titles"><h1 class="hometitle">${t('days.title')}</h1><p class="date dayssum"><span id="dayssummary"></span></p></div>
+      </header>
+      <div class="months" id="months"></div>
+      <div class="picker" id="daysheet" hidden>
+        <div class="sheet">
+          <div class="sheethead"><h2 id="sheetdate"></h2><button class="round" id="sheetclose" aria-label="${t('close')}">${icon('x')}</button></div>
+          <div class="cards" id="cards"></div>
+        </div>
       </div>
     </section>
   </main>
@@ -122,7 +135,7 @@ app.innerHTML = `
 `
 
 const $ = (selector) => document.querySelector(selector)
-const refreshIcons = () => createIcons({ icons: { Music, Map: MapIcon, Lock, Play, Footprints, Ship, Sun, House, ArrowRight, Check, ChevronDown, CircleHelp, Clock3, Fingerprint, Grid3x3, Lightbulb, MoonStar, Move3d, RotateCcw, Scale, Sprout, Undo2, Volume2, VolumeX, X, Settings: SettingsIcon, Languages, GraduationCap, Trash2 }, attrs: { 'stroke-width': 1.6 } })
+const refreshIcons = (root) => createIcons({ icons: { Music, Play, Footprints, Ship, Sun, House, ArrowLeft, ArrowRight, Check, CircleHelp, Clock3, Fingerprint, Grid3x3, Lightbulb, MoonStar, Move3d, RotateCcw, Scale, Sprout, Undo2, Volume2, X, Settings: SettingsIcon, Languages, GraduationCap, Trash2, Calendar, Flame }, attrs: { 'stroke-width': 1.6 }, root })
 refreshIcons()
 
 const access = $('.board-access')
@@ -164,11 +177,11 @@ function boardSafeArea() {
 function finaleSafeArea() {
   const world = $('#world').getBoundingClientRect()
   const phone = world.width <= 700
-  const card = $('#finale-card')
+  const box = $('#finale-card')
   const top = $('.game-bar').getBoundingClientRect().bottom - world.top + (phone ? 0 : 6)
   // Layout positions ignore the card's slide-in offset, so the framing holds still as it appears.
-  if (world.width >= 1100) return { top, bottom: world.height - 30, left: card.offsetLeft + card.offsetWidth + 30, right: world.width - 40 }
-  return { top, bottom: card.offsetTop - (phone ? 6 : 16), left: phone ? 10 : 40, right: world.width - (phone ? 10 : 40) }
+  if (world.width >= 1100) return { top, bottom: world.height - 30, left: box.offsetLeft + box.offsetWidth + 30, right: world.width - 40 }
+  return { top, bottom: box.offsetTop - (phone ? 6 : 16), left: phone ? 10 : 40, right: world.width - (phone ? 10 : 40) }
 }
 
 try {
@@ -185,7 +198,12 @@ function placeCell(row, col) {
   const before = findViolations(game.grid, game.puzzle).size
   audio.play(game.selected === 0 ? 'place-water' : game.selected === 1 ? 'place-land' : 'place-erase', { row, col })
   render()
-  if (game.complete) { audio.play('win'); startFinale('celebrate', { row, col }) }
+  if (game.complete) {
+    // Finishing the tutorial garden finishes the tutorial, however far its coach had got.
+    if (game.puzzle.id === TUTORIAL.id) tutorial.finish('basics')
+    audio.play('win')
+    startFinale('celebrate', { row, col })
+  }
   else if (findViolations(game.grid, game.puzzle).size > before) audio.play('oops', { at: 0.12 })
 }
 
@@ -204,11 +222,13 @@ const pieceFor = (value) => document.querySelector(`.piece[data-value="${value =
 
 function render() {
   const invalid = findViolations(game.grid, game.puzzle)
-  const coach = tutorial.card(game.level, game.grid, game.selected, game.complete, game.puzzle)
+  const coach = tutorial.card(game.puzzle, game.grid, game.selected, game.complete)
   scene?.update(game.grid, game.puzzle.puzzle, invalid, game.complete, game.puzzle)
-  $('#caption-chapter').textContent = chapterName(CHAPTERS.indexOf(chapterOf(game.level)))
-  $('#chapter-number').textContent = game.level + 1
-  $('#garden-name').textContent = gardenName(game.level)
+  const learning = game.puzzle.id === TUTORIAL.id
+  $('#caption-day').textContent = learning ? t('tutorial.caption') : `${dayName(game.puzzle.day)} · ${tierName(game.puzzle.tier)}`
+  $('#tier-badge').dataset.tier = game.puzzle.tier
+  $('#tier-badge').innerHTML = tierPips(game.puzzle.tier)
+  $('#garden-name').textContent = gardenTitle(game.puzzle)
   $('#progress-bar').style.width = `${game.filled}%`
   $('#time').textContent = `${String(Math.floor(game.seconds / 60)).padStart(2, '0')}:${String(game.seconds % 60).padStart(2, '0')}`
   $('#undo').disabled = !game.history.length
@@ -220,10 +240,7 @@ function render() {
   }
   if (finale && !game.complete) endFinale()
   // The raised piece already shows the selection, so the status line only speaks up when it matters.
-  // The first garden of a chapter explains what is new until the first tile goes down.
-  const introducing = !coach && !game.history.length && CHAPTERS.findIndex((chapter) => chapter.start === game.level && chapter.intro)
-  const status = game.complete ? t('status.balanced') : invalid.size ? t('status.invalid') : hintCell ? hintText(hintCell)
-    : introducing > 0 ? chapterIntro(introducing) : ''
+  const status = game.complete ? t('status.balanced') : invalid.size ? t('status.invalid') : hintCell ? hintText(hintCell) : ''
   $('#placement-status p').textContent = status
   $('#placement-status').classList.toggle('invalid', invalid.size > 0)
   document.querySelectorAll('[data-value]').forEach((button) => {
@@ -245,19 +262,32 @@ function renderCoach(card) {
   $('#coach').hidden = !card
   scene?.showGuide(card?.target || card?.because?.length ? card : null)
   document.querySelectorAll('.piece').forEach((button) => button.classList.toggle('coach-pick', card?.pick !== undefined && card?.pick !== null && button.dataset.value === String(card.pick)))
-  // The card takes a row of its own, so the board makes room for it, and takes the room back after.
-  if (was !== !!card) scene?.resize()
-  if (!card) return
-  $('#coach').dataset.step = card.step
-  $('#coach-title').textContent = card.title
-  $('#coach-text').textContent = card.text
-  $('#coach-instruction').textContent = card.instruction ?? ''
-  $('#coach-next').textContent = card.action ?? ''
-  $('#coach-next').hidden = !card.action
-  $('#coach-skip').hidden = card.step === 'outro'
+  if (card) {
+    $('#coach').dataset.step = card.step
+    $('#coach-title').textContent = card.title
+    $('#coach-text').textContent = card.text
+    $('#coach-instruction').textContent = card.instruction ?? ''
+    $('#coach-next').textContent = card.action ?? ''
+    $('#coach-next').hidden = !card.action
+    $('#coach-skip').hidden = card.step === 'outro'
+    $('#coach-skip').textContent = t(game.puzzle.id === TUTORIAL.id ? 'coach.skip' : 'coach.skipGuide')
+  }
+  // The card takes a row of its own, so the board makes room for it (and again whenever the card
+  // grows or shrinks), and takes the room back after.
+  const height = card ? $('#coach').offsetHeight : 0
+  if (was !== !!card || height !== coachHeight) scene?.resize()
+  coachHeight = height
 }
+let coachHeight = 0
 $('#coach-next').addEventListener('click', () => { audio.play(tutorial.step === 'outro' ? 'start' : 'tap'); tutorial.next(); render() })
-$('#coach-skip').addEventListener('click', () => { audio.play('back'); tutorial.finish(); render() })
+// Skipping the tutorial goes straight on to the garden picked; skipping a clue's guide just ends it.
+$('#coach-skip').addEventListener('click', () => {
+  audio.play('back')
+  const learning = game.puzzle.id === TUTORIAL.id
+  tutorial.finish()
+  if (learning) leaveTutorial()
+  else render()
+})
 
 document.querySelectorAll('[data-value]').forEach((button) => button.addEventListener('click', () => {
   const value = button.dataset.value === 'erase' ? null : Number(button.dataset.value)
@@ -393,7 +423,7 @@ function openSettings() {
   // A new language reloads the game in it, back on the same screen with Settings open.
   $('#language').addEventListener('change', (event) => {
     setLanguage(event.target.value)
-    try { sessionStorage.setItem(REOPEN, screen) } catch { /* It just opens on the title. */ }
+    try { sessionStorage.setItem(REOPEN, '1') } catch { /* It just opens where it was. */ }
     location.reload()
   })
   $('#tilt-toggle')?.addEventListener('change', async (event) => {
@@ -407,48 +437,41 @@ function openSettings() {
 }
 document.querySelectorAll('.open-settings').forEach((button) => button.addEventListener('click', openSettings))
 
-// The tutorial plays again in the first garden, cleared for it (a finished garden stays finished),
-// and every chapter's guide comes back too.
+// The tutorial garden plays again from its welcome, then returns to wherever the player was. Every
+// clue's guide comes back too.
 function replayTutorial() {
   audio.play('start')
   modal.close()
   tutorial.restart()
-  closeCard()
-  game.load(0)
-  game.reset()
-  scene?.resetPresentation()
-  hintCell = null
-  if (screen === 'play') { endFinale(); render() } else showScreen('play')
+  afterTutorial = location.hash === '#/tutorial' ? afterTutorial : location.hash || '#/daily'
+  if (location.hash === '#/tutorial') route()
+  else location.hash = '#/tutorial'
 }
 
 function confirmResetAll() {
   audio.play('oops')
-  const done = game.completed.length
+  const done = Object.keys(game.done).length
   openModal(`<p class="eyebrow">${t('resetAll.eyebrow')}</p><h2>${t('resetAll.title')}</h2><p class="modal-description">${t(done === 0 ? 'resetAll.textNone' : done === 1 ? 'resetAll.textOne' : 'resetAll.textMany', { done })}</p><div class="modal-actions"><button class="secondary-button" id="keep-progress">${t('resetAll.keep')}</button><button class="danger-button" id="confirm-reset-all">${icon('trash-2')} ${t('resetAll.confirm')}</button></div>`)
   $('#keep-progress').addEventListener('click', () => { audio.play('back'); openSettings() })
   $('#confirm-reset-all').addEventListener('click', () => {
     audio.play('restart')
     game.resetAll()
     tutorial.restart()
-    shownFrontier = game.frontier
     scene?.resetPresentation()
     hintCell = null
     endFinale()
     modal.close()
-    render()
-    if (screen === 'title') updateTitle()
-    else showScreen('title')
+    location.hash = ''
+    route()
   })
 }
-$('#title-help').addEventListener('click', openHelp)
-
-$('#to-map').addEventListener('click', () => { audio.play('back'); showScreen('map') })
+$('#back').addEventListener('click', () => { audio.play('back'); location.hash = backTo })
 
 // The finale: the interface steps aside while the scene celebrates, then a small card
 // offers the next garden without covering the finished one.
 let finale = null
 const appRoot = $('.garden-app')
-const card = $('#finale-card')
+const finaleCard = $('#finale-card')
 function startFinale(mode, origin = null) {
   if (!scene) return
   endCard()
@@ -458,24 +481,29 @@ function startFinale(mode, origin = null) {
   scene.finale.start(mode, origin)
   // Evening falls in the music too: the melody settles and crickets come out.
   audio.setMood('evening')
-  $('#finale-number').textContent = String(game.level + 1).padStart(2, '0')
-  $('#finale-name').textContent = gardenName(game.level)
+  const learning = game.puzzle.id === TUTORIAL.id
+  $('#finale-tier').textContent = learning ? t('tutorial.caption') : `${tierName(game.puzzle.tier)} · ${dayName(game.puzzle.day)}`
+  $('#finale-name').textContent = gardenTitle(game.puzzle)
   $('#finale-time').textContent = $('#time').textContent
-  $('#finale-count').textContent = game.completed.length
+  const solvedToday = TIERS.filter((tier) => game.done[`${today()}-${tier}`] !== undefined).length
+  $('#finale-today').textContent = t('finale.today', { n: solvedToday })
+  // After the tutorial the card goes on to the garden picked; otherwise to the next one to play.
+  next = learning ? null : nextGarden()
+  $('#finale-next-label').textContent = learning ? t('finale.letsPlay') : next ? (next.day === game.puzzle.day ? t('finale.nextTier', { tier: tierName(next.tier) }) : t('finale.nextDay', { tier: tierName(next.tier) })) : t('finale.home')
   finale.timer = setTimeout(showCard, scene.finale.plan.card * 1000)
 }
 function showCard() {
   if (!finale || finale.card) return
   clearTimeout(finale.timer)
   finale.card = true
-  card.inert = false
-  card.classList.add('visible')
+  finaleCard.inert = false
+  finaleCard.classList.add('visible')
   $('#finale-next').focus({ preventScroll: true })
 }
 function endCard() {
   clearTimeout(finale?.timer)
-  card.classList.remove('visible')
-  card.inert = true
+  finaleCard.classList.remove('visible')
+  finaleCard.inert = true
 }
 function endFinale() {
   if (!finale) return
@@ -486,13 +514,18 @@ function endFinale() {
   audio.setMood(screen)
 }
 $('#finale-stay').addEventListener('click', () => { audio.play('back'); endFinale(); scene?.clearSelection() })
-// Onward leads back to the map, where the marker hops along to the garden that just opened.
-$('#finale-next').addEventListener('click', () => showScreen('map', { offer: true }))
+// Onward: after the tutorial, the garden picked; otherwise the next garden still to play, or home.
+let next = null
+$('#finale-next').addEventListener('click', () => {
+  audio.play('start')
+  if (game.puzzle.id === TUTORIAL.id) leaveTutorial()
+  else location.hash = next ? `#/${next.day}/${next.tier}` : '#/daily'
+})
 // A tap during the celebration brings the card forward without cutting the show short.
 $('#world').addEventListener('pointerdown', () => { if (finale) showCard() })
 
 document.addEventListener('keydown', (event) => {
-  if (screen === 'map' && event.key === 'Escape' && mapCard.classList.contains('visible')) { closeCard(); return }
+  if (screen === 'days' && event.key === 'Escape' && !$('#daysheet').hidden) { $('#daysheet').hidden = true; return }
   if (screen !== 'play' || modal.open || event.target instanceof HTMLInputElement) return
   if (finale) {
     if (event.key === 'Escape') endFinale()
@@ -510,168 +543,231 @@ document.addEventListener('keydown', (event) => {
 setInterval(() => {
   if (screen === 'play' && !game.complete && !document.hidden && !modal.open) { game.seconds++; game.save(); render() }
 }, 1000)
-// The game has three screens: the title, the map of every garden, and the garden itself. Each
-// step forward is a history entry, so a phone's back button walks back through them.
-let screen
-let mapWidth = 0
-let shownFrontier = game.frontier
-const mapScreen = $('#map-screen')
-const mapScroll = $('#map-scroll')
-const mapCanvas = $('#map-canvas')
-const mapCard = $('#map-card')
-let cardLevel = null
+/* ---------- today's gardens and earlier days ---------- */
 
-function updateTitle() {
-  const done = game.completed.length
-  $('#title-progress').textContent = done ? t('title.progress', { done, total: GARDEN_NAMES.length }) : t('title.fresh', { total: GARDEN_NAMES.length })
+const clock = (seconds) => `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`
+const gardenTitle = (p) => (p.id === TUTORIAL.id ? t('tutorial.name') : p.name)
+const CLUE_ICON = { villages: 'house', lighthouses: 'sun', ferries: 'ship', pilgrims: 'footprints' }
+
+// A little map of a garden: its starting tiles, any tiles placed (or its answer, once in balance),
+// and a dot for each clue.
+function miniMap(p) {
+  const saved = game.grids[p.id]?.grid
+  const done = game.done[p.id] !== undefined
+  const grid = done ? p.solution : saved ?? p.puzzle
+  const s = 10
+  let tiles = ''
+  for (let r = 0; r < 10; r++) for (let c = 0; c < 10; c++) {
+    const v = grid[r][c]
+    if (v === null) continue
+    tiles += `<rect class="${v ? 'land' : 'water'}${p.puzzle[r][c] === null ? ' placed' : ''}" x="${c * s + 0.8}" y="${r * s + 0.8}" width="${s - 1.6}" height="${s - 1.6}" rx="2.4"/>`
+  }
+  const clues = [...p.signs.map((x) => x.cell), ...p.lights.map((x) => x.cell), ...p.ferries.flatMap((x) => x.docks), ...p.pilgrims.flatMap((x) => x.shrines)]
+    .map(([r, c]) => `<circle class="clue" cx="${c * s + s / 2}" cy="${r * s + s / 2}" r="2.6"/>`).join('')
+  return `<svg class="map" viewBox="-1 -1 102 102" aria-hidden="true"><rect class="sea" x="-1" y="-1" width="102" height="102" rx="8"/>${tiles}${clues}</svg>`
 }
 
-function showScreen(name, { push = true, offer = false } = {}) {
-  if (name === screen) return
-  if (screen === 'play') { endFinale(); scene?.showHover(null) }
-  // Each move between screens drifts the music into that screen's mood, on a breath of wind.
-  if (screen) audio.play('swoosh')
+// days in a row, back from today (or yesterday, if today is still to come), with a garden in balance
+function streak(now) {
+  const solved = (day) => TIERS.some((tier) => game.done[`${day}-${tier}`] !== undefined)
+  let day = solved(now) ? now : now - 1
+  let n = 0
+  while (day >= 1 && solved(day)) { n++; day-- }
+  return n
+}
+
+function greeting() {
+  const h = new Date().getHours()
+  return t(h < 5 ? 'hello.night' : h < 12 ? 'hello.morning' : h < 18 ? 'hello.afternoon' : 'hello.evening')
+}
+
+// A garden as a card: its difficulty, a little map, its name, its clues, and what to do next (a
+// finished one wears a stamp with its time).
+function card(p) {
+  const st = game.state(p.id)
+  const action = { done: `${icon('check')}<span>${clock(game.done[p.id] ?? 0)}</span>`, started: `${icon('play')}<span>${t('card.resume')}</span>`, new: `${icon('play')}<span>${t('card.play')}</span>` }[st]
+  const clues = p.kinds.length ? p.kinds.map((kind) => `<span class="clue-tag">${icon(CLUE_ICON[kind])}${t(`clue.${kind}`)}</span>`).join('') : `<span class="clue-tag">${icon('scale')}${t('clue.balance')}</span>`
+  return `<button class="card ${st}" data-tier="${p.tier}" data-day="${p.day}" style="--i:${TIERS.indexOf(p.tier)}" aria-label="${tierName(p.tier)}: ${p.name}, ${t(`card.${st}.state`)}">
+    <span class="tier">${tierName(p.tier)}${tierPips(p.tier)}</span>
+    <span class="planter">${miniMap(p)}</span>
+    <span class="pname">${p.name}</span>
+    <span class="meta">${clues}</span>
+    <span class="status">${action}</span>
+  </button>`
+}
+
+// Three little islands for today, filling in as the gardens are solved.
+const islet = (tier, st) => `<svg class="islet ${tier} ${st}" viewBox="0 0 32 24" aria-hidden="true"><ellipse cx="16" cy="18" rx="14" ry="5" fill="#7fd0d6"/><path d="M5 16 Q6 9 16 9 Q26 9 27 16 Q16 21 5 16Z" class="sand"/><path d="M8 13 Q10 8 16 8 Q22 8 24 13 Q16 15 8 13Z" class="grass"/>${st === 'done' ? '<circle class="bloom" cx="16" cy="8" r="3.2"/>' : st === 'started' ? '<path class="sprout" d="M16 12 V7 M16 9 q-3 -3 -5 -1 M16 8 q3 -3 5 -1" fill="none" stroke-width="1.6" stroke-linecap="round"/>' : ''}</svg>`
+
+function drawHome() {
+  const now = today()
+  $('#date').textContent = longDate(now)
+  const states = TIERS.map((tier) => game.state(`${now}-${tier}`))
+  $('#todays').innerHTML = TIERS.map((tier) => card(puzzle(now, tier))).join('')
+  const solved = states.filter((x) => x === 'done').length
+  const n = streak(now)
+  const flame = n ? `<span class="flame" title="${t(n === 1 ? 'streak.one' : 'streak', { n })}">${icon('flame')}<b>${n}</b></span>` : ''
+  $('#blooms').innerHTML = flame + TIERS.map((tier, i) => islet(tier, states[i])).join('') + `<span class="count">${solved}/3</span>`
+  $('#blooms').setAttribute('aria-label', [n ? t(n === 1 ? 'streak.one' : 'streak', { n }) : '', t('today.count', { n: solved })].filter(Boolean).join(', '))
+  $('#hello').textContent = `${greeting()} ${t(`hello.${solved}`)}`
+  let missed = 0
+  for (let day = 1; day < now; day++) missed += TIERS.filter((tier) => game.done[`${day}-${tier}`] === undefined).length
+  $('#catchup').hidden = !missed
+  $('#catchup').textContent = missed > 99 ? '99+' : missed
+  refreshIcons()
+}
+
+// Earlier days: a calendar, newest month first, weeks starting on Monday.
+function drawDays() {
+  const now = today()
+  const months = []
+  for (let day = now; day >= 1; day--) {
+    const date = dateOf(day)
+    const key = `${date.getUTCFullYear()}-${date.getUTCMonth()}`
+    if (!months.length || months.at(-1).key !== key) months.push({ key, date })
+  }
+  let solved = 0
+  for (let day = 1; day <= now; day++) solved += TIERS.filter((tier) => game.done[`${day}-${tier}`] !== undefined).length
+  $('#dayssummary').textContent = t('days.summary', { solved, total: now * 3 })
+  const weekdays = [...Array(7)].map((_, k) => new Date(Date.UTC(2024, 0, 1 + k)).toLocaleDateString(language(), { weekday: 'narrow', timeZone: 'UTC' }))
+  $('#months').innerHTML = months.map(({ date }) => {
+    const y = date.getUTCFullYear(), m = date.getUTCMonth()
+    const first = new Date(Date.UTC(y, m, 1))
+    const length = new Date(Date.UTC(y, m + 1, 0)).getUTCDate()
+    const blanks = (first.getUTCDay() + 6) % 7
+    const cells = [...Array(blanks)].map(() => '<span class="cell blank"></span>')
+    for (let d = 1; d <= length; d++) {
+      const day = dayOf(new Date(y, m, d))
+      if (day < 1 || day > now) { cells.push(`<span class="cell off">${d}</span>`); continue }
+      const sts = TIERS.map((tier) => game.state(`${day}-${tier}`))
+      const all = sts.every((x) => x === 'done')
+      cells.push(`<button class="cell${all ? ' complete' : ''}${day === now ? ' today' : ''}" data-day="${day}" aria-label="${dayName(day)}: ${t('days.cell', { n: sts.filter((x) => x === 'done').length })}"><b>${d}</b><span class="dots">${TIERS.map((tier, i) => `<i class="${tier} ${sts[i]}"></i>`).join('')}</span></button>`)
+    }
+    return `<section class="month"><h2>${capital(first.toLocaleDateString(language(), { month: 'long', year: 'numeric', timeZone: 'UTC' }))}</h2>
+      <div class="week">${weekdays.map((w) => `<span>${w}</span>`).join('')}</div>
+      <div class="cal">${cells.join('')}</div></section>`
+  }).join('')
+}
+
+function openDay(day) {
+  $('#sheetdate').textContent = day === today() ? t('day.today') : longDate(day)
+  $('#cards').innerHTML = TIERS.map((tier) => card(puzzle(day, tier))).join('')
+  refreshIcons()
+  $('#daysheet').hidden = false
+}
+
+// The next garden still to play: the rest of this day first, then today's, then the latest
+// earlier day with one open.
+function nextGarden() {
+  const open = (day) => TIERS.map((tier) => ({ day, tier })).filter(({ day: d, tier }) => game.done[`${d}-${tier}`] === undefined)
+  const current = game.puzzle
+  if (current?.day) {
+    const left = open(current.day).filter(({ tier }) => TIERS.indexOf(tier) > TIERS.indexOf(current.tier))
+    if (left.length) return left[0]
+  }
+  for (let day = today(); day >= 1; day--) { const o = open(day); if (o.length) return o[0] }
+  return null
+}
+
+for (const id of ['#todays', '#cards']) {
+  $(id).addEventListener('click', (event) => {
+    const button = event.target.closest('[data-tier]')
+    if (!button) return
+    audio.unlock()
+    audio.play('select', { level: TIERS.indexOf(button.dataset.tier) * 2 })
+    location.hash = `#/${button.dataset.day}/${button.dataset.tier}`
+  })
+}
+$('#months').addEventListener('click', (event) => {
+  const cell = event.target.closest('.cell[data-day]')
+  if (cell) { audio.unlock(); audio.play('open'); openDay(Number(cell.dataset.day)) }
+})
+$('#open-days').addEventListener('click', () => { audio.unlock(); audio.play('tap'); location.hash = '#/days' })
+$('#days-back').addEventListener('click', () => { audio.play('back'); location.hash = '#/daily' })
+$('#home-back').addEventListener('click', () => { audio.play('back'); location.hash = '' })
+$('#sheetclose').addEventListener('click', () => { audio.play('back'); $('#daysheet').hidden = true })
+$('#daysheet').addEventListener('click', (event) => { if (event.target === $('#daysheet')) $('#daysheet').hidden = true })
+// The title: Play opens today's gardens, How to play the tutorial garden.
+$('#title-play').addEventListener('click', () => { audio.unlock(); audio.play('tap'); location.hash = '#/daily' })
+$('#title-learn').addEventListener('click', () => { audio.unlock(); audio.play('tap'); tutorial.restart(); afterTutorial = '#/daily'; location.hash = '#/tutorial' })
+
+/* ---------- moving between screens ---------- */
+
+// #/<day>/<tier> plays a garden, #/daily is today's three, #/days the calendar, #/tutorial the
+// tutorial garden, and anything else is the title. A phone's back gesture steps back through them.
+let screen
+let backTo = '#/daily'
+// Where to go once the tutorial is done or skipped: the garden the player picked.
+let afterTutorial = ''
+function leaveTutorial() {
+  tutorial.finish('basics')
+  const to = afterTutorial || '#/daily'
+  afterTutorial = ''
+  // The tutorial steps out of the history, so Back doesn't return to it.
+  history.replaceState(null, '', to)
+  route()
+}
+
+function route() {
+  const m = location.hash.match(/^#\/(\d+)\/(easy|medium|hard)$/)
+  const day = m && Number(m[1])
+  const playable = m && day >= 1 && day <= today()
+  const learning = location.hash === '#/tutorial'
+  // A first game starts with the tutorial garden, then goes on to the garden picked.
+  if (playable && !tutorial.basicsDone) {
+    afterTutorial = location.hash
+    history.replaceState(null, '', '#/tutorial')
+    return route()
+  }
+  const name = playable || learning ? 'play' : location.hash === '#/days' ? 'days' : location.hash === '#/daily' ? 'home' : 'title'
+  const was = screen
+  if (was === 'play') { endFinale(); scene?.showHover(null) }
+  if (was && was !== name) audio.play('swoosh')
   screen = name
   appRoot.dataset.screen = name
-  audio.setMood(name)
-  $('#title-screen').inert = name !== 'title'
-  mapScreen.inert = name !== 'map'
-  // The title and the map cover the whole garden, so the scene rests while they're open.
+  audio.setMood(name === 'play' ? 'play' : name === 'title' ? 'title' : 'map')
+  for (const [id, on] of [['#titlepage', 'title'], ['#home', 'home'], ['#dayspage', 'days']]) $(id).inert = name !== on
+  // The menus cover the whole garden, so the scene rests while they're open.
   if (scene) scene.paused = name !== 'play'
-  if (name === 'title') updateTitle()
-  if (name === 'map') openMap({ offer })
-  else closeCard()
   if (name === 'play') {
+    if (was !== 'play') backTo = was === 'days' ? '#/days' : was === 'title' ? '' : '#/daily'
+    // The tutorial always starts afresh; a daily garden opens where it was left.
+    if (learning && tutorial.basicsDone) tutorial.restart()
+    game.start(learning ? TUTORIAL : puzzle(day, m[2]))
+    scene?.resetPresentation()
+    scene?.clearSelection()
     hintCell = null
     render()
     if (game.complete) startFinale('revisit')
+    return
   }
-  if (push) history.pushState({ screen: name }, '', name === 'title' ? location.pathname + location.search : `#${name}`)
+  if (name === 'days') { $('#daysheet').hidden = true; drawDays() }
+  else if (name === 'home') drawHome()
+  else if (was !== 'title') {
+    // The title plays its entrance again each time it's shown.
+    $('#titlepage').classList.remove('enter')
+    void $('#titlepage').offsetWidth
+    $('#titlepage').classList.add('enter')
+  }
 }
-// Tall screens crop the title's picture to fill; wide ones fit it whole, so the island stays a
-// sensible size beneath the logo.
-function frameTitle() {
-  $('.title-art')?.setAttribute('preserveAspectRatio', innerWidth / innerHeight > 0.85 ? 'xMidYMax meet' : 'xMidYMax slice')
-}
-addEventListener('resize', frameTitle)
-frameTitle()
+addEventListener('hashchange', route)
+// A new day may have begun while a menu sat open.
+addEventListener('visibilitychange', () => { if (!document.hidden && (screen === 'home' || screen === 'days')) route() })
 // Safari zooms on a pinch or a double tap even when the page asks it not to, so those gestures are
 // stopped here; the garden's own pinch and drag go through the canvas's pointer events instead.
 for (const type of ['gesturestart', 'gesturechange', 'dblclick']) document.addEventListener(type, (event) => event.preventDefault(), { passive: false })
-addEventListener('popstate', (event) => showScreen(event.state?.screen ?? 'title', { push: false }))
-$('#title-play').addEventListener('click', () => { audio.unlock(); audio.play('tap'); showScreen('map') })
-$('#map-home').addEventListener('click', () => { audio.play('back'); showScreen('title') })
 
-// Lays out the whole map and scrolls to the newest open garden. When a garden has opened since the
-// map was last seen, the marker hops along to it and, after a win, its card comes up.
-function openMap({ offer = false } = {}) {
-  const width = Math.min(mapScroll.clientWidth || innerWidth, 560)
-  mapWidth = width
-  const frontier = game.frontier
-  const chapters = CHAPTERS.map((chapter, index) => ({ ...chapter, name: chapterName(index) }))
-  const layout = mapLayout(chapters, width)
-  mapCanvas.style.width = `${width}px`
-  mapCanvas.style.height = `${layout.height}px`
-  mapCanvas.innerHTML = MAP_ART + mapMarkup(layout, chapters, { completed: game.completed, isUnlocked: (level) => game.isUnlocked(level), frontier, names: GARDEN_NAMES.map((_, level) => gardenName(level)) })
-  refreshIcons()
-  $('#map-count').textContent = game.completed.length
-  const marker = mapCanvas.querySelector('.map-marker')
-  const from = layout.nodes[Math.min(shownFrontier, frontier)]
-  const to = layout.nodes[frontier]
-  mapScroll.scrollTop = from.y - mapScroll.clientHeight * 0.55
-  if (frontier !== shownFrontier && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    marker.style.left = `${from.x}px`
-    marker.style.top = `${from.y}px`
-    mapCanvas.querySelector(`.map-node[data-level="${frontier}"]`)?.classList.add('opening')
-    audio.play('hop', { at: 0.1 })
-    audio.play('unlock', { at: 0.7 })
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      marker.classList.add('hopping')
-      marker.style.left = `${to.x}px`
-      marker.style.top = `${to.y}px`
-      mapScroll.scrollTo({ top: to.y - mapScroll.clientHeight * 0.55, behavior: 'smooth' })
-    }))
-  }
-  shownFrontier = frontier
-  if (offer) setTimeout(() => { if (screen === 'map') openCard(frontier) }, 900)
-}
-mapCanvas.addEventListener('click', (event) => {
-  const node = event.target.closest('.map-node')
-  if (!node) return
-  const level = Number(node.dataset.level)
-  if (!game.isUnlocked(level)) {
-    audio.play('locked')
-    node.classList.remove('nudge')
-    void node.offsetWidth
-    node.classList.add('nudge')
-    return
-  }
-  audio.play('select', { level })
-  openCard(level)
-})
-addEventListener('resize', () => { if (screen === 'map' && Math.min(mapScroll.clientWidth, 560) !== mapWidth) openMap() })
-
-// A hidden developer switch: tapping the garden count seven times in quick succession opens every
-// garden on the map (or closes them again), for trying any level.
-let devTaps = []
-$('#map-progress').addEventListener('click', () => {
-  const now = performance.now()
-  devTaps = [...devTaps.filter((time) => now - time < 3000), now]
-  if (devTaps.length < 7) return
-  devTaps = []
-  game.unlockAll = !game.unlockAll
-  audio.play(game.unlockAll ? 'unlock' : 'locked')
-  const toast = $('#map-toast')
-  toast.textContent = t(game.unlockAll ? 'map.devOn' : 'map.devOff')
-  toast.classList.remove('visible')
-  void toast.offsetWidth
-  toast.classList.add('visible')
-  openMap()
-})
-
-const clock = (seconds) => `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`
-// A small card about the garden, with the way in.
-function openCard(level) {
-  cardLevel = level
-  const saved = game.grids[level]
-  const filled = saved?.grid?.flat().filter((value) => value !== null).length ?? 0
-  const givens = GARDENS[level].puzzle.flat().filter((value) => value !== null).length
-  const done = game.completed.includes(level)
-  $('#map-card-chapter').textContent = chapterName(CHAPTERS.indexOf(chapterOf(level)))
-  $('#map-card-title').textContent = t('map.garden', { n: level + 1 })
-  $('#map-card-name').textContent = gardenName(level)
-  $('#map-card-status').textContent = done ? t('map.done', { time: clock(saved?.seconds ?? 0) }) : filled > givens ? t('map.growing', { filled }) : t('map.new')
-  $('#map-card-play-label').textContent = t(done ? 'map.visit' : filled > givens ? 'map.continue' : 'map.play')
-  mapCard.inert = false
-  mapCard.classList.add('visible')
-  mapCanvas.querySelectorAll('.map-node.chosen').forEach((node) => node.classList.remove('chosen'))
-  mapCanvas.querySelector(`.map-node[data-level="${level}"]`)?.classList.add('chosen')
-}
-function closeCard() {
-  cardLevel = null
-  mapCard.classList.remove('visible')
-  mapCard.inert = true
-  mapCanvas.querySelectorAll('.map-node.chosen').forEach((node) => node.classList.remove('chosen'))
-}
-$('#map-card-close').addEventListener('click', () => { audio.play('back'); closeCard() })
-$('#map-card-play').addEventListener('click', () => {
-  if (cardLevel === null) return
-  audio.play('start')
-  if (cardLevel !== game.level) {
-    game.load(cardLevel)
-    scene?.clearSelection()
-  }
-  showScreen('play')
-})
-
-// Every visit opens on the title; ?play goes straight into the current garden, for testing. After
-// switching language, the game comes back where it was, with Settings open.
+// Every visit opens on the title, unless the address names a screen (?play goes straight into
+// today's easy garden, for testing). After switching language, the game comes back where it was,
+// with Settings open.
 let reopen = null
 try { reopen = sessionStorage.getItem(REOPEN); sessionStorage.removeItem(REOPEN) } catch { /* Fine without. */ }
-const firstScreen = new URLSearchParams(location.search).has('play') ? 'play' : ['title', 'map', 'play'].includes(reopen) ? reopen : 'title'
-history.replaceState({ screen: firstScreen }, '', location.pathname + location.search)
-render()
-showScreen(firstScreen, { push: false })
+if (new URLSearchParams(location.search).has('play')) {
+  tutorial.finish('basics')
+  history.replaceState(null, '', `#/${today()}/easy`)
+}
+game.start(TUTORIAL)
+route()
 if (reopen) openSettings()
 
 // Read-only development diagnostics keep visual and canvas tests grounded in the rendered scene.
@@ -679,7 +775,7 @@ if (import.meta.env.DEV) {
   window.__tidal = {
     get snapshot() {
       return {
-        level: game.level, grid: game.grid.map((row) => [...row]), filled: game.filled,
+        id: game.id, grid: game.grid.map((row) => [...row]), filled: game.filled,
         complete: game.complete, history: game.history.length,
         camera: scene?.camera.position.toArray(), daylight: scene?.daylight, sun: scene?.sun.position.toArray().map((v) => +v.toFixed(2)),
         clouds: scene?.clouds.clouds.length,
@@ -717,7 +813,15 @@ if (import.meta.env.DEV) {
       }
     },
     get screen() { return screen },
-    show(name) { showScreen(name) },
+    show(hash) { location.hash = hash; route() },
+    // Fills in the answer, leaving the last `leave` empty tiles, then places the last one the way a
+    // player would (so the finale plays) unless some are left.
+    solve(leave = 0) {
+      const empty = game.puzzle.puzzle.flatMap((row, r) => row.map((v, c) => (v === null && game.grid[r][c] !== game.puzzle.solution[r][c] ? [r, c] : null))).filter(Boolean)
+      const last = empty.pop()
+      for (const [r, c] of empty.slice(0, Math.max(0, empty.length - leave))) game.grid[r][c] = game.puzzle.solution[r][c]
+      if (last && !leave) { game.selected = game.puzzle.solution[last[0]][last[1]]; placeCell(...last) } else render()
+    },
     gust() { scene?.breeze.start(scene.time) },
     cloud(progress = 0, options) { return scene?.clouds.spawn(scene.time, progress, options) },
     // Holds every running flourish at a given age, so a screenshot can catch it mid-sweep.

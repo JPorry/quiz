@@ -4,7 +4,6 @@
 // first visit follows the device's own language.
 import { EN } from './locales/en.js'
 import { ES } from './locales/es.js'
-import { GARDEN_NAMES, CHAPTERS } from './game.js'
 
 export const LANGUAGES = {
   en: { name: 'English', strings: EN },
@@ -41,9 +40,6 @@ export function t(key, params = {}) {
   return text.replace(/\{(\w+)\}/g, (match, name) => (name in params ? params[name] : match))
 }
 
-export const gardenName = (level) => LANGUAGES[current].strings.gardens?.[level] ?? GARDEN_NAMES[level]
-export const chapterName = (index) => LANGUAGES[current].strings.chapters?.[index]?.name ?? CHAPTERS[index].name
-export const chapterIntro = (index) => LANGUAGES[current].strings.chapters?.[index]?.intro ?? CHAPTERS[index].intro
 // "water" or "land" for a tile's value, and the same as a piece's name.
 export const terrain = (value) => t(value === 0 ? 'terrain.water' : 'terrain.land')
 export const pieceName = (value) => t(value === 0 ? 'piece.water' : 'piece.land')

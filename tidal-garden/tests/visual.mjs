@@ -2,10 +2,13 @@ import { chromium } from '@playwright/test'
 import { PNG } from 'pngjs'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import assert from 'node:assert/strict'
-import { PUZZLES } from '../src/puzzles.js'
+import { puzzle as dailyGarden, today } from '../src/daily.js'
+
+// ?play opens today's easy garden, so the fixtures are that garden.
+const FIXTURE = dailyGarden(today(), 'easy')
 import { findEnclosedRegions, terrainNeighbors, COMPLETION_VARIANTS } from '../src/terrain.js'
 
-// ?play skips the title and map and opens straight into the garden.
+// ?play skips the title and the menus and opens straight into today's easy garden.
 const url = `${process.env.TIDAL_TEST_URL ?? 'http://127.0.0.1:5180'}/?play`
 mkdirSync('test-results', { recursive: true })
 const browser = await chromium.launch({ headless: true, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-webgl'] })
@@ -31,7 +34,7 @@ function countPixels(buffer) {
 
 // An empty tile in the first garden with land just south of it, so new land visibly joins up.
 const target = (() => {
-  const { puzzle } = PUZZLES[0]
+  const { puzzle } = FIXTURE
   for (let row = 0; row < 9; row++) for (let col = 0; col < 10; col++) if (puzzle[row][col] === null && puzzle[row + 1][col] === 1) return [row, col]
   throw new Error('The first garden needs an empty tile above land')
 })()
@@ -124,11 +127,11 @@ try {
       console.log('  Solving full garden')
       for (let row = 0; row < 10; row++) {
         for (let col = 0; col < 10; col++) {
-          if (PUZZLES[0].puzzle[row][col] !== null) continue
-          await page.getByRole('button', { name: PUZZLES[0].solution[row][col] === 0 ? 'Place water' : 'Place land', exact: true }).click()
+          if (FIXTURE.puzzle[row][col] !== null) continue
+          await page.getByRole('button', { name: FIXTURE.solution[row][col] === 0 ? 'Place water' : 'Place land', exact: true }).click()
           const cell = await page.evaluate(([r, c]) => __tidal.cellPosition(r, c), [row, col])
           await page.mouse.click(cell.x, cell.y)
-          assert.equal(await page.evaluate(([r, c]) => __tidal.snapshot.grid[r][c], [row, col]), PUZZLES[0].solution[row][col], `Placement missed row ${row}, col ${col}`)
+          assert.equal(await page.evaluate(([r, c]) => __tidal.snapshot.grid[r][c], [row, col]), FIXTURE.solution[row][col], `Placement missed row ${row}, col ${col}`)
         }
       }
       assert.equal(await page.evaluate(() => __tidal.snapshot.complete), true)
@@ -160,7 +163,7 @@ try {
   }
   if (!process.env.TIDAL_TEST_REDUCED_ONLY) for (const value of [1, 0]) {
     console.log(`Checking ${value ? 'island' : 'lake'} completion and undo`)
-    const puzzle = PUZZLES[0]
+    const puzzle = FIXTURE
     const region = findEnclosedRegions(puzzle.solution).find((region) => region.value === value && region.cells.some((cell) => terrainNeighbors(puzzle.solution, cell.row, cell.col).some((neighbor) => neighbor.value !== value && puzzle.puzzle[cell.row + neighbor.row]?.[cell.col + neighbor.col] === null)))
     assert.ok(region, 'Fixture needs an enclosed patch with editable shoreline')
     const closing = region.cells.flatMap((cell) => terrainNeighbors(puzzle.solution, cell.row, cell.col).map((neighbor) => ({ row: cell.row + neighbor.row, col: cell.col + neighbor.col, value: neighbor.value }))).find((cell) => cell.value !== value && puzzle.puzzle[cell.row]?.[cell.col] === null)
@@ -171,9 +174,9 @@ try {
     grid[spare.row][spare.col] = null
     const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } })
     context.setDefaultTimeout(15000)
-    await context.addInitScript((grid) => {
-      if (!localStorage.getItem('tidal-garden.v3')) localStorage.setItem('tidal-garden.v3', JSON.stringify({ version: 1, level: 0, completed: [], grids: { 0: { grid, history: [], seconds: 0 } } }))
-    }, grid)
+    await context.addInitScript(({ grid, id }) => {
+      if (!localStorage.getItem('tidal-garden.daily')) localStorage.setItem('tidal-garden.daily', JSON.stringify({ version: 1, done: {}, grids: { [id]: { grid, history: [], seconds: 0 } } }))
+    }, { grid, id: FIXTURE.id })
     const page = await context.newPage()
     page.on('pageerror', (error) => errors.push(error.message))
     await page.clock.install()
