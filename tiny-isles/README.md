@@ -93,6 +93,49 @@ it wants, filling as bridges arrive; it turns green when the island is happy
 and red when it has too many. Connecting everything turns the light to golden
 hour and sets off fireworks over the cities.
 
+## Music and sounds
+
+`scripts/compose-audio.py` composes and renders everything in `public/audio/`
+and writes `src/audioManifest.js`. The music is low-key harbor lo-fi in G major
+at 80 bpm:
+- a soft Rhodes, a nylon guitar picking in eighths, and a walking upright bass
+- a shaker, plus a soft kick and side stick on the home theme
+- little two-bar tunes on a steel drum (home), vibraphone or kalimba (puzzles)
+- an accordion breathing through the B sections, and the odd glockenspiel twinkle
+- a distant buoy bell
+
+It's rendered through the FluidR3 General MIDI soundfont with FluidSynth and laid
+over a harbor bed made with numpy: the sea swelling, a breeze, and gulls calling
+("kyow" or a laughing run), some near, some far. There is one home theme and two
+calmer puzzle tracks, and two streaming decks crossfade between them as you move
+around; the music dips while the win fanfare plays.
+
+The effects are pitched in G major pentatonic, so they always sit inside the
+music:
+
+| Moment | Sound |
+| --- | --- |
+| Touch an island | a round bloop with a woody tick |
+| Each plank laid | a marimba tok, a step higher along the bridge |
+| Drag past halfway | a bright pluck and a springy boing |
+| Bridge opens | a kalimba run and a celesta twinkle; a stone bridge rings on steel drum and glockenspiel |
+| An island gets exactly its number | a music-box ding-ding, higher with each happy island |
+| A city grows | a glockenspiel sparkle, higher for bigger cities |
+| Swipe cuts a bridge | a swish and a snip-snip, then a splash and bubbles |
+| Bridges would cross | a wooden bonk and a sorry little boing |
+| Tap the open sea | a drop of water |
+| Undo, restart | a kalimba falling back, a wave washing over |
+| Open a puzzle | a little boat's toot-toot |
+| Every island joined | a steel-drum fanfare with harp, celesta, a gull and two toots |
+
+The speaker button opens a menu with separate Music and Sounds switches, which
+are remembered. To rebuild the audio (needs fluidsynth, fluid-soundfont-gm,
+ffmpeg, numpy and scipy):
+
+```sh
+python3 scripts/compose-audio.py [--only=music|sfx]
+```
+
 ## Controls
 
 Drag from an island toward a neighbour: the bridge follows the finger plank by
