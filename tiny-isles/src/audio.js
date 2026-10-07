@@ -12,7 +12,7 @@ import { AUDIO } from './audioManifest.js'
 const MOODS = {
   home: { tracks: 'home', level: 0.9 },
   days: { tracks: 'home', level: 0.6 },
-  play: { tracks: 'play', level: 0.62 },
+  play: { tracks: 'play', level: 0.5 },
 }
 const CROSSFADE = 4
 const PREFERENCES = 'tiny-isles.audio'

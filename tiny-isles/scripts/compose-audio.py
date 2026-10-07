@@ -14,7 +14,7 @@ Writes public/audio/*.mp3, public/audio/sfx/*.mp3, and src/audioManifest.js.
 Most of the rendering helpers come from Tidal Garden's scripts/compose-audio.py.
 
 Needs: fluidsynth, the fluid-soundfont-gm soundfont, ffmpeg, numpy and scipy.
-    python3 scripts/compose-audio.py [--seed=2026] [--only=music|sfx]
+    python3 scripts/compose-audio.py [--seed=2026] [--only=music|sfx] [--tracks=play-1,play-2]
 """
 import json
 import os
@@ -53,8 +53,10 @@ FORM = [A, A, B, A, A, A, B, A]  # 32 bars, about a minute and a half
 
 # How each mood plays.
 MOODS = {
-    'home': dict(leads=[STEEL_DRUM, MARIMBA], density=0.85, guitar=1.0, groove=1.0, accordion=0.7, glock=0.4, gulls=0.9, waves=0.8, bell=0.5),
-    'play': dict(leads=[VIBES, KALIMBA], density=0.45, guitar=0.6, groove=0.35, accordion=0.0, glock=0.2, gulls=0.45, waves=1.0, bell=0.35),
+    'home': dict(tempo=80, lead_range=(67, 88), density=0.85, guitar=1.0, guitar_up=12, groove=1.0, shaker=1.0, accordion=0.7, glock=0.4, gulls=0.9, waves=0.8, bell=0.5, warm=None),
+    # The puzzle music is background music: slower, lower, sparser and warmer, so it
+    # never pulls attention from the islands.
+    'play': dict(tempo=68, lead_range=(55, 76), density=0.32, guitar=0.6, guitar_up=0, groove=0.0, shaker=0.3, accordion=0.0, glock=0.0, gulls=0.35, waves=1.0, bell=0.35, warm=3200),
 }
 
 # ---------------------------------------------------------------------------------------------
@@ -218,6 +220,8 @@ def harbor(seconds, mood, rng):
         if rng.random() < mood['gulls']:
             near = rng.random() < 0.4
             call = gull(rng, rng.uniform(0.07, 0.1) if near else rng.uniform(0.03, 0.05))
+            if mood['warm']:
+                call *= 0.6  # quieter gulls while puzzling
             if not near:
                 call = band(call, high=2600)
             start = int(t * RATE)
@@ -264,8 +268,9 @@ def compose(mood_name, seed):
     notes = []
     # Channels: 0 Rhodes, 1 bass, 2 guitar, 3 lead, 4 accordion, 5 glockenspiel, 6 buoy bell, 9 drums.
     bars = [chord for section in FORM for chord in section]
-    pool = [p for p in PENTATONIC if 67 <= p <= 88]
-    motif, last = None, 74
+    low, high = mood['lead_range']
+    pool = [p for p in PENTATONIC if low <= p <= high]
+    motif, last = None, (low + high) // 2
     for index, (root, voicing) in enumerate(bars):
         start = index * 4
         intro = index < 2
@@ -289,13 +294,19 @@ def compose(mood_name, seed):
             for k in range(int(4 / step)):
                 if step == 0.5 and k in (0,) and rng.random() < 0.5:
                     continue
-                pitch = tones[order[k % len(order)] % len(tones)] + 12
+                pitch = tones[order[k % len(order)] % len(tones)] + mood['guitar_up']
                 notes.append((start + k * step + rng.uniform(0, 0.03), step * 1.8, 2, pitch, rng.randint(34, 48)))
         # The drums: a shaker in eighths, with a soft kick and side stick on the home theme.
         if not intro and not outro:
-            for k in range(8):
-                if rng.random() < 0.55 + 0.4 * mood['groove']:
-                    notes.append((start + k * 0.5, 0.2, DRUMS, SHAKER, (40 if k % 2 else 24) + rng.randint(0, 8)))
+            if mood['shaker'] >= 1:
+                for k in range(8):
+                    if rng.random() < 0.55 + 0.4 * mood['groove']:
+                        notes.append((start + k * 0.5, 0.2, DRUMS, SHAKER, (40 if k % 2 else 24) + rng.randint(0, 8)))
+            else:
+                # just a whisper of shaker on the off-beats
+                for k in (1, 3):
+                    if rng.random() < mood['shaker']:
+                        notes.append((start + k, 0.2, DRUMS, SHAKER, 20 + rng.randint(0, 6)))
             if mood['groove'] > 0.6:
                 notes.append((start, 0.3, DRUMS, KICK, 52))
                 notes.append((start + 2.5, 0.3, DRUMS, KICK, 40))
@@ -310,7 +321,7 @@ def compose(mood_name, seed):
             current = pool.index(nearest(chord_tones or pool, last))
             for offset, length, move in phrase:
                 current = max(0, min(len(pool) - 1, current + move))
-                notes.append((start + offset + rng.uniform(-0.02, 0.02), length, 3, pool[current], rng.randint(50, 66)))
+                notes.append((start + offset + rng.uniform(-0.02, 0.02), length * (1.5 if mood['warm'] else 1), 3, pool[current], rng.randint(50, 66) - (8 if mood['warm'] else 0)))
             last = pool[current]
         # An accordion breathes long notes through the B sections.
         if section is B and rng.random() < mood['accordion']:
@@ -353,7 +364,9 @@ def master(signal, target_rms=0.07, fade_in=2.0, fade_out=4.0):
 def piece(mood_name, seed, lead):
     mood = MOODS[mood_name]
     programs = {0: RHODES, 1: BASS, 2: NYLON, 3: lead, 4: ACCORDION, 5: GLOCKENSPIEL, 6: TUBULAR_BELLS, DRUMS: 0}
-    music = render_midi(compose(mood_name, seed), programs, settings=SETTINGS, reverb=0.5, room=0.6)
+    music = render_midi(compose(mood_name, seed), programs, tempo=mood['tempo'], settings=SETTINGS, reverb=0.5, room=0.6)
+    if mood['warm']:
+        music = band(music, high=mood['warm'])
     seconds = len(music) / RATE
     bed = harbor(seconds, mood, np.random.default_rng(seed))
     music = music / (np.sqrt(np.mean(music ** 2)) + 1e-9) * 0.08
@@ -364,7 +377,7 @@ def piece(mood_name, seed, lead):
 TRACKS = [
     ('home', 'home', 11, STEEL_DRUM),
     ('play-1', 'play', 23, VIBES),
-    ('play-2', 'play', 37, KALIMBA),
+    ('play-2', 'play', 37, MARIMBA),
 ]
 
 # ---------------------------------------------------------------------------------------------
@@ -505,7 +518,11 @@ def main():
     only = ARGS.get('only')
     manifest = {'music': {}, 'effects': {}}
     if only in (None, 'music'):
+        wanted = ARGS.get('tracks', '').split(',') if ARGS.get('tracks') else None
         for name, mood, seed, lead in TRACKS:
+            if wanted and name not in wanted:
+                manifest['music'].setdefault(mood, []).append(f'audio/{name}.mp3')
+                continue
             signal = piece(mood, SEED + seed, lead)
             path = os.path.join(OUT, f'{name}.mp3')
             encode(signal, path, '112k')
