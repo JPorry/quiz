@@ -2,17 +2,18 @@
 // scripts/compose-audio.py: low-key harbor music over the sea and its gulls, and cute
 // effects pitched in the same key, so they always sit inside the music.
 //
-// Music streams through two decks that crossfade from track to track and between
-// the home screen's theme and the calmer puzzle tracks; effects are decoded once
+// The same easy-going tracks play on every screen, streaming through two decks
+// that crossfade from one to the next; effects are decoded once
 // and play instantly. Browsers only allow sound after a tap, so everything waits
 // for one. Adapted from Tidal Garden's audio.
 import { AUDIO } from './audioManifest.js'
 
-// Each screen's music, and how loud it sits: quieter while puzzling.
+// Each screen's music, and how loud it sits: every screen shares the same tracks,
+// so moving between them only eases the volume, a touch quieter while puzzling.
 const MOODS = {
-  home: { tracks: 'home', level: 0.9 },
-  days: { tracks: 'home', level: 0.6 },
-  play: { tracks: 'play', level: 0.5 },
+  home: { tracks: 'harbor', level: 0.62 },
+  days: { tracks: 'harbor', level: 0.55 },
+  play: { tracks: 'harbor', level: 0.5 },
 }
 const CROSSFADE = 4
 const PREFERENCES = 'tiny-isles.audio'
@@ -32,7 +33,7 @@ export class HarborAudio {
     this.mood = 'home'
     this.buffers = new Map()
     this.decks = []
-    this.turn = { home: 0, play: 0 }
+    this.turn = { harbor: 0 }
     this.live = 0
   }
 

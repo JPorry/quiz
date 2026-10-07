@@ -96,25 +96,21 @@ hour and sets off fireworks over the cities.
 ## Music and sounds
 
 `scripts/compose-audio.py` composes and renders everything in `public/audio/`
-and writes `src/audioManifest.js`. The music is low-key harbor lo-fi in G major.
-The home theme is at 80 bpm:
-- a soft Rhodes, a nylon guitar picking in eighths, and a walking upright bass
-- a shaker, plus a soft kick and side stick on the home theme
-- little two-bar tunes on a steel drum
-- an accordion breathing through the B sections, and the odd glockenspiel twinkle
-- a distant buoy bell
-
-The two puzzle tracks are made for the background: 68 bpm, with the melody an
-octave lower on vibraphone or a low marimba, fewer and longer phrases, the
-guitar picking slowly in its own register, no drums but a whispered shaker,
-quieter gulls, and the top end softened with a gentle low-pass. They also play
-a little quieter than the home theme.
+and writes `src/audioManifest.js`. The music is easy-going harbor lo-fi in G
+major, made for the background, and the same two tracks play on every screen:
+- 68 bpm, with a soft Rhodes, a nylon guitar picking slowly and a walking upright
+  bass
+- a few unhurried notes on a vibraphone (one track) or a low marimba (the other)
+- no drums but a whispered shaker, and a distant buoy bell
+- the top end softened with a gentle low-pass
 
 It's rendered through the FluidR3 General MIDI soundfont with FluidSynth and laid
 over a harbor bed made with numpy: the sea swelling, a breeze, and gulls calling
-("kyow" or a laughing run), some near, some far. There is one home theme and two
-calmer puzzle tracks, and two streaming decks crossfade between them as you move
-around; the music dips while the win fanfare plays.
+("kyow" or a laughing run), some near, some far. Two streaming decks crossfade
+from one track to the next. Moving between screens only eases the volume, a
+touch quieter while puzzling, and the music dips while the win fanfare plays.
+Every file's address in the manifest carries a hash of its contents
+(`?v=...`), so a re-rendered file is never served from an old cached copy.
 
 The effects are pitched in G major pentatonic, so they always sit inside the
 music:
