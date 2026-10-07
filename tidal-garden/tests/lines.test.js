@@ -1,9 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { balancedLines, newlyBalanced } from '../src/lines.js'
-import { PUZZLES } from '../src/puzzles.js'
+import { TUTORIAL } from '../src/tutorialGarden.js'
 
-const solution = PUZZLES[0].solution
+const solution = TUTORIAL.solution
 
 test('a finished garden has every row and column balanced', () => {
   assert.equal(balancedLines(solution).size, 20)

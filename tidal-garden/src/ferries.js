@@ -3,6 +3,9 @@
 // water beside one dock to the water beside the other, moving up, down, left and right.
 // Each route is { color, docks: [[row, col], [row, col]] }.
 
+// Each pair of docks has its own roof color, in this order.
+export const FERRY_COLORS = Object.freeze(['coral', 'sun', 'sky', 'lilac'])
+
 const NEIGHBORS = [[-1, 0], [1, 0], [0, -1], [0, 1]]
 
 const around = (grid, [row, col]) => NEIGHBORS

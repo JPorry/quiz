@@ -45,6 +45,14 @@ jobs:
         working-directory: tidal-garden
         run: npm ci --no-audit --no-fund
 
+      - name: Test Tidal Garden
+        working-directory: tidal-garden
+        run: npm test
+
+      - name: Verify Tidal Garden's daily gardens
+        working-directory: tidal-garden
+        run: npm run verify:days
+
       - name: Build Tidal Garden
         working-directory: tidal-garden
         run: npm run build

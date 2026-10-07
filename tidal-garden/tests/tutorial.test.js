@@ -1,13 +1,17 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { GARDENS, CHAPTERS, GardenGame, copyGrid } from '../src/game.js'
-import { Tutorial, TUTORIAL_LEVEL, findLesson, guideFor } from '../src/tutorial.js'
+import { copyGrid } from '../src/game.js'
+import { Tutorial, findLesson, guideFor } from '../src/tutorial.js'
+import { TUTORIAL } from '../src/tutorialGarden.js'
+import { puzzle as daily } from '../src/daily.js'
 
 const memoryStorage = () => {
   const memory = new Map()
   return { getItem: (key) => memory.get(key) ?? null, setItem: (key, value) => memory.set(key, value), removeItem: (key) => memory.delete(key) }
 }
-const garden = GARDENS[TUTORIAL_LEVEL]
+const garden = TUTORIAL
+// The first medium garden with each kind of clue.
+const firstWith = (kind) => { for (let day = 1; ; day++) if (daily(day, 'medium').kinds.includes(kind)) return daily(day, 'medium') }
 
 test('each lesson picks a tile its rule decides, matching the solution, near the front of the board', () => {
   for (const rule of ['pair', 'gap', 'count']) {
@@ -24,34 +28,36 @@ test('the coach welcomes, teaches each rule on its tile, and hands over', () => 
   const storage = memoryStorage()
   const tutorial = new Tutorial(storage)
   const grid = copyGrid(garden.puzzle)
-  assert.equal(tutorial.card(5, grid, 0, false), null, 'only the first garden is guided')
-  assert.equal(tutorial.card(TUTORIAL_LEVEL, grid, 0, false).step, 'welcome')
+  assert.equal(tutorial.card(daily(1, 'easy'), grid, 0, false), null, 'an easy daily garden has no guide')
+  assert.equal(tutorial.card(garden, grid, 0, false).step, 'welcome')
   tutorial.next()
   for (const rule of ['pair', 'gap', 'count']) {
-    let card = tutorial.card(TUTORIAL_LEVEL, grid, null, false)
+    let card = tutorial.card(garden, grid, null, false)
     assert.equal(card.step, rule)
     const { row, col } = card.target
     const value = garden.solution[row][col]
     assert.equal(card.pick, value, 'it asks for the right piece first')
-    card = tutorial.card(TUTORIAL_LEVEL, grid, value, false)
+    card = tutorial.card(garden, grid, value, false)
     assert.equal(card.instruction, 'Now tap the glowing tile.')
     grid[row][col] = 1 - value
-    assert.match(tutorial.card(TUTORIAL_LEVEL, grid, value, false).instruction, /Undo/)
+    assert.match(tutorial.card(garden, grid, value, false).instruction, /Undo/)
     grid[row][col] = value
   }
-  assert.equal(tutorial.card(TUTORIAL_LEVEL, grid, 0, false).step, 'outro')
+  assert.equal(tutorial.card(garden, grid, 0, false).step, 'outro')
   tutorial.next()
-  assert.equal(tutorial.card(TUTORIAL_LEVEL, grid, 0, false), null)
+  assert.equal(tutorial.card(garden, grid, 0, false), null)
   assert.ok(new Tutorial(storage).isFinished('basics'), 'finishing is remembered')
 })
 
 test('skipping or finishing the first garden ends the tutorial', () => {
   const skipped = new Tutorial(memoryStorage())
-  skipped.card(TUTORIAL_LEVEL, copyGrid(garden.puzzle), 0, false)
+  skipped.card(garden, copyGrid(garden.puzzle), 0, false)
   skipped.finish()
-  assert.equal(skipped.card(TUTORIAL_LEVEL, copyGrid(garden.puzzle), 0, false), null)
+  assert.equal(skipped.card(garden, copyGrid(garden.puzzle), 0, false), null)
   const finished = new Tutorial(memoryStorage())
-  assert.equal(finished.card(TUTORIAL_LEVEL, copyGrid(garden.solution), 0, true), null)
+  finished.card(garden, copyGrid(garden.puzzle), 0, false)
+  finished.next()
+  assert.equal(finished.card(garden, copyGrid(garden.solution), 0, true), null)
   assert.ok(finished.isFinished('basics'))
 })
 
@@ -61,56 +67,63 @@ test('an earlier finished tutorial is remembered', () => {
   assert.ok(new Tutorial(storage).isFinished('basics'))
 })
 
-test('the first garden of every later chapter has a guide that shows its new clue at work', () => {
-  const ids = CHAPTERS.slice(1).map((chapter) => guideFor(chapter.start))
-  assert.deepEqual(ids, ['villages', 'lighthouses', 'ferries', 'pilgrims', 'crossings', 'archipelago'])
-  assert.equal(guideFor(CHAPTERS[1].start + 1), null, 'only the first garden of a chapter is guided')
-  for (const chapter of CHAPTERS.slice(1)) {
-    const puzzle = GARDENS[chapter.start]
+test('the first daily garden with each kind of clue has a guide that shows the clue at work', () => {
+  assert.equal(guideFor(garden), 'basics')
+  for (const kind of ['villages', 'lighthouses', 'ferries', 'pilgrims']) {
+    const puzzle = firstWith(kind)
+    assert.equal(guideFor(puzzle), kind)
+    assert.equal(guideFor(puzzle, new Set([kind])), null, 'once seen, a clue needs no guide')
     const tutorial = new Tutorial(memoryStorage())
     const grid = copyGrid(puzzle.puzzle)
-    assert.equal(tutorial.card(chapter.start, grid, 0, false, puzzle).step, 'welcome')
+    assert.equal(tutorial.card(puzzle, grid, 0, false).step, 'welcome')
     tutorial.next()
     // Play the solution, a tile at a time, until the guide's lesson appears and is placed.
-    let card = tutorial.card(chapter.start, grid, 0, false, puzzle)
+    let card = tutorial.card(puzzle, grid, 0, false)
     const order = puzzle.solution.flatMap((row, r) => row.map((_, c) => [r, c])).filter(([r, c]) => grid[r][c] === null)
     while (card.step === 'practice') {
-      assert.ok(card.because.length, `${chapter.name}: the clues to watch are ringed`)
+      assert.ok(card.because.length, `${kind}: the clues to watch are ringed`)
       const [r, c] = order.shift()
       grid[r][c] = puzzle.solution[r][c]
-      card = tutorial.card(chapter.start, grid, 0, false, puzzle)
+      card = tutorial.card(puzzle, grid, 0, false)
     }
-    assert.equal(card.step, 'lesson', chapter.name)
+    assert.equal(card.step, 'lesson', kind)
     const { row, col } = card.target
     assert.equal(grid[row][col], null)
-    assert.ok(card.because.length, `${chapter.name}: the deciding clue is ringed`)
+    assert.ok(card.because.length, `${kind}: the deciding clue is ringed`)
     grid[row][col] = puzzle.solution[row][col]
-    assert.equal(tutorial.card(chapter.start, grid, 0, false, puzzle).step, 'outro')
+    assert.equal(tutorial.card(puzzle, grid, 0, false).step, 'outro')
     tutorial.next()
-    assert.equal(tutorial.card(chapter.start, grid, 0, false, puzzle), null)
+    assert.equal(tutorial.card(puzzle, grid, 0, false), null)
+    assert.ok(tutorial.isFinished(kind))
   }
+})
+
+test('a hard garden shows the guide for a clue not seen yet, and only one per garden', () => {
+  const hard = daily(1, 'hard')
+  const tutorial = new Tutorial(memoryStorage())
+  tutorial.finished.add(hard.kinds[0])
+  assert.equal(guideFor(hard, tutorial.finished), hard.kinds[1])
+  tutorial.card(hard, copyGrid(hard.puzzle), 0, false)
+  tutorial.finish()
+  assert.equal(tutorial.card(hard, copyGrid(hard.puzzle), 0, false), null, 'no second guide in the same garden')
+})
+
+test('opening a garden already finished leaves its guide waiting', () => {
+  const puzzle = firstWith('villages')
+  const tutorial = new Tutorial(memoryStorage())
+  assert.equal(tutorial.card(puzzle, copyGrid(puzzle.solution), 0, true), null)
+  assert.ok(!tutorial.isFinished('villages'))
 })
 
 test('replaying brings every guide back', () => {
   const storage = memoryStorage()
   const tutorial = new Tutorial(storage)
-  tutorial.card(TUTORIAL_LEVEL, copyGrid(garden.puzzle), 0, false)
+  tutorial.card(garden, copyGrid(garden.puzzle), 0, false)
   tutorial.finish()
-  tutorial.card(CHAPTERS[1].start, copyGrid(GARDENS[CHAPTERS[1].start].puzzle), 0, false, GARDENS[CHAPTERS[1].start])
+  const villages = firstWith('villages')
+  tutorial.card(villages, copyGrid(villages.puzzle), 0, false)
   tutorial.finish()
   tutorial.restart()
   const again = new Tutorial(storage)
   assert.ok(!again.isFinished('basics') && !again.isFinished('villages'))
-})
-
-test('resetting all progress clears every garden', () => {
-  const game = new GardenGame(memoryStorage())
-  game.completed.push(0, 1, 2)
-  game.load(3)
-  game.place(...GARDENS[3].puzzle.flatMap((row, r) => row.map((v, c) => [r, c, v])).find(([, , v]) => v === null).slice(0, 2), 0)
-  game.resetAll()
-  assert.deepEqual(game.completed, [])
-  assert.equal(game.level, 0)
-  assert.deepEqual(Object.keys(game.grids), ['0'])
-  assert.equal(game.history.length, 0)
 })

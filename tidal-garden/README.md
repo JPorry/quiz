@@ -16,6 +16,7 @@ the network address printed by Vite.
 
 ```sh
 npm test
+npm run verify:days
 npm run build
 npm run test:visual
 npm run test:rendering
@@ -28,59 +29,81 @@ Screenshots and canvas diagnostics are written to `test-results/`.
 
 ## Screens
 
-The game has three screens, each a step in the browser's history, so a phone's
-back button walks back through them.
+Like Flower Patch and Tiny Isles, Tidal Garden is a daily puzzle: every day
+brings three new gardens, an easy, a medium and a hard one, and every earlier
+day stays open to play. A new day starts at the player's own midnight. Routes
+are hash based, so a phone's back gesture steps back through them.
 
-- **Title:** a soft dawn over a calm sea, drawn in SVG and animated with CSS
-  (`src/titleArt.js`). The sun glows low behind a little island with a
-  thatched hut, a blossom tree, and a lighthouse; a ferry crosses behind it,
-  distant isles sit on the horizon, and long clouds, gulls, smoke, petals,
-  and the waves all drift on the same left-to-right breeze, while a fish
-  leaps nose first now and then. The logo is set in Fraunces, above a Play
-  button and the number of gardens in balance, with buttons for settings and
-  the rules. Tall screens crop the picture's sides to
-  fill; wide ones fit it whole. The 3D garden rests while the title is up.
-- **Map:** one long winding path of stepping-stone islands, from garden 1 at
-  the bottom to garden 210 at the top, through a sea of its own color for each
-  chapter. A ribbon names each chapter, little illustrations drift beside the
-  path (islets, fish, huts, lighthouses, ferries, shrines, lanterns), finished
-  gardens are green with a check, the next open garden glows orange with a
-  pulse and a marker above it, and gardens further on stay locked until the
-  one before is finished. Tapping a garden brings up a card with its chapter,
-  name, and progress, and a Play, Continue, or Visit button. The map scrolls
-  to the marker when it opens, and the 3D scene rests while it covers it.
-- **Garden:** the game itself, laid out to give the board every pixel it can.
-  A slim bar on top holds a map button, a little pill with the garden's
-  number, chapter, name, time, and a progress bar, and a Settings button
-  (sound, tilt, and the rules live there). Below the board sits a single hint line, then a
-  dock with the three pieces and Undo, Hint, and Restart chips. On wide
-  screens (iPads and desktops held landscape) the dock stands beside the board
-  instead, so the board can use the full height; tablets get bigger pieces,
-  and short landscape phones a compact, icon-only dock. Finishing a
-  garden plays the finale; Onward returns to the map, where the marker hops
-  along to the garden that just opened and its card comes up.
+- **Title** (`#/`): the painted sea (`public/title-sea.webp`) fills the
+  screen, with the **Tidal Garden** logo (`public/title-logo.webp`, a separate
+  transparent image) in its sky and the buttons on the water. Everything
+  arrives in turn, and again each time the title is shown: the sea eases in,
+  the logo drops from above and lands with a squash and a wobble, the tagline
+  fades up, then **Play** (today's gardens), **How to play** (the tutorial) and
+  the Settings gear spring up. Afterwards the logo floats gently with a glint
+  of light sweeping across its letters now and then, and Play breathes.
+- **Today's gardens** (`#/daily`): over the painted sea, softened with a pale
+  wash and with petals and bubbles drifting by. A back button to the title,
+  the title in the logo's style, today's date, a flickering flame for the
+  streak (days in a row with a garden in balance), three little islands for
+  today that sprout once a garden is started and flower once it's in balance,
+  and today's three gardens as cards: the difficulty with one to three dots, a
+  little map of the garden, its name, its kinds of clue, and Play, Resume, or
+  its time once in balance. A greeting follows the day's progress, and
+  **Earlier days** shows how many past gardens are still to play.
+- **Earlier days** (`#/days`): a calendar, newest month first, weeks starting
+  on Monday. Each day has three dots for its gardens (green, gold and pink once
+  in balance, sandy once started); a day with all three in balance turns green,
+  and today is ringed. Tapping a day raises a sheet with its three cards.
+- **A garden** (`#/<day>/<difficulty>`): the game, laid out to give the board
+  every pixel it can. A slim bar on top holds Back, a pill with the
+  difficulty's dots, the day and difficulty, the garden's name, time, and a
+  progress bar, and a Settings button. Below the board sits a single hint
+  line, then a dock with the three pieces and Undo, Hint, and Restart chips.
+  On wide screens (iPads and desktops held landscape) the dock stands beside
+  the board instead, so the board can use the full height; tablets get bigger
+  pieces, and short landscape phones a compact, icon-only dock. Back returns to
+  wherever the garden was opened from. Finishing a garden plays the finale, and
+  its card offers the next garden still to play: the rest of that day, then
+  today's, then the latest earlier day with one open.
+
+Progress is kept in `localStorage` under `tidal-garden.daily`, per garden id
+`<day>-<difficulty>`: the gardens in balance with their times, and the tiles,
+undo history and time of the rest. Add `?play` to the address to go straight
+into today's easy garden, as the visual tests do.
 
 ## Guided gardens
 
-The first garden teaches the rules on the player's own board (`src/tutorial.js`).
-A coach card above the board takes one rule at a time (never three in a row,
-mind the gap, five and five), each on a real tile it decides, chosen near the
-front of the board. The piece to pick bounces, the tile to place pulses gold,
-and the tiles that decide it wear golden rings; a wrong tile there asks for
-Undo. It ends with the last rule and where Hint is. The first garden of every
-later chapter has a short guide of its own: it introduces the new clue
-(villages, lighthouses, ferries, pilgrims, crossings, the archipelago), then
-shows it deciding a tile, using the solver's simplest clue move. When the clue
-can't decide anything yet, the coach rings those clues and the player plays on
-until one does. Each guide can be skipped, ends when its garden is finished,
-and is remembered once done.
+The tutorial is a garden of its own, **First Light** (`src/tutorialGarden.js`,
+route `#/tutorial`). The first time a player opens any garden, they are taken to
+the tutorial first, and once it's done or skipped they go straight on to the
+garden they picked (the tutorial steps out of the history, so Back goes where
+it should). **How to play** on the title opens it too.
+
+A coach card above the board (`src/tutorial.js`) takes one rule at a time
+(never three in a row, mind the gap, five and five), each on a real tile it
+decides, chosen near the front of the board. The piece to pick bounces, the
+tile to place pulses gold, and the tiles that decide it wear golden rings; a
+wrong tile there asks for Undo. It ends with the last rule and where Hint is,
+and the finished tutorial's win card says **Let's play** and goes on to the
+garden picked.
+
+The first daily garden with a kind of clue the player hasn't been shown yet
+(villages, lighthouses, ferries or pilgrims) opens with a short guide of its
+own: it introduces the clue, then shows it deciding a tile, using the solver's
+simplest clue move. When the clue can't decide anything yet, the coach rings
+those clues and the player plays on until one does. A garden shows at most one
+guide, so a hard garden with two new clues saves the second for later. Each
+guide can be skipped, ends when its garden is finished, and is remembered once
+done (`tidal-garden.guides`).
 
 ## Settings
 
-The gear on the title, the map, and the garden's bar (and a button in the rules) opens Settings:
+The gear on the title, today's gardens, and the garden's bar (and a button in the rules) opens Settings:
 sliders for the music and sound-effect volumes (sliding to nothing switches
-one off), a switch for tilting with the phone, the rules, the language (English or Spanish), Replay the tutorial (the first
-garden is cleared for it, and every chapter guide returns), and Reset all
+one off), a switch for tilting with the phone, the rules, the language (English or Spanish), Replay the tutorial (the
+tutorial garden plays again, then returns to wherever the player was, and
+every clue's guide returns), and Reset all
 progress, which asks for confirmation before clearing every garden, time, and
 guide.
 
@@ -89,18 +112,15 @@ guide.
 The game speaks English and Spanish (Spain). Every word the player sees lives
 in a dictionary per language (`src/locales/en.js`, `src/locales/es.js`), read
 through `src/i18n.js`: `t('key', { values })` fills in `{placeholders}`, and the
-garden and chapter names have their own lists. The first visit follows the
+garden names have their own word lists per language in `src/gardenNames.js`,
+in the same order, so a garden's name is the same idea in each ("Pebble Cove"
+is «Cala de Guijarros»). The first visit follows the
 device's language; the picker in Settings changes it and reloads the game on
 the same screen, with Settings open. Anything a language hasn't translated
 falls back to English, and a test checks that every language has every
 string with the same placeholders. To add a language, copy `es.js`, translate
 it, and list it in `LANGUAGES`.
 
-For development, tapping the map's garden count seven times within three
-seconds opens every garden (and again closes them).
-
-Every visit opens on the title. Add `?play` to the URL to go straight into the
-current garden, as the visual tests do. The map's layout lives in `src/map.js`.
 
 ## Install as an app
 
@@ -108,7 +128,7 @@ Tidal Garden can be added to a phone's home screen and opens full screen like an
 app, with its own icon: on iOS, Share → Add to Home Screen; on Android, Install
 app from the browser's menu. `index.html` carries the home-screen icon, title,
 and status bar settings for iOS, and `public/manifest.webmanifest` describes the
-app for other browsers. The icon, the happy island under a smiling sun, is drawn
+app for other browsers. The icon, the little island at dawn, is drawn
 in `scripts/icon.svg`; `node scripts/render-icons.mjs` renders it into the
 favicons, the iOS icon, and the manifest's icons, including a maskable one.
 
@@ -130,16 +150,15 @@ use the F major pentatonic scale, wind chimes stir now and then, and on the
 title a flute breathes the odd long note. Beneath it the sea laps in slow,
 uneven swells with a hiss of foam as each breaks, a breeze comes and goes, and
 little songbirds sing now and then. Each screen has its own track: the title
-(kalimba), the map (music box, more birdsong), the garden (two longer, sparser
+(kalimba), the menus (music box, more birdsong), the garden (two longer, sparser
 kalimba tracks that take turns, the quietest), and the finale's evening
 (vibraphone, crickets instead of birds). Music streams through two decks that
 crossfade at the end of a track and between screens.
 
 The 43 sound effects are pitched in the same key, so they sit inside the music:
 a marimba tap and a bubble for buttons, a breeze between screens, a kalimba run
-and a celesta sparkle for Play, a marimba note for each garden on the map that
-climbs with its number, a woodblock knock for locked gardens, a pizzicato hop
-and a music-box cascade when a garden opens, bubbles, soft round boops with a
+and a celesta sparkle for Play, a marimba note for each garden card that
+climbs with its difficulty, bubbles, soft round boops with a
 kalimba note, and mist for the three pieces, a soft bloop and bubble with a kalimba
 note or a soft thump and pop with a marimba note for each placement (pitched by where the tile lands, so filling a
 row plays a little tune), a kalimba rewind for Undo, a celesta twinkle for a
@@ -157,9 +176,7 @@ remembered, and sound pauses while the page is hidden.
 
 ## Puzzle
 
-The game has seven chapters of thirty gardens each, 210 in all. The thirty
-gardens of the first chapter, the Shallows, are generated by
-`scripts/generate-gardens.mjs` as a gentle difficulty ramp. Water is `0`, land is `1`, and an empty tile is `null`.
+Water is `0`, land is `1`, and an empty tile is `null`.
 
 - Every row and column contains five of each terrain type.
 - Three identical terrain tiles cannot occur consecutively.
@@ -170,22 +187,34 @@ moves chain into each other and the rule that lines must differ is never
 needed. The moves, easiest first, are: a pair of equal tiles forces both ends,
 a gap between two equal tiles takes the other kind, a line with five of one
 kind takes the other kind everywhere else, and a line with only one balanced,
-triple-free way to finish forces its tiles. Gardens 1–8 need only pairs and
-gaps, counting arrives in garden 9, whole-line reasoning in garden 16, and the
-last gardens start sparse and lean on it more and more. The generator carves
-clues away only while that player-style solver can still finish, prefers
-gardens where several moves are usually open, and makes each garden harder than
-the last.
+triple-free way to finish forces its tiles. Clues add moves of their own (see
+below). The hint uses the same solver, pointing at the easiest move and saying
+why it works.
 
-Every chapter is built the same way, with the helpers in `scripts/chapter.mjs`:
-thirty levels in three stretches (a gentle one with only the chapter's own
-moves, pairs and gaps; one that adds counting; and a long climb that adds
-whole-line reasoning), starting tiles thinning out along each stretch, and the
-chapter's clues growing in number. Each generator gathers a pool of good
-gardens for every level, then picks one per level so that each garden is harder
-than the one before while the chapter flows as well as possible overall.
-Regenerate them with `npm run generate:gardens`. The hint uses the same solver,
-pointing at the easiest move and saying why it works.
+## Daily gardens
+
+`scripts/generate-days.mjs` (`npm run generate:days`) builds four hundred days
+of gardens from 7 October 2026, three a day, into `src/days.js`, read by
+`src/daily.js`, which also names each garden and works out today. Every garden
+is 10×10 and is seeded by its day and difficulty, so adding days never changes
+the ones already played. Each starts from a finished garden, sets out its clues
+so they never crowd each other, then carves starting tiles away for as long as
+a player could still solve it by always taking the easiest move. A garden is
+packed as its starting tiles and its clues; its answer is worked out by the
+same solver when it's opened. Generating takes about five minutes;
+`--tier=hard --json=hard.json` builds one difficulty on its own (run the three
+side by side) and `--merge=a,b,c` packs them together.
+
+| Difficulty | Clues | Starting tiles | Needs |
+| --- | --- | --- | --- |
+| Easy | none, balance alone | 42 | pairs, gaps and counting; one answer |
+| Medium | one kind, taking turns day by day: villages, lighthouses, ferries, pilgrims | about 26 | its clue at least twice, and can't be finished without it; no whole-line reasoning |
+| Hard | two or more kinds, taking turns through the mixes (all four now and then) | about 20 | every clue at least once, and at least two rounds of whole-line reasoning |
+
+`npm run verify:days` checks all 1,200 gardens (`npm test` checks the first
+month's): a player can finish each one by always taking the easiest step, its
+answer is balanced and keeps every clue, its starting tiles match the answer,
+and it is the difficulty it says it is.
 
 The starting tiles are the garden's old foundations. Starting land rises on
 blue-grey stone cliffs with a pale stone rim around its green top, where your
@@ -195,15 +224,12 @@ Starting water holds a gently deeper pool, rounded and darkest in the middle,
 that fades softly into the turquoise around it; neighboring starting water
 merges into one organic deep patch, so the sea never turns into a patchwork.
 Grey stone appears nowhere else, and each garden arranges its landmarks
-differently. Placement, erase, individual undo, reset
-confirmation, logical hints, garden selection, completion tracking, and
-per-garden saved grids and undo history are implemented. Optional placement
-sounds are synthesized locally. Keyboard terrain selection uses `0`/`W`,
-`1`/`L`, and `E`; the board supports focus and arrow navigation.
+differently. Keyboard terrain selection uses `0`/`W`, `1`/`L`, and `E`; the
+board supports focus and arrow navigation.
 
 ## The Villages
 
-After the Shallows, a second chapter of thirty adds census signs. A
+Village signs are one of the four kinds of clue. A
 little village sign on a starting land tile, a rounded cream board under a tiny
 thatched cap, shows how many land tiles its island holds.
 Each land tile you join to a signed island raises a little round straw hut,
@@ -220,16 +246,12 @@ sign. Villages keep their flowers but host no wild residents.
 The solver and hints know three village moves: a village that already holds its
 number is sealed by water, a village short of its number with a single way out
 must grow through it, and a gap that would join islands into a village bigger
-than its sign must be water. `scripts/generate-villages.mjs` builds the chapter
-into `src/villagePuzzles.js`: it signs a handful of a finished garden's smaller
-islands, carves starting tiles away while a player could still solve it by
-always taking the easiest move, and keeps the chapter climbing in difficulty.
-The map groups gardens by chapter, the caption names the chapter, and
-the chapter's first garden explains the signs.
+than its sign must be water. The generator signs a handful of a finished garden's smaller
+islands, each island wholly given over to its huts.
 
 ## The Lighthouses
 
-A third chapter of thirty adds lighthouses. A little red-and-white lighthouse on a
+Lighthouses are another kind of clue. A little red-and-white lighthouse on a
 starting land tile carries a numbered badge: the count of water tiles its light
 reaches looking straight up, down, left, and right before land or the board's
 edge stops it. While it is dark, soft breathing dots mark the water it already
@@ -246,15 +268,12 @@ only finished when every lighthouse is lit.
 The solver and hints know two lighthouse moves: a lighthouse that already sees
 its number has land at the end of every open beam, and when the other beams
 cannot make up its number, the light must carry further along this one, so the
-tiles it has to cross are water. `scripts/generate-lighthouses.mjs` builds the
-chapter into `src/lighthousePuzzles.js` the same way as the villages: it raises
-lighthouses on land tiles that see two to nine water tiles, carves starting
-tiles away while a player could still solve it by always taking the easiest
-move, and keeps the chapter climbing in difficulty.
+tiles it has to cross are water. The generator raises lighthouses on land
+tiles that see two to eight water tiles.
 
 ## The Ferries
 
-A fourth chapter of thirty adds ferries. Little wooden docks stand on starting
+Ferries are the third kind of clue. Little wooden docks stand on starting
 land tiles in pairs, each a ticket hut on the grass under a colored roof, with a
 little porch, a lifebuoy,
 and a fluttering pennant. Docks with matching roofs must end up joined by water,
@@ -272,16 +291,12 @@ that can no longer be joined is marked like any other mistake, and a garden is
 only finished when every pair is joined.
 
 The solver and hints know one ferry move: a tile that every remaining way
-between two matching docks has to cross must be water.
-`scripts/generate-ferries.mjs` builds the chapter into `src/ferryPuzzles.js`:
-it sets out two to four pairs of docks on shore tiles joined by long crossings,
-carves starting tiles away while a player could still solve it by always taking
-the easiest move, keeps carving until the ferries are needed, and keeps the
-chapter climbing in difficulty.
+between two matching docks has to cross must be water. The generator sets out
+pairs of docks on shore tiles joined by long crossings.
 
-## The Pilgrims and the Crossings
+## The Pilgrims
 
-A fifth chapter of thirty adds pilgrims. Little shrines stand on starting land
+Pilgrims are the fourth kind of clue. Little shrines stand on starting land
 tiles in pairs: a wooden hall under a colored roof on a stone step, a tiny red
 gate in front, and a paper lantern glowing in the pair's color (rose, mint,
 amber, or violet). Shrines with matching lanterns must end up on the same
@@ -302,27 +317,17 @@ path already joined finds its pilgrim resting at one of its shrines.
 
 The solver and hints know one pilgrim move, the ferries' move turned around: a
 tile that every remaining way between two matching shrines has to cross must be
-land. A sixth chapter of thirty, the Crossings, mixes docks and shrines in the same
-gardens, so water has to join some pairs while land joins others.
-`scripts/generate-pilgrims.mjs --output` builds both chapters into
-`src/pilgrimPuzzles.js` and `src/crossingPuzzles.js`: it gathers a pool of
-gardens for every level whose clues all carry weight, then picks one per level
-so that each is harder than the last while flowing as well as possible.
+land. Hard gardens can mix docks and shrines, so water has to join some pairs
+while land joins others.
 
-## The Archipelago
+## Mixed clues
 
-The seventh and last chapter of thirty mixes everything before it: village
-signs, lighthouses, ferry docks, and pilgrims' shrines. Its first ten gardens
-each pair up two or three kinds of clue, cycling through the mixes, and the
-other twenty carry all four at once, more of each as the chapter climbs. Every
-clue keeps its own rules and its own
-celebration, and the hints reach for whichever move is easiest.
-`scripts/generate-archipelago.mjs --output` builds it into
-`src/archipelagoPuzzles.js`. Clues are set out so they never crowd each other:
-a signed island fills with huts, so it carries no other clue (and no pilgrims'
-path crosses it), and every other clue keeps a tile's distance from the rest.
-Every kind of clue a garden carries has to pull its weight in the solve, and the
-chapter is picked from a pool per level to climb steadily in difficulty.
+Hard gardens mix two or more kinds of clue. Every clue keeps its own rules and
+its own celebration, and the hints reach for whichever move is easiest. Clues
+are set out so they never crowd each other (`chooseClues` in
+`scripts/garden-kit.mjs`): a signed island fills with huts, so it carries no
+other clue (and no pilgrims' path crosses it), and every other clue keeps a
+tile's distance from the rest.
 
 ## Art
 
@@ -435,7 +440,7 @@ water. The camera lifts to 38 degrees and slowly turns the island, framed to
 fit the whole tray at any angle. The sun keeps going past golden hour into a
 low sunset and a blue evening, fireflies come out over the land, paper lanterns
 float up in open water, and a small flock sweeps in, circles the island, and
-flies off. A small card then offers the way onward, back to the map; on wide
+flies off. A small card then offers the way onward, to the next garden still to play; on wide
 screens it sits on the left. Dragging turns the island by hand; tapping or pressing
 a key brings the card forward early. "Stay a little longer" (or Escape) lowers
 the camera back to the board and brings the interface back, and "See it at

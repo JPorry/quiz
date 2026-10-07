@@ -2,15 +2,18 @@ import { chromium } from '@playwright/test'
 import { PNG } from 'pngjs'
 import { mkdirSync } from 'node:fs'
 import assert from 'node:assert/strict'
-import { PUZZLES } from '../src/puzzles.js'
+import { puzzle as dailyGarden, today } from '../src/daily.js'
+
+// ?play opens today's easy garden, so the fixtures are that garden.
+const FIXTURE = dailyGarden(today(), 'easy')
 import { HABITATS } from '../src/wildlife.js'
 
-// ?play skips the title and map and opens straight into the garden.
+// ?play skips the title and the menus and opens straight into today's easy garden.
 const url = `${process.env.TIDAL_TEST_URL ?? 'http://127.0.0.1:5180'}/?play`
 mkdirSync('test-results', { recursive: true })
 const browser = await chromium.launch({ headless: true, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-webgl'] })
 const errors = []
-const grid = PUZZLES[0].solution.map((row) => [...row])
+const grid = FIXTURE.solution.map((row) => [...row])
 grid[0][0] = null
 
 try {
@@ -18,9 +21,9 @@ try {
     console.log(`Checking thriving garden at ${width}px`)
     const context = await browser.newContext({ viewport: { width, height: width === 1440 ? 1000 : width === 390 ? 844 : 720 } })
     context.setDefaultTimeout(20000)
-    await context.addInitScript((grid) => {
-      localStorage.setItem('tidal-garden.v3', JSON.stringify({ version: 1, level: 0, completed: [], grids: { 0: { grid, history: [], seconds: 0 } } }))
-    }, grid)
+    await context.addInitScript(({ grid, id }) => {
+      localStorage.setItem('tidal-garden.daily', JSON.stringify({ version: 1, done: {}, grids: { [id]: { grid, history: [], seconds: 0 } } }))
+    }, { grid, id: FIXTURE.id })
     const page = await context.newPage()
     page.on('pageerror', (error) => errors.push(error.message))
     page.on('console', (message) => {
@@ -69,7 +72,7 @@ try {
     await context.close()
   }
   const quiet = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' })
-  await quiet.addInitScript((grid) => localStorage.setItem('tidal-garden.v3', JSON.stringify({ version: 1, level: 0, completed: [], grids: { 0: { grid, history: [], seconds: 0 } } })), grid)
+  await quiet.addInitScript(({ grid, id }) => localStorage.setItem('tidal-garden.daily', JSON.stringify({ version: 1, done: {}, grids: { [id]: { grid, history: [], seconds: 0 } } })), { grid, id: FIXTURE.id })
   const page = await quiet.newPage()
   await page.clock.install()
   await page.goto(url)

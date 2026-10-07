@@ -3,6 +3,9 @@
 // to the other over land, moving up, down, left and right.
 // Each pilgrimage is { color, shrines: [[row, col], [row, col]] }.
 
+// Each pair of shrines has its own lantern color, in this order.
+export const PILGRIM_COLORS = Object.freeze(['rose', 'mint', 'amber', 'violet'])
+
 const NEIGHBORS = [[-1, 0], [1, 0], [0, -1], [0, 1]]
 const isLand = (value) => value === 1
 const landOrOpen = (value) => value !== 0
