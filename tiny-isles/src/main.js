@@ -71,7 +71,7 @@ document.querySelector('#app').innerHTML = `
   <div class="app" id="shell" data-screen="title">
     <section class="titlepage enter" id="titlepage">
       <img class="titlebg" src="title-sea.webp" alt="" draggable="false" aria-hidden="true">
-      <h1 class="logo"><img src="title-logo.webp" alt="Tiny Isles" width="900" height="448" draggable="false"><i class="glint" aria-hidden="true" style="-webkit-mask-image:url(title-logo.webp);mask-image:url(title-logo.webp)"></i></h1>
+      <h1 class="logo"><img src="title-logo.webp" alt="Tiny Isles" width="900" height="449" draggable="false"><i class="glint" aria-hidden="true" style="-webkit-mask-image:url(title-logo.webp);mask-image:url(title-logo.webp)"></i></h1>
       <div class="titlespace"></div>
       <p class="tagline">Little islands. Lovely bridges.</p>
       <nav class="titlebuttons">

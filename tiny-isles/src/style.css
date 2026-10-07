@@ -85,7 +85,7 @@ header { display: flex; align-items: center; gap: 6px; min-width: 0; padding: ma
 /* the painting is enlarged a little from its top edge, so its island cluster sits
    lower and the logo floats over open water above it */
 .titlebg { position: absolute !important; z-index: 0 !important; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 50%; pointer-events: none; transform: scale(1.14); transform-origin: 50% 0; }
-.logo { flex: none; margin: -4px 0 0; width: min(300px, 76vw, 40vh); aspect-ratio: 2 / 1; transform-origin: 50% 90%; }
+.logo { flex: none; margin: clamp(10px, 1.8vh, 16px) 0 0; width: min(290px, 74vw, 38vh); aspect-ratio: 2 / 1; transform-origin: 50% 90%; }
 .logo img { width: 100%; height: 100%; display: block; filter: drop-shadow(0 8px 10px rgba(20, 50, 80, .3)); animation: logo-float 4.5s ease-in-out 2.2s infinite; transform-origin: 50% 90%; }
 @keyframes logo-float { 0%, 100% { transform: translateY(0) rotate(0deg); } 30% { transform: translateY(-5px) rotate(-1.2deg); } 70% { transform: translateY(-2px) rotate(1deg); } }
 /* a glint of sunlight sweeps across the letters now and then */
