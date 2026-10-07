@@ -1,2 +1,5 @@
 # Preserve the generated legacy demo exactly and keep bundled code out of diffs.
 public/flower-patch/assets/* -text -diff linguist-generated=true
+
+# Preserve the exact generated demo, including embedded Three.js shader strings.
+public/tiny-isles/** linguist-generated=true -whitespace
