@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Hamster Hideaway: title painting</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600&display=swap" rel="stylesheet" />
+<style>
+  html, body { margin: 0; height: 100%; background: radial-gradient(120% 70% at 50% 40%, #fff3ea 0%, #fde9dd 55%, #f8d3bf 100%); }
+  #stage { position: fixed; inset: 0; }
+</style>
+</head>
+<body>
+<!-- Renders the title screen's painting: a finished habitat, everyone tucked in.
+     Capture it at 941×1672 with ?capture and save it as public/title-habitat.webp. -->
+<div id="stage"></div>
+<script type="module">
+import { buildBoard, solve, status, TUBE, BEDDING } from '../src/logic.js'
+import { HabitatScene } from '../src/scene.js'
+
+const level = { width: 6, height: 6, rooms: [[0, 1, 3], [1, 4, 2], [2, 2, 1], [3, 0, 3], [4, 4, 3], [5, 1, 2]] }
+const board = buildBoard(level)
+const found = solve(board, { limit: 1 })[0]
+const scene = new HabitatScene(document.getElementById('stage'))
+scene.load(board, { seed: 5 })
+// the tank sits low, under where the logo floats
+scene.camera.setViewOffset(innerWidth, innerHeight, 0, -innerHeight * 0.06, innerWidth, innerHeight)
+scene.camera.zoom = 0.86
+scene.camera.updateProjectionMatrix()
+const cells = found ?? new Array(board.size).fill(BEDDING)
+scene.setState(cells, status(board, cells))
+for (let t = 0; t < 4; t += 1 / 30) scene.update(1 / 30)
+scene.rooms.forEach((r, k) => r.hamster.setAsleep(k % 2 === 0))
+scene.update(0.01)
+scene.render()
+window.__ready = Boolean(found)
+</script>
+</body>
+</html>

@@ -31,6 +31,7 @@ jobs:
             tidal-garden/package-lock.json
             bunny-burrows/package-lock.json
             tiny-isles/package-lock.json
+            hamster-hideaway/package-lock.json
 
       - name: Set up GitHub Pages
         uses: actions/configure-pages@v6
@@ -81,6 +82,25 @@ jobs:
 
       - name: Publish Tiny Isles under /tiny-isles/
         run: cp -R tiny-isles/dist dist/tiny-isles
+
+      - name: Install Hamster Hideaway dependencies
+        working-directory: hamster-hideaway
+        run: npm ci --no-audit --no-fund
+
+      - name: Test Hamster Hideaway
+        working-directory: hamster-hideaway
+        run: npm test
+
+      - name: Verify Hamster Hideaway's daily puzzles
+        working-directory: hamster-hideaway
+        run: npm run verify:levels
+
+      - name: Build Hamster Hideaway
+        working-directory: hamster-hideaway
+        run: npm run build
+
+      - name: Publish Hamster Hideaway under /hamster-hideaway/
+        run: cp -R hamster-hideaway/dist dist/hamster-hideaway
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5

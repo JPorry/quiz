@@ -95,7 +95,9 @@ The same deployment builds the standalone Tidal Garden project in
 `tidal-garden/` and publishes it under `/tidal-garden/` on the same site. Bunny Burrows,
 in `bunny-burrows/`, is built (after its tests pass) and published under
 `/bunny-burrows/` the same way. Tiny Isles, in `tiny-isles/`, is
-published under `/tiny-isles/` the same way.
+published under `/tiny-isles/` the same way, and Hamster Hideaway, in
+`hamster-hideaway/`, under `/hamster-hideaway/` (after its tests pass and its
+daily puzzles are verified).
 
 ## Flower Patch
 
