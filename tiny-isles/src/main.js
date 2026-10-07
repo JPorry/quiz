@@ -1,7 +1,7 @@
 import { buildBoard, blockedBy, degrees, solve, status as boardStatus } from './logic.js'
 import { TIERS, TIER_NAMES, puzzle, today, dayOf, dayLabel, dateOf } from './puzzles.js'
 import { IslandScene } from './scene.js'
-import { Sounds } from './sounds.js'
+import { HarborAudio } from './audio.js'
 import { TouchFx } from './touch.js'
 import './style.css'
 
@@ -23,6 +23,7 @@ const ICON = {
   shell: '<path d="M12 20c-4.5 0-8-3.4-8-7.5C4 8 7.6 4 12 4s8 4 8 8.5c0 4.1-3.5 7.5-8 7.5z"/><path d="M12 20V8M8.5 19l1.5-9.5M15.5 19 14 9.5M5.5 16.5 8 11M18.5 16.5 16 11"/>',
   flame: '<path d="M12 3c1 3.5 5 5.5 5 10a5 5 0 0 1-10 0c0-2.2 1-3.8 2.3-5 .2 1.7 1 2.8 2.2 3.2C11 9 10.8 6 12 3z"/>',
   sound: '<path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/>',
+  music: '<path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>',
   mute: '<path d="M11 5 6 9H2v6h4l5 4z"/><path d="m22 9-6 6M16 9l6 6"/>',
 }
 const icon = (name) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[name]}</svg>`
@@ -84,6 +85,10 @@ document.querySelector('#app').innerHTML = `
         </div>
       </section>
     </div>
+    <div class="soundmenu" id="soundmenu" hidden>
+      <button class="toggle" id="toggle-music" aria-pressed="true">${icon('music')}<span>Music</span><i></i></button>
+      <button class="toggle" id="toggle-fx" aria-pressed="true">${icon('sound')}<span>Sounds</span><i></i></button>
+    </div>
   </div>`
 const $ = (id) => document.getElementById(id)
 
@@ -96,7 +101,7 @@ function loadSaved() {
 const saved = loadSaved()
 const save = () => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(saved)) } catch { /* private windows */ } }
 
-const sounds = new Sounds()
+const audio = new HarborAudio()
 const scene = new IslandScene($('stage'))
 const touch = new TouchFx($('stage'))
 // every plank that lands plinks a little higher than the last
@@ -105,14 +110,14 @@ scene.onPlank = (along) => {
   const now = performance.now()
   if (now - lastPlank < 45) return
   lastPlank = now
-  sounds.lay(along)
+  audio.play(`plank-${Math.min(7, Math.floor(along * 8))}`)
 }
-scene.onOpen = (lanes) => sounds.open(lanes)
+scene.onOpen = (lanes) => audio.play(`open-${lanes}`)
 
 /* ---------- the home screen ---------- */
 
 let current = null // the puzzle being played
-let board, counts, history, won, built, tiers
+let board, counts, history, won, tiers, happyCount = 0
 
 const state = (id) => (saved.done[id] ? 'done' : saved.progress[id]?.some((n) => n) ? 'started' : 'new')
 
@@ -258,7 +263,7 @@ function openDay(day) {
   $('daysheet').hidden = false
 }
 
-const play = (day, tier) => { sounds.unlock(); location.hash = `#/${day}/${tier}` }
+const play = (day, tier) => { audio.unlock(); audio.play('tap'); location.hash = `#/${day}/${tier}` }
 $('labels').addEventListener('click', (ev) => {
   const b = ev.target.closest('[data-tier]')
   if (b) play(b.dataset.day, b.dataset.tier)
@@ -269,11 +274,11 @@ $('cards').addEventListener('click', (ev) => {
 })
 $('months').addEventListener('click', (ev) => {
   const c = ev.target.closest('.cell[data-day]')
-  if (c) { sounds.unlock(); sounds.press(); openDay(Number(c.dataset.day)) }
+  if (c) { audio.unlock(); audio.play('swoosh'); openDay(Number(c.dataset.day)) }
 })
-$('open-days').onclick = () => { sounds.unlock(); location.hash = '#/days' }
-$('days-back').onclick = () => { location.hash = '' }
-$('sheetclose').onclick = () => { $('daysheet').hidden = true }
+$('open-days').onclick = () => { audio.unlock(); audio.play('tap'); location.hash = '#/days' }
+$('days-back').onclick = () => { audio.play('back'); location.hash = '' }
+$('sheetclose').onclick = () => { audio.play('back'); $('daysheet').hidden = true }
 $('daysheet').onclick = (ev) => { if (ev.target === $('daysheet')) $('daysheet').hidden = true }
 
 /* ---------- moving between screens ---------- */
@@ -288,16 +293,18 @@ function route() {
   const was = $('shell').dataset.screen
   $('shell').dataset.screen = screen
   if (screen === 'game') {
-    if (was !== 'game') backTo = was === 'days' ? '#/days' : ''
+    if (was !== 'game') { backTo = was === 'days' ? '#/days' : ''; audio.play('start', { at: 0.1 }) }
+    audio.setMood('play')
     scene.mount($('stage'))
     start(day, m[2])
     return
   }
   current = null
+  audio.setMood(screen)
   if (screen === 'days') { $('daysheet').hidden = true; drawDays() } else drawHome()
 }
 addEventListener('hashchange', route)
-$('home-button').onclick = () => { location.hash = backTo }
+$('home-button').onclick = () => { audio.play('back'); location.hash = backTo }
 
 /* ---------- playing a puzzle ---------- */
 
@@ -309,8 +316,8 @@ function start(day, tier) {
   counts = kept && kept.length === board.edges.length ? kept.slice() : board.edges.map(() => 0)
   history = []
   won = Boolean(solved)
-  built = 0
   tiers = board.burrows.map(() => 0)
+  happyCount = 0
   $('win').hidden = true
   $('name').textContent = current.name
   $('game').dataset.tier = tier
@@ -333,10 +340,16 @@ function refresh(quiet = false) {
   const d = degrees(board, counts)
   const st = boardStatus(board, counts)
   const next = board.burrows.map((b) => Math.min(8, d[b.index]))
-  if (!quiet) next.forEach((t, i) => { if (t > tiers[i]) sounds.grow(t) })
+  // a city growing sparkles, higher for bigger cities (only the biggest jump plays)
+  const grew = next.reduce((top, t, i) => (t > tiers[i] ? Math.max(top, t) : top), 0)
+  if (!quiet && grew) audio.play(`grow-${grew}`, { at: 0.12 })
   tiers = next
   // a fog island gives nothing away: it only turns happy when the fog lifts on a win
   const happy = (b) => (b.fog ? won : d[b.index] === b.value)
+  // each island that gets exactly its number dings, a step higher each time
+  const happyNow = board.burrows.filter((b) => !b.fog && happy(b)).length
+  if (!quiet && !won && happyNow > happyCount) audio.play(`happy-${Math.min(6, happyNow - 1)}`, { at: 0.2 })
+  happyCount = happyNow
   scene.setIslands(board.burrows.map((b) => ({ tier: next[b.index], have: d[b.index], done: happy(b), over: !b.fog && d[b.index] > b.value, fog: b.fog && !won })))
   scene.setBridges(counts)
   const known = board.burrows.filter((b) => !b.fog)
@@ -353,7 +366,7 @@ function apply(edge, next) {
   if (!before && next) {
     const blocker = blockedBy(board, counts, edge)
     if (blocker !== undefined) {
-      sounds.bonk()
+      audio.play('bonk')
       buzz([10, 40, 10])
       scene.shakeBridge(blocker)
       say("Bridges can't cross. Take the other one down first.")
@@ -366,7 +379,8 @@ function apply(edge, next) {
   const e = board.edges[edge]
   scene.bounce(e.a)
   scene.bounce(e.b)
-  if (next > before) { sounds.build(++built); buzz(12) } else { sounds.splash(); buzz(8) }
+  if (next > before) buzz(12)
+  else { audio.play('splash'); buzz(8) }
   const st = refresh()
   const d = st.degree
   if ([e.a, e.b].some((i) => !board.burrows[i].fog && d[i] > board.burrows[i].value)) say('That island has more bridges than its number. Swipe across a bridge to take it down.')
@@ -406,7 +420,8 @@ function win() {
   const shown = current.id
   setTimeout(() => {
     if (current?.id !== shown) return
-    sounds.win()
+    audio.play('win')
+    audio.duck(5)
     scene.celebrate()
     setTimeout(() => {
       if (current?.id !== shown) return
@@ -432,13 +447,14 @@ const canvas = scene.renderer.domElement
 canvas.style.touchAction = 'none'
 
 canvas.addEventListener('pointerdown', (ev) => {
-  sounds.unlock()
+  audio.unlock()
   const p = scene.toWorld(ev.clientX, ev.clientY)
   if (!p) return
   if (!current) {
     // on the home screen, tapping one of today's islands opens its puzzle
     const island = scene.islandAt(p)
-    if (island !== null) { scene.bounce(island); sounds.press(); setTimeout(() => play(today(), TIERS[island]), 180) }
+    if (island !== null) { scene.bounce(island); audio.play('press'); setTimeout(() => play(today(), TIERS[island]), 180) }
+    else audio.play(`drip-${Math.floor(Math.random() * 4)}`)
     return
   }
   if (won) return
@@ -446,7 +462,7 @@ canvas.addEventListener('pointerdown', (ev) => {
   const island = scene.islandAt(p)
   drag = { id: ev.pointerId, island, start: p, last: p, cut: new Set(), sx: ev.clientX, sy: ev.clientY, moved: false, edge: null, progress: 0, shown: 0, snapped: false }
   touch.ripple(ev.clientX, ev.clientY, island !== null)
-  if (island !== null) { scene.bounce(island); sounds.press() } else touch.startSwipe(ev.clientX, ev.clientY)
+  if (island !== null) { scene.bounce(island); audio.play('press') } else touch.startSwipe(ev.clientX, ev.clientY)
 })
 
 canvas.addEventListener('pointermove', (ev) => {
@@ -483,7 +499,7 @@ function cutAcross(from, to, ev) {
     const [a, b] = scene.ends(e.index)
     if (!crosses(from, to, a, b)) continue
     drag.cut.add(e.index)
-    sounds.snip()
+    audio.play('snip')
     touch.cut(ev.clientX, ev.clientY)
     scene.droplets(to, 6)
     apply(e.index, 0)
@@ -497,7 +513,7 @@ function endDrag(ev) {
   if (d.island !== null && d.moved) {
     // a snapped bridge opens right where it was dragged out
     if (d.snapped && d.edge !== null) apply(d.edge, (counts[d.edge] + 1) % 3)
-    else if (d.edge !== null && d.shown > 0.05) sounds.undo()
+    else if (d.edge !== null && d.shown > 0.05) audio.play('back')
     scene.setPreview(null)
     return
   }
@@ -516,12 +532,13 @@ function endDrag(ev) {
       if (dir) return void apply(board.neighbors[from][dir], (counts[board.neighbors[from][dir]] + 1) % 3)
     }
     selected = selected === island ? null : island
-    if (selected !== null) { scene.bounce(island); sounds.press() }
+    if (selected !== null) { scene.bounce(island); audio.play('press') }
     return
   }
   const t = scene.bridgeAt(d.start)
   selected = null
   if (t !== null) apply(t, (counts[t] + 1) % 3)
+  else audio.play(`drip-${Math.floor(Math.random() * 4)}`) // a tap on the open sea
 }
 canvas.addEventListener('pointerup', endDrag)
 canvas.addEventListener('pointercancel', (ev) => { if (drag?.id === ev.pointerId) { drag = null; scene.setPreview(null) } })
@@ -533,7 +550,7 @@ function updateDrag(dt) {
   if (n === 2) {
     // a third drag takes the bridge down: no preview, just the snap
     const want = drag.progress > 0.55
-    if (want && !drag.snapped) { drag.snapped = true; sounds.snap(); buzz(8) }
+    if (want && !drag.snapped) { drag.snapped = true; audio.play('snap'); buzz(8) }
     if (!want) drag.snapped = false
     scene.setPreview(null)
     return
@@ -544,7 +561,7 @@ function updateDrag(dt) {
   drag.shown += (target - drag.shown) * (1 - Math.exp(-dt * (snap ? 20 : 15)))
   if (snap && !drag.snapped) {
     drag.snapped = true
-    sounds.snap()
+    audio.play('snap')
     buzz(8)
     const e = board.edges[drag.edge]
     scene.bounce(e.a === drag.island ? e.b : e.a)
@@ -559,7 +576,7 @@ $('undo').onclick = () => {
   const [edge, before] = history.pop()
   counts[edge] = before
   keep()
-  sounds.undo()
+  audio.play('undo')
   refresh()
 }
 let armed = false
@@ -573,6 +590,7 @@ $('restart').onclick = () => {
   }
   armed = false
   label.textContent = 'Restart'
+  audio.play('restart')
   // a solved puzzle stays solved; restarting just clears the board to play again
   delete saved.progress[current.id]
   const solved = saved.done[current.id]
@@ -581,8 +599,28 @@ $('restart').onclick = () => {
   if (solved) saved.done[current.id] = solved
   save()
 }
-const syncSound = () => { for (const id of ['sound', 'sound2']) $(id).innerHTML = icon(sounds.enabled ? 'sound' : 'mute') }
-for (const id of ['sound', 'sound2']) $(id).onclick = () => { sounds.unlock(); sounds.enabled = !sounds.enabled; syncSound() }
+// The speaker button opens a little menu with the music and the sounds, each its own switch.
+function syncSound() {
+  for (const id of ['sound', 'sound2']) $(id).innerHTML = icon(audio.music || audio.effects ? 'sound' : 'mute')
+  $('toggle-music').setAttribute('aria-pressed', audio.music)
+  $('toggle-fx').setAttribute('aria-pressed', audio.effects)
+}
+for (const id of ['sound', 'sound2']) {
+  $(id).onclick = (ev) => {
+    ev.stopPropagation()
+    audio.unlock()
+    const menu = $('soundmenu')
+    if (!menu.hidden) { menu.hidden = true; return }
+    const r = $(id).getBoundingClientRect()
+    menu.style.top = `${r.bottom + 8}px`
+    menu.style.right = `${innerWidth - r.right}px`
+    menu.hidden = false
+    audio.play('tap')
+  }
+}
+$('toggle-music').onclick = () => { audio.setMusic(!audio.music); audio.play('tap'); syncSound() }
+$('toggle-fx').onclick = () => { audio.setEffects(!audio.effects); audio.play('tap'); syncSound() }
+addEventListener('pointerdown', (ev) => { if (!ev.target.closest('#soundmenu, #sound, #sound2')) $('soundmenu').hidden = true })
 syncSound()
 addEventListener('keydown', (ev) => { if ((ev.ctrlKey || ev.metaKey) && ev.key === 'z' && current) $('undo').click() })
 
@@ -625,7 +663,7 @@ requestAnimationFrame(frame)
 
 // Hooks for the visual tests.
 window.__isles = {
-  scene, apply, touch,
+  scene, apply, touch, audio,
   start(day, tier) { location.hash = `#/${day}/${tier}`; route() },
   home() { location.hash = ''; route() },
   get counts() { return counts },
