@@ -6,7 +6,8 @@
   ],
   "ignorePatterns": [
     "public/flower-patch/**",
-    "public/**"
+    "public/tiny-isles/**",
+    "public/tidal-garden/**"
   ],
   "rules": {
     "react/rules-of-hooks": "error",
