@@ -28,7 +28,6 @@ jobs:
           cache: npm
           cache-dependency-path: |
             package-lock.json
-            tidal-garden/package-lock.json
             bunny-burrows/package-lock.json
             hamster-hideaway/package-lock.json
 
@@ -40,25 +39,6 @@ jobs:
 
       - name: Build
         run: npm run build
-
-      - name: Install Tidal Garden dependencies
-        working-directory: tidal-garden
-        run: npm ci --no-audit --no-fund
-
-      - name: Test Tidal Garden
-        working-directory: tidal-garden
-        run: npm test
-
-      - name: Verify Tidal Garden's daily gardens
-        working-directory: tidal-garden
-        run: npm run verify:days
-
-      - name: Build Tidal Garden
-        working-directory: tidal-garden
-        run: npm run build
-
-      - name: Publish Tidal Garden under /tidal-garden/
-        run: cp -R tidal-garden/dist dist/tidal-garden
 
       - name: Install Bunny Burrows dependencies
         working-directory: bunny-burrows

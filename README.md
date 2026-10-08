@@ -91,9 +91,7 @@ For the first deployment:
 
 The published URL will be shown in the completed deployment job.
 
-The same deployment builds the standalone Tidal Garden project in
-`tidal-garden/` and publishes it under `/tidal-garden/` on the same site. Bunny Burrows,
-in `bunny-burrows/`, is built (after its tests pass) and published under
+The same deployment builds Bunny Burrows, in `bunny-burrows/`, is built (after its tests pass) and published under
 `/bunny-burrows/` the same way. Hamster Hideaway, in `hamster-hideaway/`, is
 published under `/hamster-hideaway/` the same way (after its tests pass and its
 daily puzzles are verified).
@@ -122,3 +120,14 @@ The existing `/tiny-isles/` web demo remains available as a static snapshot in
 this snapshot into the Pages build; further development happens in the new
 repository. The snapshot keeps the existing browser save namespace. Only its page title and
 logo accessibility label were corrected to Tiny Islands after extraction.
+
+## Tidal Garden
+
+Tidal Garden now lives in [JPorry/tidal-garden](https://github.com/JPorry/tidal-garden).
+Its source, assets, daily puzzles, generators, tests, and subproject history have
+moved there. The standalone repository includes its Capacitor iOS app.
+
+The existing `/tidal-garden/` demo remains as a static snapshot in
+`public/tidal-garden/`, built from quiz commit
+`ae9a902ced93ca32c84887049a88804c014c5fdb` (standalone `4db7ec6`).
+Vite copies it into the Pages build; future game development happens in the new repo.
